@@ -84,3 +84,41 @@ ruff check app tests alembic
 - 每次提交前检查 `git status`，确保 `.env`、数据、数据库、索引、PDF 和密钥未进入暂存区。
 
 R0 的详细边界与后续事项见 `docs/R0_SCOPE.md` 和 `docs/R0_BACKLOG.md`。
+
+## 云端模型最小调用
+
+统一客户端使用 OpenAI 兼容的非流式 `POST /chat/completions` 接口。先在本地 `.env` 中选择并配置一个供应商；真实密钥不得写入 `.env.example` 或提交到 Git。
+
+OpenAI 示例：
+
+```dotenv
+DEFAULT_MODEL_PROVIDER=openai
+OPENAI_API_KEY=<your-api-key>
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=<your-model-name>
+LLM_TIMEOUT_SECONDS=30
+```
+
+OpenRouter 示例：
+
+```dotenv
+DEFAULT_MODEL_PROVIDER=openrouter
+OPENROUTER_API_KEY=<your-api-key>
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL=<your-model-name>
+LLM_TIMEOUT_SECONDS=30
+```
+
+确认账户权限和可能产生的费用后，执行一次手工 Smoke Test：
+
+```bash
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m scripts.r0_test_cloud_llm
+```
+
+真实集成测试默认跳过。只有显式授权一次真实请求时才设置开关：
+
+```bash
+RUN_CLOUD_LLM_TEST=1 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m pytest tests/integrations/test_cloud_llm.py
+```
+
+错误模型名应返回 `llm_model_not_found`；无效密钥应返回 `llm_authentication_error`。客户端不会在日志或异常信息中记录密钥、消息正文或供应商响应正文。

@@ -27,8 +27,12 @@ class Settings(BaseSettings):
     DEFAULT_MODEL_PROVIDER: Literal["openai", "ollama", "openrouter"] = "openai"
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    OPENROUTER_MODEL: str = ""
+    LLM_TIMEOUT_SECONDS: float = 30.0
 
     SEARCH_TOP_K: int = 5
     RERANK_TOP_K: int = 5
