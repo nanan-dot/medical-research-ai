@@ -27,7 +27,7 @@ dev = [
     "ruff>=0.12.0",
 ]
 rag = [
-    "paper-qa>=5.0",
+    "paper-qa==2026.3.18",
     "faiss-cpu>=1.8.0",
     "rank-bm25>=0.2.2",
     "openai>=1.30.0",

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = ""
     OLLAMA_TIMEOUT_SECONDS: float = 120.0
+    PAPERQA_VERSION: str = "2026.3.18"
+    PAPERQA_EMBEDDING_MODEL: str = "nomic-embed-text"
+    PAPERQA_TIMEOUT_SECONDS: float = 300.0
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = ""

@@ -163,3 +163,33 @@ RUN_OLLAMA_TEST=1 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-rese
 ## PaperQA2 独立实验
 
 R0-WP05 在业务系统外验证固定版本 `paper-qa==2026.3.18`。实验使用本地 Ollama `qwen3:4b` 和 `nomic-embed-text`，处理公开 PLOS Medicine PDF，并验证来源、页范围和本地索引复用。安装、运行、人工核对和已知限制见 `experiments/paperqa2_r0/README.md`。
+
+## PaperQA2 适配器
+
+R0-WP06 通过 `app.integrations.paperqa2` 隔离 PaperQA2。业务代码只接收 `PaperQAIndex`、`PaperQAAnswer` 和 `PaperSource`，不会接触 `Docs`、`PQASession` 或其他外部类型。同步耗时边界通过工作线程运行，避免阻塞 FastAPI 事件循环。
+
+```dotenv
+PAPERQA_VERSION=2026.3.18
+PAPERQA_EMBEDDING_MODEL=nomic-embed-text
+PAPERQA_TIMEOUT_SECONDS=300
+```
+
+最小调用：
+
+```python
+from app.integrations.paperqa2 import PaperDocument, create_paperqa2_client
+
+client = create_paperqa2_client()
+index = await client.index_documents([PaperDocument(path="data/paper.pdf")])
+answer = await client.ask(index, "What does the paper report?")
+print(answer.model_dump_json(indent=2))
+```
+
+适配器索引当前为进程内状态：相同文件路径和 SHA-256 在同一客户端实例中返回同一索引标识，并设置 `reused=true`；进程重启后需要重新索引。真实 PDF 集成测试只使用本地 Ollama，须在安装固定 PaperQA2 的隔离环境中显式运行：
+
+```powershell
+$env:PYTHONPATH=''
+$env:RUN_PAPERQA2_TEST='1'
+$env:OLLAMA_MODEL='qwen3:4b'
+& C:\Users\ADMIN\.paperqa-codex-venv\Scripts\python.exe -m pytest tests\integrations\test_paperqa2_adapter_integration.py -q -s
+```
