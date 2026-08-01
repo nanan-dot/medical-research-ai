@@ -2,13 +2,25 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
 from app.core.database import get_session
+from app.modules.health.schema import HealthStatus
 from app.modules.health.service import HealthService
 
 router = APIRouter(prefix="/health", tags=["健康检查"])
 
 
-@router.get("")
+@router.get("", response_model=HealthStatus)
+async def get_health_status() -> HealthStatus:
+    return HealthStatus(
+        status="ok",
+        app=settings.APP_NAME,
+        version=settings.APP_VERSION,
+    )
+
+
+@router.get("/records")
 async def list_health(
     offset: int = 0,
     limit: int = 20,

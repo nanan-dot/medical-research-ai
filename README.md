@@ -53,6 +53,30 @@ git status --short --branch
 
 预期分支为 `feature/r0-wp01-baseline`。`git check-ignore` 应输出所有测试路径；测试和 Alembic 检查应成功。
 
+## FastAPI、SQLite 与 Alembic
+
+启动服务：
+
+```bash
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m uvicorn app.main:app --reload
+```
+
+启动后访问：
+
+- 健康检查：`http://127.0.0.1:8000/api/v1/health`
+- Swagger：`http://127.0.0.1:8000/docs`
+
+首次迁移和回滚验证：
+
+```bash
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m alembic upgrade head
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m alembic current
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m alembic history
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m alembic downgrade base
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m alembic upgrade head
+ruff check app tests alembic
+```
+
 ## Git 约定
 
 - 功能开发从专用分支进行，不直接在 `master` 开发。

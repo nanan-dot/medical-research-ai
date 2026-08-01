@@ -3,6 +3,14 @@
 from pydantic import BaseModel, ConfigDict
 
 
+class HealthStatus(BaseModel):
+    """应用健康状态。"""
+
+    status: str
+    app: str
+    version: str
+
+
 class HealthCreate(BaseModel):
     """创建请求"""
     pass

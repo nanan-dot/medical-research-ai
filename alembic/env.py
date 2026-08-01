@@ -5,8 +5,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+from app.core import models  # noqa: F401 - register models on Base.metadata
 from app.core.database import Base
 from app.core.config import settings
+
+settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
