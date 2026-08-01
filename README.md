@@ -159,3 +159,7 @@ RUN_OLLAMA_TEST=1 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-rese
 ```
 
 若服务关闭，客户端返回 `ollama_service_unavailable`；若模型不存在，返回 `ollama_model_not_found`。本地失败不会切换至 OpenAI、OpenRouter 或其他云端供应商。
+
+## PaperQA2 独立实验
+
+R0-WP05 在业务系统外验证固定版本 `paper-qa==2026.3.18`。实验使用本地 Ollama `qwen3:4b` 和 `nomic-embed-text`，处理公开 PLOS Medicine PDF，并验证来源、页范围和本地索引复用。安装、运行、人工核对和已知限制见 `experiments/paperqa2_r0/README.md`。

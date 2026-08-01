@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-01T18:18:00Z",
+  "sample_note": "Real local run; raw reasoning and additional sources truncated in the committed sample. Full sanitized runtime JSON is stored under ignored data/paperqa2_r0/.",
+  "run": {
+    "paperqa_version": "2026.3.18",
+    "python_version": "3.13.9",
+    "llm_model": "qwen3:4b",
+    "embedding_model": "nomic-embed-text",
+    "ollama_base_url": "http://localhost:11434",
+    "source_pdf": "plos-medicine-carrs-followup.pdf",
+    "source_pdf_sha256": "b6edeac8ee9ebad3faf4672c9334241d0161305e8c626ca5cf9ea47e7d1b5c1e",
+    "source_url": "https://journals.plos.org/plosmedicine/article/file?id=10.1371%2Fjournal.pmed.1004335&type=printable"
+  },
+  "index": {
+    "reused": true,
+    "index_seconds": 0.002,
+    "query_seconds": 15.742,
+    "document_count": 1,
+    "text_chunk_count": 49
+  },
+  "question": "How many cumulative first microvascular and macrovascular events occurred during 6.5 years of observation, and how many were in the intervention and usual-care groups?",
+  "answer_excerpt": "During 6.5 years of observation, 507 cumulative first microvascular and macrovascular events occurred, with 233 (40.5%) in the intervention group and 274 (48.0%) in the usual care group (CARRS-2023 pages 11-12).",
+  "raw_answer_truncated": true,
+  "has_successful_answer": true,
+  "sources": [
+    {
+      "rank": 1,
+      "title": "Effect of a multicomponent quality improvement strategy on sustained achievement of diabetes care goals and macrovascular and microvascular complications in South Asia at 6.5 years follow-up: Post hoc analyses of the CARRS randomized clinical trial",
+      "citation": "PLOS Medicine (2023). doi:10.1371/journal.pmed.1004335",
+      "chunk_name": "CARRS-2023 pages 11-12",
+      "page_range": "11-12",
+      "score": 5,
+      "evidence_excerpt": "Cumulatively, 507 first microvascular and macrovascular events occurred during 6.5 years of observation, 233 (40.5%) in the intervention and 274 (48.0%) in the usual care groups."
+    }
+  ],
+  "capabilities": {
+    "nonempty_answer": true,
+    "source_count": 10,
+    "paper_title_present": true,
+    "page_range_present": true,
+    "expected_values_present": true,
+    "manual_source_pdf_page": 11
+  }
+}
