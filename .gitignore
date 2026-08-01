@@ -40,5 +40,8 @@ notes_index/
 uploads/
 temp/
 
+# 本地论文与测试 PDF（不得提交未发表材料）
+*.pdf
+
 # Node
 node_modules/
