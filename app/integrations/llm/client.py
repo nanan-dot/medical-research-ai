@@ -1,4 +1,4 @@
-"""OpenAI 兼容的最小非流式云端模型客户端。"""
+"""OpenAI 兼容的最小非流式统一模型客户端。"""
 
 import logging
 from time import perf_counter
@@ -81,7 +81,7 @@ class LLMClient:
 
         started_at = perf_counter()
         logger.info(
-            "Cloud LLM request started provider=%s model=%s",
+            "LLM request started provider=%s model=%s",
             self.config.provider,
             self.config.model,
         )
@@ -101,17 +101,17 @@ class LLMClient:
                 timeout=self.config.timeout_seconds,
             )
         except httpx.TimeoutException as error:
-            logger.warning("Cloud LLM request timed out provider=%s", self.config.provider)
-            raise LLMTimeoutError("Cloud LLM request timed out") from error
+            logger.warning("LLM request timed out provider=%s", self.config.provider)
+            raise LLMTimeoutError("LLM request timed out") from error
         except httpx.TransportError as error:
-            logger.warning("Cloud LLM connection failed provider=%s", self.config.provider)
-            raise LLMConnectionError("Could not connect to the cloud LLM provider") from error
+            logger.warning("LLM connection failed provider=%s", self.config.provider)
+            raise LLMConnectionError("Could not connect to the configured LLM provider") from error
 
         self._raise_for_status(response)
         text, response_model = self._parse_response(response)
         elapsed_seconds = perf_counter() - started_at
         logger.info(
-            "Cloud LLM request completed provider=%s model=%s elapsed_seconds=%.3f",
+            "LLM request completed provider=%s model=%s elapsed_seconds=%.3f",
             self.config.provider,
             response_model,
             elapsed_seconds,
@@ -137,22 +137,22 @@ class LLMClient:
         status_code = response.status_code
         if status_code in {401, 403}:
             raise LLMAuthenticationError(
-                "Cloud LLM authentication failed; check the API key",
+                "LLM provider authentication failed; check the API key",
                 status_code=status_code,
             )
         if status_code == 404:
             raise LLMModelNotFoundError(
-                "Cloud LLM model or endpoint was not found",
+                "LLM model or endpoint was not found",
                 status_code=status_code,
             )
         if status_code == 429:
             raise LLMRateLimitError(
-                "Cloud LLM rate limit exceeded",
+                "LLM provider rate limit exceeded",
                 status_code=status_code,
             )
         if status_code >= 400:
             raise LLMProviderError(
-                f"Cloud LLM provider returned HTTP {status_code}",
+                f"LLM provider returned HTTP {status_code}",
                 status_code=status_code,
             )
 
@@ -164,11 +164,11 @@ class LLMClient:
             response_model = payload.get("model") or self.config.model
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as error:
             raise LLMResponseFormatError(
-                "Cloud LLM returned an incompatible response structure"
+                "LLM provider returned an incompatible response structure"
             ) from error
 
         if not isinstance(text, str) or not text.strip():
-            raise LLMResponseFormatError("Cloud LLM returned empty text")
+            raise LLMResponseFormatError("LLM provider returned empty text")
         if not isinstance(response_model, str):
-            raise LLMResponseFormatError("Cloud LLM returned an invalid model identifier")
+            raise LLMResponseFormatError("LLM provider returned an invalid model identifier")
         return text.strip(), response_model

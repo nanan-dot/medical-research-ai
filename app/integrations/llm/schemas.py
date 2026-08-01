@@ -1,4 +1,4 @@
-"""云端模型客户端的数据结构。"""
+"""统一模型客户端的数据结构。"""
 
 from typing import Literal
 

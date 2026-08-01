@@ -122,3 +122,40 @@ RUN_CLOUD_LLM_TEST=1 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-r
 ```
 
 错误模型名应返回 `llm_model_not_found`；无效密钥应返回 `llm_authentication_error`。客户端不会在日志或异常信息中记录密钥、消息正文或供应商响应正文。
+
+## Ollama 本地模型最小调用
+
+本地适配器复用统一 `LLMClient.chat`，但只允许 `localhost` 或回环地址，不配置也不会触发云端回退。当前验证模型：`qwen3:4b`。
+
+```dotenv
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen3:4b
+OLLAMA_TIMEOUT_SECONDS=120
+```
+
+检查服务和已下载模型：
+
+```powershell
+ollama --version
+ollama list
+```
+
+如果模型尚未安装：
+
+```powershell
+ollama pull qwen3:4b
+```
+
+执行两次连续本地调用并比较首次、再次耗时与资源占用：
+
+```bash
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m scripts.r0_test_ollama
+```
+
+显式运行真实本地集成测试：
+
+```bash
+RUN_OLLAMA_TEST=1 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m pytest tests/integrations/test_ollama.py
+```
+
+若服务关闭，客户端返回 `ollama_service_unavailable`；若模型不存在，返回 `ollama_model_not_found`。本地失败不会切换至 OpenAI、OpenRouter 或其他云端供应商。
