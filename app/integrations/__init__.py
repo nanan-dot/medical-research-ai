@@ -1,0 +1,1 @@
+"""集成层 — PaperQA2 / LiteLLM / PubMed 适配器"""

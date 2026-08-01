@@ -1,0 +1,29 @@
+"""API v1 路由聚合"""
+
+from fastapi import APIRouter
+
+from app.modules.health.router import router as health_router
+from app.modules.model_config.router import router as model_config_router
+from app.modules.knowledge_source.router import router as knowledge_source_router
+from app.modules.document.router import router as document_router
+from app.modules.conversation.router import router as conversation_router
+from app.modules.paper_analysis.router import router as paper_analysis_router
+from app.modules.literature_search.router import router as literature_search_router
+from app.modules.research_direction.router import router as research_direction_router
+from app.modules.writing.router import router as writing_router
+from app.modules.feedback.router import router as feedback_router
+from app.modules.evaluation.router import router as evaluation_router
+
+api_router = APIRouter()
+
+api_router.include_router(health_router, tags=["健康检查"])
+api_router.include_router(model_config_router, tags=["模型配置"])
+api_router.include_router(knowledge_source_router, tags=["知识源"])
+api_router.include_router(document_router, tags=["文档"])
+api_router.include_router(conversation_router, tags=["会话"])
+api_router.include_router(paper_analysis_router, tags=["论文分析"])
+api_router.include_router(literature_search_router, tags=["文献检索"])
+api_router.include_router(research_direction_router, tags=["研究方向"])
+api_router.include_router(writing_router, tags=["写作"])
+api_router.include_router(feedback_router, tags=["反馈"])
+api_router.include_router(evaluation_router, tags=["评测"])

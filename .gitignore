@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# 环境密钥
+.env
+.env.local
+
+# 数据库
+*.db
+*.sqlite3
+data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+logs/
+
+# 索引
+*.faiss
+*.index
+paperqa_index/
+notes_index/
+
+# 上传
+uploads/
+temp/
+
+# Node
+node_modules/
