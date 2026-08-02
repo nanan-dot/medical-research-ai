@@ -38,6 +38,7 @@ class _PaperQA2Backend(Protocol):
         self,
         documents: tuple[PaperDocument, ...],
         index_id: str,
+        rebuild: bool = False,
     ) -> _BackendIndexResult: ...
 
     def ask(self, index_id: str, question: str) -> Any: ...
@@ -53,6 +54,8 @@ class PaperQA2Client:
     async def index_documents(
         self,
         documents: Sequence[PaperDocument | str | Path],
+        *,
+        rebuild: bool = False,
     ) -> PaperQAIndex:
         try:
             normalized, index_id = await asyncio.to_thread(self._normalize_documents, documents)
@@ -60,6 +63,7 @@ class PaperQA2Client:
                 self._backend.index_documents,
                 normalized,
                 index_id,
+                rebuild,
             )
         except PaperQA2Error:
             raise

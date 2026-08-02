@@ -7,6 +7,7 @@ import importlib.metadata
 import ipaddress
 import threading
 from typing import Any
+from typing import Literal
 from urllib.parse import urlparse
 
 from app.core.config import Settings as AppSettings
@@ -35,10 +36,11 @@ class _OfficialPaperQA2Backend:
         self,
         documents: tuple[PaperDocument, ...],
         index_id: str,
+        rebuild: bool = False,
     ) -> _BackendIndexResult:
         self._check_installed_version()
         with self._lock:
-            if index_id in self._indexes:
+            if index_id in self._indexes and not rebuild:
                 return _BackendIndexResult(index_id, len(documents), True)
             try:
                 docs = asyncio.run(self._build_docs(documents))
@@ -83,8 +85,13 @@ class _OfficialPaperQA2Backend:
                 {
                     "model_name": "local-paperqa-r0",
                     "litellm_params": {
-                        "model": f"ollama/{self.config.llm_model}",
-                        "api_base": self.config.ollama_base_url,
+                        "model": f"{self.config.provider}/{self.config.llm_model}",
+                        "api_base": self.config.api_base_url,
+                        **(
+                            {"api_key": self.config.api_key.get_secret_value()}
+                            if self.config.api_key
+                            else {}
+                        ),
                         "timeout": self.config.timeout_seconds,
                         "num_ctx": 16384,
                         "max_tokens": 2000,
@@ -100,7 +107,7 @@ class _OfficialPaperQA2Backend:
             summary_llm_config=router,
             embedding=f"ollama/{self.config.embedding_model}",
             embedding_config={
-                "api_base": self.config.ollama_base_url,
+                "api_base": self.config.api_base_url,
                 "timeout": self.config.timeout_seconds,
             },
         )
@@ -125,14 +132,37 @@ class _OfficialPaperQA2Backend:
             )
 
 
-def create_paperqa2_client(app_settings: AppSettings = settings) -> PaperQA2Client:
-    _validate_local_ollama_url(app_settings.OLLAMA_BASE_URL)
-    if not app_settings.OLLAMA_MODEL:
-        raise PaperQA2ConfigurationError("OLLAMA_MODEL is not configured")
+def create_paperqa2_client(
+    app_settings: AppSettings = settings,
+    *,
+    provider: Literal["ollama", "openai", "openrouter"] | None = None,
+) -> PaperQA2Client:
+    selected_provider = provider or app_settings.DEFAULT_MODEL_PROVIDER
+    model, base_url, api_key = {
+        "ollama": (app_settings.OLLAMA_MODEL, app_settings.OLLAMA_BASE_URL, None),
+        "openai": (
+            app_settings.OPENAI_MODEL,
+            app_settings.OPENAI_BASE_URL,
+            app_settings.OPENAI_API_KEY,
+        ),
+        "openrouter": (
+            app_settings.OPENROUTER_MODEL,
+            app_settings.OPENROUTER_BASE_URL,
+            app_settings.OPENROUTER_API_KEY,
+        ),
+    }[selected_provider]
+    if selected_provider == "ollama":
+        _validate_local_ollama_url(base_url)
+    elif not api_key:
+        raise PaperQA2ConfigurationError(f"{selected_provider.upper()} API key is not configured")
+    if not model:
+        raise PaperQA2ConfigurationError(f"{selected_provider.upper()}_MODEL is not configured")
     config = PaperQA2Config(
         version=app_settings.PAPERQA_VERSION,
-        ollama_base_url=app_settings.OLLAMA_BASE_URL.rstrip("/"),
-        llm_model=app_settings.OLLAMA_MODEL,
+        provider=selected_provider,
+        api_base_url=base_url.rstrip("/"),
+        api_key=api_key,
+        llm_model=model,
         embedding_model=app_settings.PAPERQA_EMBEDDING_MODEL,
         timeout_seconds=app_settings.PAPERQA_TIMEOUT_SECONDS,
     )

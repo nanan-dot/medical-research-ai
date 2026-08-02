@@ -193,3 +193,7 @@ $env:RUN_PAPERQA2_TEST='1'
 $env:OLLAMA_MODEL='qwen3:4b'
 & C:\Users\ADMIN\.paperqa-codex-venv\Scripts\python.exe -m pytest tests\integrations\test_paperqa2_adapter_integration.py -q -s
 ```
+
+## R0 最小问答演示
+
+端到端命令行入口为 `python -m scripts.r0_paperqa_demo`，支持 PDF 路径、问题、`ollama/openai/openrouter` 模型配置、`--rebuild`、统一 JSON 输出和分阶段耗时。已使用同一公开 PDF 实际验证本地 `qwen3:4b` 与 OpenAI 兼容的 `deepseek-v4-flash`，两者输出结构一致。完整命令、实际耗时、退出码和限制见 `docs/R0_DEMO.md`。

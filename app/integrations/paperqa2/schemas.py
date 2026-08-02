@@ -1,13 +1,16 @@
 """Stable application-facing structures for the PaperQA2 adapter."""
 
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 
 class PaperQA2Config(BaseModel):
     version: str = Field(min_length=1)
-    ollama_base_url: str = Field(min_length=1)
+    provider: Literal["ollama", "openai", "openrouter"] = "ollama"
+    api_base_url: str = Field(min_length=1)
+    api_key: SecretStr | None = None
     llm_model: str = Field(min_length=1)
     embedding_model: str = Field(min_length=1)
     timeout_seconds: float = Field(default=300.0, gt=0)

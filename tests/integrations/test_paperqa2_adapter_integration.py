@@ -29,7 +29,8 @@ async def test_real_pdf_index_answer_sources_and_repeat_rule():
         Settings(
             OLLAMA_MODEL=os.getenv("OLLAMA_MODEL", "qwen3:4b"),
             OLLAMA_BASE_URL=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
-        )
+        ),
+        provider="ollama",
     )
     document = PaperDocument(
         path=PDF_PATH,

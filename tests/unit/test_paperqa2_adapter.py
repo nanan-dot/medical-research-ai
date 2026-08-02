@@ -28,11 +28,11 @@ class FakeBackend:
         self.index_ids: set[str] = set()
         self.thread_ids: list[int] = []
 
-    def index_documents(self, documents, index_id):
+    def index_documents(self, documents, index_id, rebuild=False):
         self.thread_ids.append(threading.get_ident())
         if self.error:
             raise self.error
-        reused = index_id in self.index_ids
+        reused = index_id in self.index_ids and not rebuild
         self.index_ids.add(index_id)
         return _BackendIndexResult(index_id, len(documents), reused)
 
@@ -47,7 +47,8 @@ def make_client(backend: FakeBackend) -> PaperQA2Client:
     return PaperQA2Client(
         PaperQA2Config(
             version="2026.3.18",
-            ollama_base_url="http://127.0.0.1:11434",
+            provider="ollama",
+            api_base_url="http://127.0.0.1:11434",
             llm_model="qwen3:4b",
             embedding_model="nomic-embed-text",
         ),
@@ -128,10 +129,13 @@ async def test_repeat_index_returns_same_reference_and_reused_flag(tmp_path: Pat
 
     first = await client.index_documents([pdf])
     second = await client.index_documents([pdf])
+    rebuilt = await client.index_documents([pdf], rebuild=True)
 
     assert first.index_id == second.index_id
     assert first.reused is False
     assert second.reused is True
+    assert rebuilt.index_id == first.index_id
+    assert rebuilt.reused is False
 
 
 @pytest.mark.asyncio
@@ -196,10 +200,11 @@ async def test_changed_source_container_is_rejected(tmp_path: Path):
 
 def test_factory_rejects_missing_model_and_non_local_url():
     with pytest.raises(PaperQA2ConfigurationError, match="OLLAMA_MODEL"):
-        create_paperqa2_client(Settings(OLLAMA_MODEL=""))
+        create_paperqa2_client(Settings(OLLAMA_MODEL=""), provider="ollama")
     with pytest.raises(PaperQA2ConfigurationError, match="local HTTP|loopback"):
         create_paperqa2_client(
-            Settings(OLLAMA_MODEL="qwen3:4b", OLLAMA_BASE_URL="https://example.com")
+            Settings(OLLAMA_MODEL="qwen3:4b", OLLAMA_BASE_URL="https://example.com"),
+            provider="ollama",
         )
 
 
