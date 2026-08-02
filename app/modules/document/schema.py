@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DocumentScanState(StrEnum):
@@ -57,6 +57,10 @@ class DocumentRead(BaseModel):
     retry_count: int
     started_at: datetime | None
     finished_at: datetime | None
+    paperqa_index_key: str | None
+    paperqa_version: str | None
+    indexed_hash: str | None
+    index_error: str | None
 
 
 class DocumentPage(BaseModel):
@@ -64,3 +68,24 @@ class DocumentPage(BaseModel):
     total: int
     offset: int
     limit: int
+
+
+class DocumentIndexResult(BaseModel):
+    document_id: int
+    index_status: IndexStatus
+    paperqa_index_key: str | None
+    paperqa_version: str | None
+    indexed_hash: str | None
+    reused: bool
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class BatchIndexRequest(BaseModel):
+    document_ids: list[int] = Field(min_length=1, max_length=100)
+
+
+class BatchIndexResult(BaseModel):
+    results: list[DocumentIndexResult]
+    succeeded: int
+    failed: int

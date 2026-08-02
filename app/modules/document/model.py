@@ -38,3 +38,7 @@ class Document(Base):
     parsed_content: Mapped[str | None] = mapped_column(Text)
     parsed_is_scanned: Mapped[bool | None]
     parsed_page_count: Mapped[int | None]
+    paperqa_index_key: Mapped[str | None] = mapped_column(String(128))
+    paperqa_version: Mapped[str | None] = mapped_column(String(64))
+    indexed_hash: Mapped[str | None] = mapped_column(String(64))
+    index_error: Mapped[str | None] = mapped_column(Text)
