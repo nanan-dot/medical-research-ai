@@ -8,10 +8,16 @@ from app.modules.conversation.schema import (
     FeedbackCreate,
     MessageCreate,
     MessageRead,
+    ConversationSummary,
 )
 from app.modules.conversation.service import ConversationService
 
 router = APIRouter(prefix="/conversations", tags=["会话"])
+
+
+@router.get("", response_model=list[ConversationSummary])
+async def list_conversations(session: AsyncSession = Depends(get_session)):
+    return await ConversationService(session).list()
 
 
 @router.post("", response_model=ConversationRead)
@@ -38,3 +44,8 @@ async def feedback(
     id: int, message_id: int, request: FeedbackCreate, session: AsyncSession = Depends(get_session)
 ):
     return await ConversationService(session).feedback(id, message_id, request.rating)
+
+
+@router.delete("/{id}", status_code=204)
+async def delete_conversation(id: int, session: AsyncSession = Depends(get_session)):
+    await ConversationService(session).delete(id)

@@ -8,6 +8,7 @@ from app.modules.conversation.model import Conversation
 from app.modules.document.model import Document
 from app.modules.evaluation.model import Evaluation
 from app.modules.feedback.model import Feedback
+from app.modules.export.model import ExportRecord
 from app.modules.health.model import Health
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.literature_search.model import LiteratureSearch
@@ -21,6 +22,7 @@ __all__ = [
     "Document",
     "Evaluation",
     "Feedback",
+    "ExportRecord",
     "Health",
     "KnowledgeSource",
     "LiteratureSearch",

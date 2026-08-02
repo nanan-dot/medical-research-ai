@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: Path = Path("./uploads")
     PAPERQA_INDEX_DIR: Path = Path("./data/paperqa_index")
     NOTES_INDEX_DIR: Path = Path("./data/notes_index")
+    EXPORT_DIR: Path = Path("./data/exports")
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",

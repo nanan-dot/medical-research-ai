@@ -13,7 +13,12 @@ from app.integrations.paperqa2.exceptions import PaperQA2Error
 from app.modules.conversation.model import Citation, Conversation, Message
 from app.modules.conversation.no_answer import NO_ANSWER_TEXT, POLICY_VERSION, evaluate_answer
 from app.modules.conversation.repository import ConversationRepository
-from app.modules.conversation.schema import CitationRead, ConversationRead, MessageRead
+from app.modules.conversation.schema import (
+    CitationRead,
+    ConversationRead,
+    ConversationSummary,
+    MessageRead,
+)
 from app.modules.document.repository import DocumentRepository
 
 MAX_EVIDENCE_LENGTH = 2000
@@ -45,6 +50,26 @@ class ConversationService:
         if entity is None:
             raise NotFoundError(f"Conversation not found: {id}")
         return await self._read(entity)
+
+    async def list(self):
+        result = []
+        for entity in await self.repo.list():
+            result.append(
+                ConversationSummary(
+                    id=entity.id,
+                    document_ids=json.loads(entity.document_ids),
+                    title=entity.title,
+                    updated_at=entity.updated_at,
+                    message_count=len(await self.repo.messages(entity.id)),
+                )
+            )
+        return result
+
+    async def delete(self, id: int):
+        entity = await self.repo.get(id)
+        if entity is None:
+            raise NotFoundError(f"Conversation not found: {id}")
+        await self.repo.delete(entity)
 
     async def ask(self, id: int, question: str):
         lock = _LOCKS.setdefault(id, asyncio.Lock())

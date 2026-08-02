@@ -47,5 +47,13 @@ class ConversationRead(BaseModel):
     messages: list[MessageRead]
 
 
+class ConversationSummary(BaseModel):
+    id: int
+    document_ids: list[int]
+    title: str | None
+    updated_at: datetime
+    message_count: int
+
+
 class FeedbackCreate(BaseModel):
     rating: int = Field(ge=-1, le=1)

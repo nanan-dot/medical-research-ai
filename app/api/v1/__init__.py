@@ -13,8 +13,10 @@ from app.modules.research_direction.router import router as research_direction_r
 from app.modules.writing.router import router as writing_router
 from app.modules.feedback.router import router as feedback_router
 from app.modules.evaluation.router import router as evaluation_router
+from app.modules.export.router import router as export_router
 
 api_router = APIRouter()
+api_router.include_router(export_router, tags=["导出"])
 
 api_router.include_router(health_router, tags=["健康检查"])
 api_router.include_router(model_config_router, tags=["模型配置"])

@@ -16,6 +16,7 @@ EXPECTED_TABLES = {
     "citations",
     "documents",
     "evaluations",
+    "exports",
     "feedbacks",
     "healths",
     "knowledge_sources",
