@@ -1,0 +1,2 @@
+import{expect,test,vi}from"vitest";import{ApiError,apiRequest}from"./client";
+test("normalizes backend errors without exposing unknown payload",async()=>{vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:false,status:409,json:async()=>({error:{code:"conflict",message:"可理解错误"}})}));try{await apiRequest("/probe")}catch(error){expect(error).toBeInstanceOf(ApiError);const apiError=error as ApiError;expect(apiError.message).toBe("可理解错误");expect(apiError.status).toBe(409);expect(apiError.code).toBe("conflict")}});

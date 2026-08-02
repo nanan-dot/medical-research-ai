@@ -1,0 +1,2 @@
+<template><main class="feedback"><p>IMPROVE WITH EVIDENCE</p><h1>反馈与纠错</h1><p>在论文问答页可对每条助手回答点赞或点踩；在论文分析页可重新生成，并通过分析纠错接口修正具体字段。反馈不会修改原始论文。</p><div><RouterLink to="/chat">前往问答反馈</RouterLink><RouterLink to="/analysis">前往分析纠错</RouterLink></div></main></template>
+<style scoped>.feedback{max-width:760px;margin:auto;padding:7rem 1rem}.feedback h1{font:700 4rem Georgia,serif;color:#173f3c}.feedback div{display:flex;gap:.7rem}.feedback a{padding:.8rem 1rem;background:#173f3c;color:white;border-radius:9px;text-decoration:none}</style>
