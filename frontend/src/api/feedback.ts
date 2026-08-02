@@ -1,0 +1,1 @@
+import{apiRequest}from"./client";export const feedbackApi={create:(body:Record<string,unknown>)=>apiRequest("/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),exportUrl:"/api/v1/feedback/export"};

@@ -1,36 +1,31 @@
-"""feedback — HTTP 路由"""
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
+from app.modules.feedback.schema import FeedbackCreate, FeedbackRead
 from app.modules.feedback.service import FeedbackService
 
 router = APIRouter(prefix="/feedback", tags=["反馈"])
 
 
-@router.get("")
-async def list_feedback(
-    offset: int = 0,
-    limit: int = 20,
-    session: AsyncSession = Depends(get_session),
-):
-    service = FeedbackService(session)
-    return await service.list(offset=offset, limit=limit)
+@router.post("", response_model=FeedbackRead)
+async def create_feedback(request: FeedbackCreate, session: AsyncSession = Depends(get_session)):
+    return await FeedbackService(session).create(request)
 
 
-@router.get("/{id}")
-async def get_feedback(
-    id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    service = FeedbackService(session)
-    return await service.get(id)
+@router.get("", response_model=list[FeedbackRead])
+async def list_feedback(session: AsyncSession = Depends(get_session)):
+    return await FeedbackService(session).list()
 
 
-@router.delete("/{id}", status_code=204)
-async def delete_feedback(
-    id: int,
-    session: AsyncSession = Depends(get_session),
-):
-    service = FeedbackService(session)
-    await service.delete(id)
+@router.get("/export")
+async def export_feedback(session: AsyncSession = Depends(get_session)):
+    return Response(
+        await FeedbackService(session).anonymous_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=anonymous-feedback.csv"},
+    )
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_feedback(id: int, session: AsyncSession = Depends(get_session)):
+    await FeedbackService(session).delete(id)
