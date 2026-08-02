@@ -1,6 +1,6 @@
 # 医学科研智能助手平台
 
-基于 FastAPI、SQLAlchemy 与 Alembic 的医学科研辅助平台脚手架。当前仓库处于 R0 工程基线阶段；业务模块仅提供分层骨架，不代表完整知识库、检索或 Agent 能力已经实现。
+基于 FastAPI、SQLAlchemy、Alembic 与 Vue 3 的医学科研辅助平台。R0 工程基线已验收，R1 当前完成知识源登记与授权目录管理；尚不代表完整知识库、检索或 Agent 能力已经实现。
 
 ## 环境要求
 
@@ -207,3 +207,25 @@ $env:OLLAMA_MODEL='qwen3:4b'
 ## R0 阶段状态
 
 R0 已于 2026-08-02 完成阶段验收。开发者现场演示、干净环境安装、健康检查、迁移回滚、云端与本地模型、PaperQA2 问答、人工来源核对和显式 integration 均已实际通过。详情以 `docs/R0_ACCEPTANCE.md` 为准。
+
+## R1 知识源管理
+
+知识源 API 支持登记本地文件夹、Obsidian Vault 和临时导入目录：
+
+- `GET/POST /api/v1/knowledge-sources`
+- `GET/PATCH/DELETE /api/v1/knowledge-sources/{id}`
+
+服务端会解析符号链接、规范化 Windows 路径、检查目录存在性与可读性，并拒绝重复目录。删除接口只移除数据库记录，不扫描或删除授权目录中的原始文件。目录移动或网络盘暂时不可用时，已登记来源会显示为 `unavailable`。
+
+最小 Vue 3 前端位于 `frontend/`：
+
+```powershell
+Set-Location frontend
+npm install
+npm run typecheck
+npm test
+npm run build
+npm run dev
+```
+
+当前 R1 工作包状态和验收记录见 `docs/R1_IMPLEMENTATION_STATUS.md`。

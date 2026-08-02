@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine
 from app.api.v1 import api_router
+from app.common.exception_handlers import app_error_handler
+from app.common.exceptions import AppError
 
 
 @asynccontextmanager
@@ -22,6 +24,8 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     lifespan=lifespan,
 )
+
+app.add_exception_handler(AppError, app_error_handler)
 
 app.add_middleware(
     CORSMiddleware,

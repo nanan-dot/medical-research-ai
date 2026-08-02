@@ -45,3 +45,4 @@ temp/
 
 # Node
 node_modules/
+*.tsbuildinfo
