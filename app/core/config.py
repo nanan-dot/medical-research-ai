@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_MODEL: str = ""
     LLM_TIMEOUT_SECONDS: float = 30.0
+    MODEL_CONFIG_ENCRYPTION_KEYS: str = ""
 
     SEARCH_TOP_K: int = 5
     RERANK_TOP_K: int = 5

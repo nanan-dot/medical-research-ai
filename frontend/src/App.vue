@@ -5,8 +5,9 @@ import KnowledgeBaseView from "./views/KnowledgeBase/KnowledgeBaseView.vue";
 import DocumentsView from "./views/Documents/DocumentsView.vue";
 import PaperAnalysisView from "./views/PaperAnalysis/PaperAnalysisView.vue";
 import ChatView from "./views/Chat/ChatView.vue";
+import ModelSettingsView from "./views/ModelSettings/ModelSettingsView.vue";
 
-const activeView = shallowRef<"sources" | "documents" | "analysis" | "chat">("documents");
+const activeView = shallowRef<"sources" | "documents" | "analysis" | "chat" | "models">("documents");
 </script>
 
 <template>
@@ -15,11 +16,13 @@ const activeView = shallowRef<"sources" | "documents" | "analysis" | "chat">("do
     <button :class="{ active: activeView === 'sources' }" @click="activeView = 'sources'">知识源</button>
     <button :class="{ active: activeView === 'analysis' }" @click="activeView = 'analysis'">论文分析</button>
     <button :class="{ active: activeView === 'chat' }" @click="activeView = 'chat'">论文问答</button>
+    <button :class="{ active: activeView === 'models' }" @click="activeView = 'models'">模型设置</button>
   </nav>
   <DocumentsView v-if="activeView === 'documents'" />
   <KnowledgeBaseView v-else-if="activeView === 'sources'" />
   <PaperAnalysisView v-else-if="activeView === 'analysis'" />
-  <ChatView v-else />
+  <ChatView v-else-if="activeView === 'chat'" />
+  <ModelSettingsView v-else />
 </template>
 
 <style scoped>
