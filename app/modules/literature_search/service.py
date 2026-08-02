@@ -15,15 +15,31 @@ from app.integrations.ollama.client import OllamaClient
 from app.modules.literature_search.prompts import PROMPT_VERSION, build_candidate_prompt
 from app.modules.literature_search.query_model import SearchIntentCandidate, relative_year_range
 from app.modules.literature_search.repository import LiteratureSearchRepository
-from app.modules.literature_search.schema import ParseQueryResponse
+from app.modules.literature_search.schema import (
+    BooleanQueryResult,
+    ExpandTermsResponse,
+    MeshCandidate,
+    ParseQueryResponse,
+    SearchTermGroup,
+)
+from app.modules.literature_search.mesh_client import MeshClient
+from app.modules.literature_search.query_builder import build_boolean_query
+from app.modules.literature_search.term_expansion import expand_term, is_ascii_search_term
 
 CandidateExtractor = Callable[[str], Awaitable[str]]
 
 
 class LiteratureSearchService:
-    def __init__(self, session: AsyncSession, *, candidate_extractor: CandidateExtractor | None = None):
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        candidate_extractor: CandidateExtractor | None = None,
+        mesh_client: MeshClient | None = None,
+    ):
         self.repo = LiteratureSearchRepository(session)
         self.candidate_extractor = candidate_extractor or self._extract_with_configured_model
+        self.mesh_client = mesh_client or MeshClient()
 
     async def get(self, id: int):
         entity = await self.repo.get(id)
@@ -58,6 +74,58 @@ class LiteratureSearchService:
             candidate_source=source,
             prompt_version=PROMPT_VERSION,
         )
+
+    async def expand_terms(
+        self, candidate: SearchIntentCandidate, user_edits: dict[str, list[str]]
+    ) -> ExpandTermsResponse:
+        values = {
+            "disease": candidate.disease,
+            "intervention": candidate.intervention,
+            "target": candidate.target,
+            "mechanism": candidate.mechanism,
+        }
+        if not any(values.values()):
+            values["topic"] = candidate.topic
+
+        groups: list[SearchTermGroup] = []
+        mesh_candidates: list[MeshCandidate] = []
+        warnings: list[str] = []
+        for name, value in values.items():
+            if not value:
+                continue
+            expansion = expand_term(value)
+            terms = list(dict.fromkeys([*expansion.synonyms, *user_edits.get(name, [])]))
+            ascii_terms = [term for term in terms if is_ascii_search_term(term)]
+            if len(ascii_terms) != len(terms):
+                warnings.append(f"{name}: Chinese-only terms were retained for editing but omitted from PubMed query output.")
+            if not ascii_terms:
+                continue
+            groups.append(
+                SearchTermGroup(
+                    name=name,
+                    core_term=expansion.core_term,
+                    terms=ascii_terms,
+                    source=expansion.source,
+                )
+            )
+            try:
+                rows = await self.mesh_client.lookup(expansion.core_term)
+            except Exception:
+                warnings.append(f"{name}: official MeSH lookup was unavailable; no MeSH candidate was assumed.")
+                continue
+            mesh_candidates.extend(
+                MeshCandidate(group_name=name, **row) for row in rows
+            )
+        return ExpandTermsResponse(
+            term_groups=groups,
+            mesh_candidates=mesh_candidates,
+            warnings=warnings,
+            user_edits=user_edits,
+        )
+
+    @staticmethod
+    def build_query(groups: list[SearchTermGroup]) -> BooleanQueryResult:
+        return build_boolean_query(groups)
 
     @staticmethod
     async def _extract_with_configured_model(prompt: str) -> str:

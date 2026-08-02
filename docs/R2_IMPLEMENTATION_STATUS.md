@@ -32,3 +32,40 @@ R1 automated acceptance passed (168 tests at the time of the handoff). The real-
 ### Next boundary
 
 Stop after R2-WP01. Do not begin R2-WP02 as part of this work package.
+
+## R2-WP02 — keyword, synonym, and MeSH assistance
+
+**Status:** complete
+
+### Delivered
+
+- Added editable term-group expansion for disease, intervention, target, mechanism, and topic fallback.
+- Added conservative Chinese-to-English aliases, curated synonym groups, drug aliases, and gene/target aliases without fabricating unknown terms.
+- Added an official-source-labelled NLM MeSH lookup adapter. Unavailable or empty lookups return no assumed MeSH descriptor.
+- Added safe PubMed boolean-query construction: synonyms are joined by `OR`, concept groups by `AND`, and field tags are included in the returned query.
+- Added validation for non-ASCII Chinese terms, braces, semicolons, and newlines so they cannot be sent directly into PubMed query output.
+- Added the editable frontend `SearchTermsEditor`, MeSH candidate display, boolean-query preview, and operator explanation.
+
+### Verification
+
+- Backend: `188 passed, 5 skipped` (`pytest -q`), including 15 WP02 unit tests and a 10-topic curated term matrix.
+- Ruff and mypy passed; Alembic reports no new upgrade operations. WP02 has no persistence-model change.
+- Frontend: `13 passed` (Vitest), Vue typecheck and production build passed.
+- Production dependency audit: `0 vulnerabilities`.
+
+### Manual verification steps
+
+1. Start the API and frontend, open `/literature-search`, and submit a topic such as `胃癌 EGFR 免疫治疗`.
+2. Review and edit the generated term groups, removing an unwanted synonym if needed.
+3. Select “扩展关键词与 MeSH”; verify each MeSH candidate identifies `NLM MeSH` as its source, or that an unavailable lookup is shown without an invented descriptor.
+4. Generate the PubMed query and confirm every synonym group is parenthesized with `OR`, concept groups use `AND`, and no Chinese-only term appears in the query.
+
+### Known limitations / R2 backlog
+
+- MeSH lookup needs network access to the official NLM service at runtime; failures degrade to an explicit empty candidate set.
+- Curated translation and synonym coverage is intentionally limited. Unknown Chinese terms require user review and must not be emitted as PubMed terms.
+- The generated query is an editable search aid, not medical advice or an executed provider search.
+
+### Next boundary
+
+Stop after R2-WP02. The next task is R2-WP03; do not start it here.

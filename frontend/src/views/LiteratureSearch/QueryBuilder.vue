@@ -13,9 +13,9 @@ function cloneCandidate(value: SearchIntentCandidate): SearchIntentCandidate {
   return {
     ...value,
     date_range: value.date_range ? { ...value.date_range } : null,
-    study_types: [...value.study_types],
-    language: [...value.language],
-    exclusions: [...value.exclusions],
+    study_types: [...(value.study_types ?? [])],
+    language: [...(value.language ?? [])],
+    exclusions: [...(value.exclusions ?? [])],
   };
 }
 

@@ -4,7 +4,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.modules.literature_search.schema import ParseQueryRequest, ParseQueryResponse
+from app.modules.literature_search.schema import (
+    BuildQueryRequest,
+    BuildQueryResponse,
+    ExpandTermsRequest,
+    ExpandTermsResponse,
+    ParseQueryRequest,
+    ParseQueryResponse,
+)
 from app.modules.literature_search.service import LiteratureSearchService
 
 router = APIRouter(prefix="/literature-search", tags=["Literature search"])
@@ -25,6 +32,20 @@ async def parse_query(
     session: AsyncSession = Depends(get_session),
 ) -> ParseQueryResponse:
     return await LiteratureSearchService(session).parse_query(request.raw_topic)
+
+
+@router.post("/expand-terms", response_model=ExpandTermsResponse)
+async def expand_terms(
+    request: ExpandTermsRequest,
+    session: AsyncSession = Depends(get_session),
+) -> ExpandTermsResponse:
+    return await LiteratureSearchService(session).expand_terms(request.candidate, request.user_edits)
+
+
+@router.post("/build-query", response_model=BuildQueryResponse)
+async def build_query(request: BuildQueryRequest) -> BuildQueryResponse:
+    result = LiteratureSearchService.build_query(request.term_groups)
+    return BuildQueryResponse(**result.model_dump(), user_edits=request.user_edits)
 
 
 @router.get("/{id}")
