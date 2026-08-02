@@ -2,9 +2,9 @@
 
 ## 当前工作包
 
-- 工作包：R0-WP08《异常、安全和回归测试》
-- 状态：已完成
-- 负责模块：R0 异常、安全与回归测试
+- 工作包：R0-WP09《演示、文档与阶段验收》
+- 状态：R0 阶段已完成
+- 负责模块：R0 阶段验收与复现
 - 开发分支：`feature/r0-wp01-baseline`
 
 ## 已完成
@@ -90,6 +90,16 @@
 - 已增加真实本机 Key 对 Git 已跟踪文件的内存扫描，测试不会打印密钥。
 - 已将 integration 保持为显式 opt-in，默认测试不产生真实费用。
 - 已将 mypy 加入开发依赖，并对 CLI 与 integrations 边界启用实际类型检查。
+
+### R0-WP09
+
+- 已创建 R0 阶段验收报告、环境矩阵、人工来源核对、Changelog 和 R1 Backlog。
+- 已增加 `requirements-r0.lock`，锁定验收环境中的应用与测试直接依赖；PaperQA2 继续使用独立固定锁。
+- 已在被忽略的全新虚拟环境中从锁文件安装并完成默认测试、mypy、Ruff 和应用导入。
+- 已实际启动 Uvicorn 并验证 health/Swagger，使用独立数据库验证迁移升级、回滚和再次升级。
+- 已重新执行云端、本地、PaperQA2 演示与三个显式 integration 入口。
+- 已人工直接提取公开 PDF 第 11 页并核对答案数字和文件 SHA-256。
+- 已审查 Git 历史和 experiments；WP05 实验仍是必要验收证据，因此未做破坏性清理。
 
 ## 测试结果
 
@@ -180,6 +190,17 @@
 - Git 安全检查：`.env`、数据、PDF、数据库、日志、上传和索引均未被跟踪。
 - 密钥检查：Mock sentinel 和本机已配置真实 Key 均未出现在已跟踪文件、日志或安全异常消息中。
 
+### R0-WP09 阶段验收
+
+- 干净环境安装：成功；Python 3.12.13，应用导入正常。
+- 干净环境默认测试：79 passed、3 skipped；mypy 和 Ruff lint 通过。
+- 健康检查：`status=ok`；Swagger HTTP 200。
+- 独立数据库迁移：upgrade→downgrade→upgrade 通过，最终 `098a8f062646 (head)`。
+- 云端 smoke：`deepseek-v4-flash` 返回 `cloud-llm-ok`，0.843 秒。
+- Ollama smoke：两次返回 `ollama-local-ok`，3.907/3.637 秒。
+- PaperQA CLI：建索引 11.465 秒、问答 13.858 秒；答案与 PDF 第 11 页 `507 / 233 / 274` 一致。
+- 显式 integration：云端 1 passed（1.18 秒）、Ollama 1 passed（7.81 秒）、PaperQA2 1 passed（23.89 秒）。
+
 ## 已知限制
 
 - 当前业务模块主要为脚手架，完整 RAG、检索、写作和 Agent 能力尚未实现。
@@ -200,7 +221,8 @@
 - 一次性演示 CLI 每次启动新进程，因此当前会重新建立 WP06 的进程内索引；`--rebuild` 可强制同一客户端实例重建，但跨进程持久化仍不在 R0-WP07 范围。
 - LiteLLM 尚无 `deepseek-v4-flash` 的价格映射，云端回答成功但无法自动估算成本。
 - 持久化索引尚未实现，因此索引目录不可写场景只能以 Windows 确定性文件系统失败和 CLI 输出目录覆盖；进程内索引本身不访问目录。
+- `requirements-r0.lock` 固定直接依赖但未包含全部传递依赖哈希；完整跨平台可验证锁列入 R1 Backlog。
 
 ## 下一任务
 
-下一任务为 R0-WP09；必须先读取任务文档，不提前执行。
+R0 阶段已完成。下一步只能在明确启动 R1 后按 `docs/R1_BACKLOG.md` 选择工作，不提前实施。

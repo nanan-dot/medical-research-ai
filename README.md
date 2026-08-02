@@ -8,6 +8,8 @@
 - Python：3.12
 - 工作目录：`H:\AI_project\rag_medicine`
 
+R0 验收版本可使用 `requirements-r0.lock` 安装；PaperQA2 使用独立的 `experiments/paperqa2_r0/requirements.lock`。阶段验收证据见 `docs/R0_ACCEPTANCE.md`，R1 候选事项见 `docs/R1_BACKLOG.md`。
+
 本机全局 `PYTHONPATH` 指向其他虚拟环境。运行本项目时必须清空它，避免从错误环境加载包。
 
 ### Git Bash
@@ -201,3 +203,7 @@ $env:OLLAMA_MODEL='qwen3:4b'
 ## R0 安全与回归
 
 默认 pytest 不调用真实云端或本地模型；integration 测试必须显式启用。错误码、日志脱敏、Git 敏感文件规则和 Windows 权限等价测试见 `docs/R0_SECURITY_CHECKLIST.md`，完整场景矩阵与回归命令见 `docs/R0_TEST_REPORT.md`。
+
+## R0 阶段状态
+
+R0 已于 2026-08-02 完成阶段验收。开发者现场演示、干净环境安装、健康检查、迁移回滚、云端与本地模型、PaperQA2 问答、人工来源核对和显式 integration 均已实际通过。详情以 `docs/R0_ACCEPTANCE.md` 为准。

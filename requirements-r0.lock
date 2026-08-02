@@ -1,0 +1,15 @@
+# R0 direct dependency lock captured from the accepted Windows environments on 2026-08-02.
+# PaperQA2 remains isolated and is locked in experiments/paperqa2_r0/requirements.lock.
+fastapi==0.141.1
+uvicorn[standard]==0.52.0
+sqlalchemy[asyncio]==2.0.51
+aiosqlite==0.22.1
+alembic==1.18.5
+pydantic==2.13.4
+pydantic-settings==2.14.2
+httpx==0.28.1
+python-multipart==0.0.32
+pytest==9.1.1
+pytest-asyncio==1.4.0
+mypy==2.3.0
+ruff==0.12.0

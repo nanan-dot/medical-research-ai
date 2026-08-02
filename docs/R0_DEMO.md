@@ -13,13 +13,16 @@
 
 ```powershell
 $env:PYTHONPATH=''
-& C:\Users\ADMIN\.paperqa-codex-venv\Scripts\python.exe -m scripts.r0_paperqa_demo `
-  --pdf 'H:\AI_project\rag_medicine\data\paperqa2_r0\plos-medicine-carrs-followup.pdf' `
+$repo = (Get-Location).Path
+$paperQaPython = Join-Path $env:USERPROFILE '.paperqa-codex-venv\Scripts\python.exe'
+$pdf = Join-Path $repo 'data\paperqa2_r0\plos-medicine-carrs-followup.pdf'
+& $paperQaPython -m scripts.r0_paperqa_demo `
+  --pdf $pdf `
   --question 'How many cumulative first microvascular and macrovascular events occurred during 6.5 years of observation, and how many were in the intervention and usual-care groups?' `
   --provider ollama `
   --model 'qwen3:4b' `
   --base-url 'http://127.0.0.1:11434' `
-  --output 'H:\AI_project\rag_medicine\data\r0_demo\ollama-result.json'
+  --output (Join-Path $repo 'data\r0_demo\ollama-result.json')
 ```
 
 实际结果：成功；建索引 10.554 秒，问答 14.316 秒，返回 10 个来源。
@@ -30,11 +33,14 @@ $env:PYTHONPATH=''
 
 ```powershell
 $env:PYTHONPATH=''
-& C:\Users\ADMIN\.paperqa-codex-venv\Scripts\python.exe -m scripts.r0_paperqa_demo `
-  --pdf 'H:\AI_project\rag_medicine\data\paperqa2_r0\plos-medicine-carrs-followup.pdf' `
+$repo = (Get-Location).Path
+$paperQaPython = Join-Path $env:USERPROFILE '.paperqa-codex-venv\Scripts\python.exe'
+$pdf = Join-Path $repo 'data\paperqa2_r0\plos-medicine-carrs-followup.pdf'
+& $paperQaPython -m scripts.r0_paperqa_demo `
+  --pdf $pdf `
   --question 'How many cumulative first microvascular and macrovascular events occurred during 6.5 years of observation, and how many were in the intervention and usual-care groups?' `
   --provider openai `
-  --output 'H:\AI_project\rag_medicine\data\r0_demo\cloud-result.json'
+  --output (Join-Path $repo 'data\r0_demo\cloud-result.json')
 ```
 
 实际结果：`deepseek-v4-flash` 成功；建索引 8.705 秒，问答 5.858 秒，返回 10 个来源。LiteLLM 无该模型价格映射，因此仅成本估算不可用，不影响回答。
