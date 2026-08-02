@@ -3,17 +3,20 @@ import { shallowRef } from "vue";
 
 import KnowledgeBaseView from "./views/KnowledgeBase/KnowledgeBaseView.vue";
 import DocumentsView from "./views/Documents/DocumentsView.vue";
+import PaperAnalysisView from "./views/PaperAnalysis/PaperAnalysisView.vue";
 
-const activeView = shallowRef<"sources" | "documents">("documents");
+const activeView = shallowRef<"sources" | "documents" | "analysis">("documents");
 </script>
 
 <template>
   <nav class="app-nav" aria-label="主导航">
     <button :class="{ active: activeView === 'documents' }" @click="activeView = 'documents'">文档状态</button>
     <button :class="{ active: activeView === 'sources' }" @click="activeView = 'sources'">知识源</button>
+    <button :class="{ active: activeView === 'analysis' }" @click="activeView = 'analysis'">论文分析</button>
   </nav>
   <DocumentsView v-if="activeView === 'documents'" />
-  <KnowledgeBaseView v-else />
+  <KnowledgeBaseView v-else-if="activeView === 'sources'" />
+  <PaperAnalysisView v-else />
 </template>
 
 <style scoped>
