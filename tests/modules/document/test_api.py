@@ -19,7 +19,7 @@ def api_context(tmp_path: Path):
     factory = async_sessionmaker(engine, expire_on_commit=False)
     root = tmp_path / "source"
     root.mkdir()
-    paper = root / "paper.txt"
+    paper = root / "paper.md"
     paper.write_text("API test fixture", encoding="utf-8")
 
     async def prepare() -> int:
@@ -91,3 +91,16 @@ def test_document_list_detail_retry_and_delete_index_api(api_context):
     assert deleted_index.status_code == 200
     assert deleted_index.json()["index_status"] == "pending"
     assert paper.read_text(encoding="utf-8") == "API test fixture"
+
+
+def test_parse_and_content_summary_api(api_context):
+    client, document_id, paper = api_context
+    paper.write_text("# API Notes\nBody", encoding="utf-8")
+    retried = client.post(f"/api/v1/documents/{document_id}/retry-parse")
+    assert retried.status_code == 200
+    parsed = client.post(f"/api/v1/documents/{document_id}/parse")
+    assert parsed.status_code == 200
+    assert parsed.json()["section_headings"] == ["API Notes"]
+    summary = client.get(f"/api/v1/documents/{document_id}/content-summary")
+    assert summary.status_code == 200
+    assert summary.json() == parsed.json()

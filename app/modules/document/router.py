@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.modules.document.schema import DocumentPage, DocumentRead, IndexStatus, ParseStatus
 from app.modules.document.service import DocumentService
+from app.modules.document.parsers.schemas import ParsedContentSummary
 
 router = APIRouter(prefix="/documents", tags=["文档"])
 
@@ -29,6 +30,20 @@ async def get_document(
 ) -> DocumentRead:
     service = DocumentService(session)
     return DocumentRead.model_validate(await service.get(id))
+
+
+@router.post("/{id}/parse", response_model=ParsedContentSummary)
+async def parse_document(
+    id: int, session: AsyncSession = Depends(get_session)
+) -> ParsedContentSummary:
+    return await DocumentService(session).parse(id)
+
+
+@router.get("/{id}/content-summary", response_model=ParsedContentSummary)
+async def get_document_content_summary(
+    id: int, session: AsyncSession = Depends(get_session)
+) -> ParsedContentSummary:
+    return await DocumentService(session).content_summary(id)
 
 
 @router.post("/{id}/retry-parse", response_model=DocumentRead)

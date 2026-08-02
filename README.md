@@ -254,3 +254,12 @@ DELETE /api/v1/documents/{id}/index
 ```
 
 解析状态为 `pending/parsing/succeeded/failed`，索引状态为 `pending/indexing/succeeded/failed/outdated`。重试只把符合前置条件的失败任务重新置为 `pending`，不伪造处理成功；运行超过 30 分钟且没有完成报告的任务会在查询时标记为 `failed`。源文件被外部删除时，解析不会继续显示成功。
+
+### PDF 与 Markdown 解析
+
+```text
+POST /api/v1/documents/{id}/parse
+GET  /api/v1/documents/{id}/content-summary
+```
+
+PDF 解析逐页保存 1-based 页码，基础移除跨页重复页眉页脚并识别低文本量扫描版；扫描版不会自动 OCR。Markdown 使用严格 UTF-8，读取 YAML front matter、标题层级和正文。解析结果保存在本地数据库，摘要接口仅返回标题、页码、章节、YAML 元数据、扫描提示和字符数。

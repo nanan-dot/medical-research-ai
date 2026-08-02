@@ -34,3 +34,7 @@ class Document(Base):
     retry_count: Mapped[int] = mapped_column(default=0, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    parsed_title: Mapped[str | None] = mapped_column(String(500))
+    parsed_content: Mapped[str | None] = mapped_column(Text)
+    parsed_is_scanned: Mapped[bool | None]
+    parsed_page_count: Mapped[int | None]

@@ -3,12 +3,16 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import re
+import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.common.logger import logger
 from app.modules.document.model import Document
+from app.modules.document.parsers.base import DocumentParserError
+from app.modules.document.parsers.factory import create_parser
+from app.modules.document.parsers.schemas import ParsedContentSummary, ParsedDocument
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import (
     DocumentPage,
@@ -111,6 +115,52 @@ class DocumentService:
             self._apply_transition(entity, "index", IndexStatus.PENDING.value)
         return await self.repo.save(entity)
 
+    async def parse(self, id: int) -> ParsedContentSummary:
+        entity = await self.get(id)
+        current = ParseStatus(entity.parse_status)
+        if current == ParseStatus.PARSING:
+            raise ConflictError("Document parsing is already running")
+        if current != ParseStatus.PENDING:
+            raise ConflictError("Only pending documents can be parsed")
+        path = await self._source_file_path(entity)
+        await self.mark_parse_status(entity, ParseStatus.PARSING)
+        try:
+            parser = create_parser(path)
+            parsed = await asyncio.to_thread(parser.parse, path)
+        except DocumentParserError as exc:
+            await self.mark_parse_status(entity, ParseStatus.FAILED, exc.code, str(exc))
+            raise ConflictError(str(exc)) from exc
+        except OSError as exc:
+            await self.mark_parse_status(
+                entity,
+                ParseStatus.FAILED,
+                "document_unavailable",
+                "Document could not be read during parsing",
+            )
+            raise ConflictError("Document could not be read during parsing") from exc
+        except Exception as exc:
+            await self.mark_parse_status(
+                entity, ParseStatus.FAILED, "document_parse_failed", "Document parsing failed"
+            )
+            raise ConflictError("Document parsing failed") from exc
+        entity.parsed_title = parsed.title
+        entity.parsed_content = parsed.model_dump_json()
+        entity.parsed_is_scanned = parsed.is_scanned
+        entity.parsed_page_count = len(parsed.pages)
+        entity.index_status = IndexStatus.OUTDATED.value
+        await self.mark_parse_status(entity, ParseStatus.SUCCEEDED)
+        return self._content_summary(entity, parsed)
+
+    async def content_summary(self, id: int) -> ParsedContentSummary:
+        entity = await self.get(id)
+        if not entity.parsed_content or entity.parse_status != ParseStatus.SUCCEEDED.value:
+            raise ConflictError("Document has no successful parsed content")
+        try:
+            parsed = ParsedDocument.model_validate_json(entity.parsed_content)
+        except ValueError as exc:
+            raise ConflictError("Stored parsed content is invalid") from exc
+        return self._content_summary(entity, parsed)
+
     async def mark_parse_status(
         self,
         entity: Document,
@@ -179,15 +229,33 @@ class DocumentService:
         await self.repo.save(entity)
 
     async def _require_source_file(self, entity: Document) -> None:
+        await self._source_file_path(entity)
+
+    async def _source_file_path(self, entity: Document) -> Path:
         source = await self.source_repo.get(entity.knowledge_source_id)
         if source is None:
             raise ConflictError("Document source file is not available")
+        path = Path(source.root_path) / entity.file_path
         try:
-            available = (Path(source.root_path) / entity.file_path).is_file()
+            available = path.is_file()
         except OSError:
             available = False
         if not available:
             raise ConflictError("Document source file is not available")
+        return path
+
+    @staticmethod
+    def _content_summary(entity: Document, parsed: ParsedDocument) -> ParsedContentSummary:
+        return ParsedContentSummary(
+            document_id=entity.id,
+            title=parsed.title,
+            page_count=len(parsed.pages),
+            page_numbers=[page.page_number for page in parsed.pages],
+            section_headings=[section.heading for section in parsed.sections],
+            yaml_metadata=parsed.yaml_metadata,
+            is_scanned=parsed.is_scanned,
+            character_count=len(parsed.text),
+        )
 
     @staticmethod
     def _apply_transition(

@@ -2,9 +2,9 @@
 
 ## 当前工作包
 
-- 工作包：R1-WP03《文档状态与任务管理》
+- 工作包：R1-WP04《PDF 与 Markdown 基础解析》
 - 状态：已完成
-- 负责模块：文档状态与任务管理
+- 负责模块：PDF 与 Markdown 基础解析
 
 ## 前置条件
 
@@ -52,6 +52,16 @@
 - 文档列表支持解析/索引状态过滤、总数和基础 offset/limit 分页；提供详情、解析重试、索引重试和删除系统索引接口。
 - Vue 前端新增文档状态页、双状态标签、错误展示、过滤、分页、重试和删除索引操作。
 
+### R1-WP04
+
+- 定义与第三方库隔离的 `ParsedDocument`、`ParsedPage`、`ParsedSection` 和解析器协议。
+- PDF 使用 pypdf 逐页提取并保留 1-based 页码、空页和标题候选；基础移除跨页重复首尾行。
+- PDF 低文本量时明确返回 `is_scanned=true`，不执行 OCR，也不伪造文本。
+- Markdown 严格按 UTF-8/UTF-8 BOM 解码，解析 YAML front matter、1–6 级标题、章节正文和来源路径。
+- 非法 YAML、编码错误、100 MiB 输入限制、1000 万字符提取限制和不支持类型均使用稳定错误状态。
+- 解析在工作线程中执行，成功持久化统一 JSON 并把索引标记 `outdated`；失败写入 WP03 状态机。
+- 新增解析和内容摘要接口；摘要不返回完整正文。
+
 ## 测试结果
 
 ### R1-WP01
@@ -83,6 +93,15 @@
 - 旧数据映射：WP02 `scan_state=outdated` 升级后得到 `parse_status=pending`、`index_status=outdated`、`retry_count=0`。
 - 前端：`vue-tsc` 通过；Vitest 2 个文件、4 个测试通过；Vite 生产构建通过。
 
+### R1-WP04
+
+- 解析器与 Document 专项：31 passed。
+- 全量后端回归：128 passed、5 skipped；仅有已知 Starlette TestClient/httpx2 弃用警告。
+- mypy：Document 解析边界 13 个源码文件通过。
+- Ruff：全仓 lint 和本轮格式检查通过。
+- Alembic：upgrade→downgrade→upgrade 通过，最终 `e146f13a9c52 (head)`；`alembic check` 无差异。
+- 真实夹具覆盖单栏 PDF、基础双栏、空页、无文本扫描提示、Markdown 标题/YAML/编码错误和不支持类型。
+
 ## 已知限制
 
 - 本工作包只登记和管理授权目录，不扫描文件、不建立索引，也不触发 PaperQA。
@@ -98,7 +117,10 @@
 - `started_at/finished_at` 当前描述最近一次解析或索引任务，不保存完整状态变更历史；可审计历史需要后续独立任务表。
 - 卡死任务在文档列表或详情查询时校正，没有后台定时巡检。
 - 删除索引当前清除索引状态并回到 `pending`；尚无独立向量存储可删除。
+- PDF 双栏仅依赖 pypdf 文本层顺序，不做复杂版面恢复、表格识别、公式识别或 OCR。
+- 扫描版识别采用文本量启发式；混合扫描/文字 PDF 可能需要后续逐页 OCR 策略。
+- Markdown 暂不完整解析 Obsidian/Wiki 链接、嵌入、Dataview 或其他插件语法。
 
 ## 下一任务
 
-等待明确的下一工作包文档；不提前实现正文解析、真实索引、检索或 Agent。
+等待明确的下一工作包文档；不提前实现 DOCX/TXT 解析、真实索引、检索或 Agent。
