@@ -229,3 +229,14 @@ npm run dev
 ```
 
 当前 R1 工作包状态和验收记录见 `docs/R1_IMPLEMENTATION_STATUS.md`。
+
+### 增量同步
+
+对已启用知识源执行同步：
+
+```text
+POST /api/v1/knowledge-sources/{id}/sync
+GET  /api/v1/knowledge-sources/{id}/sync-status
+```
+
+扫描支持 `.pdf`、`.md`、`.docx`、`.txt`，自动忽略 `.obsidian`、`.git`、`.trash`。文件使用流式 SHA-256；摘要持久化新增、修改、删除、跳过和失败数量。内容变化将 Document 标记为 `outdated`，后续索引工作包可据此重建；本工作包不读取文件正文、不创建向量索引，也不修改原文件。
