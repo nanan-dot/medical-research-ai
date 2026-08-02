@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.integrations.paperqa2 import PaperQA2Client, PaperQAIndex, create_paperqa2_client
 from app.integrations.paperqa2.exceptions import PaperQA2Error
 from app.modules.conversation.model import Citation, Conversation, Message
+from app.modules.conversation.no_answer import NO_ANSWER_TEXT, POLICY_VERSION, evaluate_answer
 from app.modules.conversation.repository import ConversationRepository
 from app.modules.conversation.schema import CitationRead, ConversationRead, MessageRead
 from app.modules.document.repository import DocumentRepository
@@ -73,12 +74,32 @@ class ConversationService:
                         PaperQAIndex(
                             index_id=document.paperqa_index_key, document_count=1, reused=True
                         ),
-                        question,
+                        "Answer only from the indexed paper. If evidence is insufficient, say so explicitly. Question: "
+                        + question,
                     )
                     answers.append((document, answer))
             except PaperQA2Error as exc:
+                await self.repo.create(
+                    Message(
+                        conversation_id=id,
+                        sequence=sequence + 1,
+                        role="assistant",
+                        content="问答系统暂时失败，请稍后重试。",
+                        model_version=self._model_version(),
+                        latency_ms=int((perf_counter() - started) * 1000),
+                        answer_status="failed",
+                        uncertainty=1.0,
+                        reason_codes=json.dumps(["system_error"]),
+                        created_at=datetime.now(UTC),
+                    )
+                )
                 raise ConflictError("Paper question answering failed") from exc
-            content = "\n\n".join(answer.answer for _, answer in answers)
+            decision = evaluate_answer([answer for _, answer in answers])
+            content = (
+                NO_ANSWER_TEXT
+                if decision.status == "insufficient_evidence"
+                else "\n\n".join(answer.answer for _, answer in answers)
+            )
             assistant = await self.repo.create(
                 Message(
                     conversation_id=id,
@@ -87,6 +108,9 @@ class ConversationService:
                     content=content,
                     model_version=self._model_version(),
                     latency_ms=int((perf_counter() - started) * 1000),
+                    answer_status=decision.status,
+                    uncertainty=decision.uncertainty,
+                    reason_codes=json.dumps(decision.reason_codes),
                     created_at=datetime.now(UTC),
                 )
             )
@@ -152,6 +176,9 @@ class ConversationService:
             model_version=entity.model_version,
             latency_ms=entity.latency_ms,
             feedback=entity.feedback,
+            answer_status=entity.answer_status,
+            uncertainty=entity.uncertainty,
+            reason_codes=json.loads(entity.reason_codes or "[]"),
             created_at=entity.created_at,
             citations=[
                 CitationRead.model_validate(item, from_attributes=True)
@@ -166,4 +193,4 @@ class ConversationService:
             "openrouter": settings.OPENROUTER_MODEL,
             "ollama": settings.OLLAMA_MODEL,
         }[settings.DEFAULT_MODEL_PROVIDER]
-        return f"{settings.DEFAULT_MODEL_PROVIDER}:{value or 'unconfigured'}"
+        return f"{settings.DEFAULT_MODEL_PROVIDER}:{value or 'unconfigured'};{POLICY_VERSION}"

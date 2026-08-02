@@ -1,5 +1,5 @@
 export interface Citation { id:number; document_id:number; page:number|null; section:string|null; evidence_text:string|null; citation_text:string|null; retrieval_score:number|null }
-export interface Message { id:number; role:string; content:string; citations:Citation[] }
+export interface Message { id:number; role:string; content:string; citations:Citation[]; answer_status?:"answered"|"insufficient_evidence"|"failed"; uncertainty?:number; reason_codes?:string[] }
 export interface Conversation { id:number; document_ids:number[]; title:string|null; messages:Message[] }
 const base="/api/v1/conversations";
 async function request<T>(path:string,init?:RequestInit):Promise<T>{const response=await fetch(base+path,init);if(!response.ok)throw new Error("问答请求失败");return response.json() as Promise<T>}

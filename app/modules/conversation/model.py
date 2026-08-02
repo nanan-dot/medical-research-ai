@@ -30,6 +30,9 @@ class Message(Base):
     model_version: Mapped[str | None] = mapped_column(String(100))
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     feedback: Mapped[int | None] = mapped_column(Integer)
+    answer_status: Mapped[str | None] = mapped_column(String(32))
+    uncertainty: Mapped[float | None]
+    reason_codes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

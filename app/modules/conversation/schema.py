@@ -31,6 +31,9 @@ class MessageRead(BaseModel):
     model_version: str | None
     latency_ms: int | None
     feedback: int | None
+    answer_status: str | None
+    uncertainty: float | None
+    reason_codes: list[str]
     created_at: datetime
     citations: list[CitationRead] = []
 
