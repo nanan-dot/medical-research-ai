@@ -11,7 +11,7 @@ from app.common.exceptions import ConflictError
 from app.common.hashing import sha256_file
 from app.modules.document.model import Document
 from app.modules.document.repository import DocumentRepository
-from app.modules.document.schema import DocumentScanState
+from app.modules.document.schema import DocumentScanState, IndexStatus, ParseStatus
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.knowledge_source.scanner import scan_directory
 from app.modules.knowledge_source.schema import (
@@ -77,6 +77,8 @@ class KnowledgeSourceSyncService:
                         modified_time=modified_time,
                         modified_time_ns=scanned.modified_time_ns,
                         scan_state=DocumentScanState.PENDING.value,
+                        parse_status=ParseStatus.PENDING.value,
+                        index_status=IndexStatus.PENDING.value,
                     )
                 )
                 counts["added"] += 1
@@ -93,6 +95,12 @@ class KnowledgeSourceSyncService:
                 document.modified_time = modified_time
                 document.modified_time_ns = scanned.modified_time_ns
                 document.scan_state = DocumentScanState.OUTDATED.value
+                document.parse_status = ParseStatus.PENDING.value
+                document.index_status = IndexStatus.OUTDATED.value
+                document.error_code = None
+                document.error_message = None
+                document.started_at = None
+                document.finished_at = None
                 await self.document_repo.save(document)
                 counts["modified"] += 1
 

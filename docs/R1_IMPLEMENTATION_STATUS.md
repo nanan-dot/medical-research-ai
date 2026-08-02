@@ -2,9 +2,9 @@
 
 ## 当前工作包
 
-- 工作包：R1-WP02《文件扫描与增量同步》
+- 工作包：R1-WP03《文档状态与任务管理》
 - 状态：已完成
-- 负责模块：文件扫描与增量同步
+- 负责模块：文档状态与任务管理
 
 ## 前置条件
 
@@ -39,6 +39,19 @@
 - 同步摘要持久化新增、修改、删除、跳过、失败数量和最后同步时间。
 - 新增同步与状态接口：`POST /api/v1/knowledge-sources/{id}/sync`、`GET /api/v1/knowledge-sources/{id}/sync-status`。
 
+### R1-WP03
+
+- 增加解析状态 `pending/parsing/succeeded/failed` 和索引状态 `pending/indexing/succeeded/failed/outdated`。
+- 增加错误码、受限错误消息、重试次数、任务开始与完成时间。
+- 使用独立状态机拒绝非法转换；解析或索引运行中禁止重复重试并返回 409。
+- 解析仅允许失败后重试；索引仅允许失败/过期且解析成功后重试，重试只重新排入 `pending`。
+- 运行超过 30 分钟且没有完成报告的任务自动校正为 `failed/task_stalled`。
+- 源文件被外部删除时，解析标记 `failed`、索引标记 `outdated`，避免失败仍显示成功。
+- 错误消息压缩为单行、限制 500 字符，并脱敏常见 Key、Token、Password 和 Secret。
+- 状态变化日志仅记录文档 ID、任务、前后状态，不记录文件正文或错误原文。
+- 文档列表支持解析/索引状态过滤、总数和基础 offset/limit 分页；提供详情、解析重试、索引重试和删除系统索引接口。
+- Vue 前端新增文档状态页、双状态标签、错误展示、过滤、分页、重试和删除索引操作。
+
 ## 测试结果
 
 ### R1-WP01
@@ -59,6 +72,17 @@
 - Ruff：`app tests scripts alembic experiments` 全部 lint 通过。
 - Alembic：独立数据库 upgrade→downgrade→upgrade 通过，最终 `c824d91e7a30 (head)`；`alembic check` 无差异。
 
+### R1-WP03
+
+- Document 专项：18 passed。
+- Document + Sync 组合：26 passed、1 skipped。
+- 全量后端回归：115 passed、5 skipped；仅有已知 Starlette TestClient/httpx2 弃用警告。
+- mypy：Document 与同步边界 8 个源码文件通过。
+- Ruff：`app tests scripts alembic experiments` lint 和本轮格式检查通过。
+- Alembic：upgrade→downgrade→upgrade 通过，最终 `d935e02f8b41 (head)`；`alembic check` 无差异。
+- 旧数据映射：WP02 `scan_state=outdated` 升级后得到 `parse_status=pending`、`index_status=outdated`、`retry_count=0`。
+- 前端：`vue-tsc` 通过；Vitest 2 个文件、4 个测试通过；Vite 生产构建通过。
+
 ## 已知限制
 
 - 本工作包只登记和管理授权目录，不扫描文件、不建立索引，也不触发 PaperQA。
@@ -70,7 +94,11 @@
 - `outdated` 仅表示后续索引必须重建；本工作包没有向量索引实现，因此不会伪造“已重建”状态。
 - 同步接口当前为单进程内同步执行，没有后台任务队列、进度百分比或跨进程锁。
 - 文件类型按扩展名筛选，不在本工作包校验 PDF/DOCX 内部格式或提取正文。
+- WP03 只管理任务状态与重试入队语义，不包含真实解析器、向量索引或后台任务执行器。
+- `started_at/finished_at` 当前描述最近一次解析或索引任务，不保存完整状态变更历史；可审计历史需要后续独立任务表。
+- 卡死任务在文档列表或详情查询时校正，没有后台定时巡检。
+- 删除索引当前清除索引状态并回到 `pending`；尚无独立向量存储可删除。
 
 ## 下一任务
 
-等待明确的下一工作包文档；不提前实现正文解析、索引、检索或 Agent。
+等待明确的下一工作包文档；不提前实现正文解析、真实索引、检索或 Agent。

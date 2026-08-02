@@ -240,3 +240,17 @@ GET  /api/v1/knowledge-sources/{id}/sync-status
 ```
 
 扫描支持 `.pdf`、`.md`、`.docx`、`.txt`，自动忽略 `.obsidian`、`.git`、`.trash`。文件使用流式 SHA-256；摘要持久化新增、修改、删除、跳过和失败数量。内容变化将 Document 标记为 `outdated`，后续索引工作包可据此重建；本工作包不读取文件正文、不创建向量索引，也不修改原文件。
+
+### 文档状态与任务
+
+文档 API 提供解析/索引双状态、失败信息、过滤分页及安全重试：
+
+```text
+GET    /api/v1/documents
+GET    /api/v1/documents/{id}
+POST   /api/v1/documents/{id}/retry-parse
+POST   /api/v1/documents/{id}/retry-index
+DELETE /api/v1/documents/{id}/index
+```
+
+解析状态为 `pending/parsing/succeeded/failed`，索引状态为 `pending/indexing/succeeded/failed/outdated`。重试只把符合前置条件的失败任务重新置为 `pending`，不伪造处理成功；运行超过 30 分钟且没有完成报告的任务会在查询时标记为 `failed`。源文件被外部删除时，解析不会继续显示成功。

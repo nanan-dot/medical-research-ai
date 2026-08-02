@@ -11,6 +11,21 @@ class DocumentScanState(StrEnum):
     OUTDATED = "outdated"
 
 
+class ParseStatus(StrEnum):
+    PENDING = "pending"
+    PARSING = "parsing"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class IndexStatus(StrEnum):
+    PENDING = "pending"
+    INDEXING = "indexing"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    OUTDATED = "outdated"
+
+
 class DocumentCreate(BaseModel):
     """创建请求"""
 
@@ -35,3 +50,17 @@ class DocumentRead(BaseModel):
     file_size: int
     modified_time: datetime
     scan_state: DocumentScanState
+    parse_status: ParseStatus
+    index_status: IndexStatus
+    error_code: str | None
+    error_message: str | None
+    retry_count: int
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+class DocumentPage(BaseModel):
+    items: list[DocumentRead]
+    total: int
+    offset: int
+    limit: int
