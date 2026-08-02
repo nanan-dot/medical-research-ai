@@ -1,36 +1,40 @@
-"""conversation — HTTP 路由"""
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_session
+from app.modules.conversation.schema import (
+    ConversationCreate,
+    ConversationRead,
+    FeedbackCreate,
+    MessageCreate,
+    MessageRead,
+)
 from app.modules.conversation.service import ConversationService
 
-router = APIRouter(prefix="/conversation", tags=["会话"])
+router = APIRouter(prefix="/conversations", tags=["会话"])
 
 
-@router.get("")
-async def list_conversation(
-    offset: int = 0,
-    limit: int = 20,
-    session: AsyncSession = Depends(get_session),
+@router.post("", response_model=ConversationRead)
+async def create_conversation(
+    request: ConversationCreate, session: AsyncSession = Depends(get_session)
 ):
-    service = ConversationService(session)
-    return await service.list(offset=offset, limit=limit)
+    return await ConversationService(session).create(request.document_ids, request.title)
 
 
-@router.get("/{id}")
-async def get_conversation(
-    id: int,
-    session: AsyncSession = Depends(get_session),
+@router.get("/{id}", response_model=ConversationRead)
+async def get_conversation(id: int, session: AsyncSession = Depends(get_session)):
+    return await ConversationService(session).get(id)
+
+
+@router.post("/{id}/messages", response_model=MessageRead)
+async def create_message(
+    id: int, request: MessageCreate, session: AsyncSession = Depends(get_session)
 ):
-    service = ConversationService(session)
-    return await service.get(id)
+    return await ConversationService(session).ask(id, request.question)
 
 
-@router.delete("/{id}", status_code=204)
-async def delete_conversation(
-    id: int,
-    session: AsyncSession = Depends(get_session),
+@router.post("/{id}/messages/{message_id}/feedback", response_model=MessageRead)
+async def feedback(
+    id: int, message_id: int, request: FeedbackCreate, session: AsyncSession = Depends(get_session)
 ):
-    service = ConversationService(session)
-    await service.delete(id)
+    return await ConversationService(session).feedback(id, message_id, request.rating)

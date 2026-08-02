@@ -1,32 +1,41 @@
-"""conversation — 数据库访问"""
-
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.modules.conversation.model import Conversation
+
+from app.modules.conversation.model import Citation, Conversation, Message
 
 
 class ConversationRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get(self, id: int) -> Conversation | None:
-        result = await self.session.execute(
-            select(Conversation).where(Conversation.id == id)
-        )
-        return result.scalar_one_or_none()
+    async def get(self, id: int):
+        return await self.session.get(Conversation, id)
 
-    async def list(self, offset: int = 0, limit: int = 20) -> list[Conversation]:
-        result = await self.session.execute(
-            select(Conversation).offset(offset).limit(limit)
-        )
-        return list(result.scalars().all())
-
-    async def create(self, entity: Conversation) -> Conversation:
+    async def create(self, entity):
         self.session.add(entity)
         await self.session.flush()
-        await self.session.refresh(entity)
         return entity
 
-    async def delete(self, entity: Conversation) -> None:
-        await self.session.delete(entity)
+    async def save(self, entity):
         await self.session.flush()
+        return entity
+
+    async def messages(self, conversation_id: int):
+        result = await self.session.execute(
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.sequence)
+        )
+        return list(result.scalars())
+
+    async def citations(self, message_id: int):
+        result = await self.session.execute(
+            select(Citation).where(Citation.message_id == message_id).order_by(Citation.id)
+        )
+        return list(result.scalars())
+
+    async def next_sequence(self, conversation_id: int):
+        value = await self.session.scalar(
+            select(func.max(Message.sequence)).where(Message.conversation_id == conversation_id)
+        )
+        return int(value or 0) + 1

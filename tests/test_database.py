@@ -12,6 +12,8 @@ from app.core.database import Base
 
 EXPECTED_TABLES = {
     "conversations",
+    "messages",
+    "citations",
     "documents",
     "evaluations",
     "feedbacks",
