@@ -14,6 +14,9 @@ class KnowledgeSourceType(StrEnum):
 
 class KnowledgeSourceSyncStatus(StrEnum):
     IDLE = "idle"
+    SCANNING = "scanning"
+    COMPLETED = "completed"
+    COMPLETED_WITH_ERRORS = "completed_with_errors"
     UNAVAILABLE = "unavailable"
 
 
@@ -60,4 +63,16 @@ class KnowledgeSourceRead(BaseModel):
     enabled: bool
     sync_status: KnowledgeSourceSyncStatus
     last_sync_time: datetime | None
+    error_message: str | None
+
+
+class KnowledgeSourceSyncSummary(BaseModel):
+    knowledge_source_id: int
+    sync_status: KnowledgeSourceSyncStatus
+    last_sync_time: datetime | None
+    added: int
+    modified: int
+    deleted: int
+    skipped: int
+    failed: int
     error_message: str | None

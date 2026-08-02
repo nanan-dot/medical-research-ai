@@ -7,11 +7,29 @@ from app.core.database import get_session
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
     KnowledgeSourceRead,
+    KnowledgeSourceSyncSummary,
     KnowledgeSourceUpdate,
 )
 from app.modules.knowledge_source.service import KnowledgeSourceService
+from app.modules.knowledge_source.sync_service import KnowledgeSourceSyncService
 
 router = APIRouter(prefix="/knowledge-sources", tags=["知识源"])
+
+
+@router.post("/{id}/sync", response_model=KnowledgeSourceSyncSummary)
+async def sync_knowledge_source(
+    id: int,
+    session: AsyncSession = Depends(get_session),
+) -> KnowledgeSourceSyncSummary:
+    return await KnowledgeSourceSyncService(session).sync(id)
+
+
+@router.get("/{id}/sync-status", response_model=KnowledgeSourceSyncSummary)
+async def get_knowledge_source_sync_status(
+    id: int,
+    session: AsyncSession = Depends(get_session),
+) -> KnowledgeSourceSyncSummary:
+    return await KnowledgeSourceSyncService(session).status(id)
 
 
 @router.get("", response_model=list[KnowledgeSourceRead])

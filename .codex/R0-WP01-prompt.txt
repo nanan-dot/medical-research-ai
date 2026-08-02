@@ -1,0 +1,185 @@
+你是一名高级 Python/FastAPI/RAG/Agent 工程师，正在维护“医学科研智能助手平台”。
+
+**工作目录：`H:\AI_project\rag_medicine`**，所有文件操作在此目录下进行。
+
+本次只执行：R0-WP01《范围、环境和 Git 基线》。
+
+【环境警告】
+本机 PYTHONPATH 已全局设为 Hermes venv 路径。
+所有 conda Python 命令必须使用以下前缀：
+    env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe
+或：
+    env PYTHONPATH="" python
+否则会从错误的 venv 加载包导致 ModuleNotFoundError。
+
+【必须先做】
+1. 切换到工作目录 `H:\AI_project\rag_medicine`。
+2. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+3. 读取当前阶段任务文档与 `docs/R0_IMPLEMENTATION_STATUS.md`；如果状态文件不存在，先创建。
+4. 检查前置条件：脚手架已创建；Conda 环境 `med-research-ai` 已存在；Git 已初始化。
+5. 在写代码前，先报告：
+   - 当前仓库已有能力；
+   - 准备创建哪些文件；
+   - 准备修改哪些文件；
+   - 每个文件的职责；
+   - 本轮明确不修改的模块；
+   - 本轮测试与验收方法。
+6. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R0-WP01：范围、环境和 Git 基线
+
+负责模块：工程基础与项目治理
+
+【来源需求】
+### 目标
+
+建立可复现且可回滚的开发基础。
+
+### 任务
+
+1. 建立 `docs/R0_SCOPE.md`；
+2. 建立 `docs/R0_BACKLOG.md`；
+3. 验证 Conda 环境 `med-research-ai` 可用（环境已存在，只需验证）；
+4. 验证项目依赖可导入（依赖已安装，只需验证）；
+5. 从 `.env.example` 复制创建 `.env`（不从零创建）；
+6. ~~生成应用密钥~~（本阶段不需要：FastAPI 无内置 SECRET_KEY；JWT 密钥在需要认证时再生成，写入 Backlog）；
+7. 确认 `data/` 目录存在（R0 实验数据统一放在此目录下）；
+8. 验证 Git 状态（仓库已初始化，当前在 `master` 分支）；
+9. 检查 `.gitignore` 是否覆盖 `.env`、`data/`、`*.db`；
+10. 创建 R0 开发分支 `feature/r0-wp01-baseline`（英文命名）。
+
+### 学习点
+
+- Conda；
+- pip；
+- `.env`；
+- Git；
+- 分支；
+- 敏感信息保护。
+
+### 交付物
+
+- 可激活环境（已验证）；
+- `docs/R0_SCOPE.md`；
+- `docs/R0_BACKLOG.md`；
+- `docs/R0_IMPLEMENTATION_STATUS.md`；
+- `.env`（从 .env.example 复制）；
+- `data/` 目录已确认；
+- R0 分支 `feature/r0-wp01-baseline`。
+
+### 验收
+
+- `env PYTHONPATH="" python --version` 显示 3.12；
+- 项目依赖可导入；
+- `.env` 未被 Git 跟踪（`git check-ignore .env` 成功）；
+- 测试 PDF 未提交；
+- Git 工作区干净（除新建文件外）；
+- R0 分支 `feature/r0-wp01-baseline` 已创建。
+
+---
+
+【建议文件范围】
+- docs/R0_SCOPE.md
+- docs/R0_BACKLOG.md
+- docs/R0_IMPLEMENTATION_STATUS.md
+- .env.example
+- .gitignore
+- README.md
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- 无新增业务API
+
+【数据与状态要求】
+- 环境变量清单
+- Git分支与提交规范
+- 本地data目录约定
+
+【实施步骤】
+1. 审查仓库结构和Git状态
+2. 核对Python与依赖约束
+3. 补齐范围、Backlog和状态文档
+4. 检查.env、data、论文和索引均被忽略
+5. 只修复阻塞环境初始化的问题
+
+【必须处理的异常】
+- Conda 环境不存在或 Python 版本不匹配
+- PYTHONPATH 污染导致包导入错误（用 `env PYTHONPATH=""` 解决）
+- `.env` 已被 Git 跟踪（需从 Git 历史中移除）
+- 脚手架目录结构与文档不一致
+
+【测试要求】
+- 环境导入冒烟测试
+- git check-ignore检查敏感路径
+- README命令可复制性检查
+
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 前端页面
+- 完整知识库业务
+- Obsidian完整同步
+- Mini-RAG
+- FAISS、BM25与Reranker
+- PubMed
+- 研究方向与写作
+- LangGraph Agent
+- 多向量检索
+- Docker、微服务和多用户
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 创建环境并激活
+2. 运行python --version与where python
+3. 执行git status与git check-ignore
+4. 从README复制命令验证
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级，重要变更可回滚。
+5. 更新 `docs/R0_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`chore(r0): establish scope environment and git baseline`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明
+# 数据库迁移
+# 实际执行命令
+# 测试结果
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）
+

@@ -1,0 +1,196 @@
+- 是否满足验收。
+
+---
+
+# 11. 可直接复制给 Codex 的完整提示词
+
+```text
+你是一名高级 Python/FastAPI/RAG/Agent 工程师，正在维护“医学科研智能助手平台”。
+
+【工作目录】`H:\AI_project\rag_medicine`，所有操作在此目录下。
+【环境】PYTHONPATH 已全局设为 Hermes venv，所有 python 命令前需加 `env PYTHONPATH=""`。
+
+本次只执行：R1-WP03《文档状态与任务管理》。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+2. 读取当前阶段任务文档与 `docs/R1_IMPLEMENTATION_STATUS.md`；如果状态文件不存在，先创建。
+3. 检查前置条件：R1-WP02完成。
+4. 在写代码前，先报告：
+   - 当前仓库已有能力；
+   - 准备创建哪些文件；
+   - 准备修改哪些文件；
+   - 每个文件的职责；
+   - 本轮明确不修改的模块；
+   - 本轮测试与验收方法。
+5. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R1-WP03：文档状态与任务管理
+
+负责模块：文档状态与任务管理
+
+【来源需求】
+### 目标
+
+用户知道每篇文档处于什么状态。
+
+### 状态
+
+解析状态：
+
+```text
+pending
+parsing
+succeeded
+failed
+```
+
+索引状态：
+
+```text
+pending
+indexing
+succeeded
+failed
+outdated
+```
+
+### 任务
+
+- 文档列表；
+- 文档详情；
+- 错误信息；
+- 重试解析；
+- 重试索引；
+- 删除系统索引；
+- 状态过滤；
+- 基础分页。
+
+### 验收
+
+- 前端可查看状态；
+- 错误可重试；
+- 状态变化有日志；
+- 不出现“失败但显示成功”。
+
+---
+
+【建议文件范围】
+- app/modules/document/model.py
+- schema.py
+- repository.py
+- service.py
+- router.py
+- app/modules/task/model.py
+- state_machine.py
+- alembic/versions/<revision>.py
+- frontend/src/views/Documents/
+- tests/modules/document/
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- GET /api/v1/documents
+- GET /api/v1/documents/{id}
+- POST /documents/{id}/retry-parse
+- POST /documents/{id}/retry-index
+- DELETE /documents/{id}/index
+
+【数据与状态要求】
+- parse_status
+- index_status
+- error_code
+- error_message
+- retry_count
+- started_at
+- finished_at
+
+【实施步骤】
+1. 定义合法状态迁移
+2. 扩展文档查询和过滤
+3. 实现重试前置检查
+4. 记录错误与时间
+5. 删除索引不删除原文
+6. 前端展示状态、过滤和重试
+
+【必须处理的异常】
+- 并发重复重试
+- 任务崩溃后卡在running
+- 错误消息过长
+- 文档被外部删除
+
+【测试要求】
+- 合法迁移
+- 非法迁移409
+- 失败重试
+- 分页过滤
+- 删除索引
+- 状态与实际文件一致
+
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- PubMed检索
+- 多论文证据矩阵
+- 候选研究方向
+- 完整写作系统
+- LangGraph Agent
+- 多向量检索
+- 多用户与云端部署
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 通过API制造失败状态
+2. 验证重试
+3. 测试非法状态转换
+4. 查看前端状态
+5. 检查日志
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级，重要变更可回滚。
+5. 更新 `docs/R1_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r1): implement document task state management`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明
+# 数据库迁移
+# 实际执行命令
+# 测试结果
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）
+```

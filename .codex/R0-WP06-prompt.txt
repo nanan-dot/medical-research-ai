@@ -1,0 +1,185 @@
+你是一名高级 Python/FastAPI/RAG/Agent 工程师，正在维护“医学科研智能助手平台”。
+
+本次只执行：R0-WP06《PaperQA2 适配器》。
+
+【环境警告】
+本机 PYTHONPATH 已全局设为 Hermes venv 路径。
+所有 conda Python 命令必须使用前缀：
+    env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe
+否则会从错误的 venv 加载包导致 ModuleNotFoundError。
+
+【必须先做】
+1. 切换到工作目录 `H:\AI_project\rag_medicine`。
+2. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+3. 读取当前阶段任务文档与 `docs/R0_IMPLEMENTATION_STATUS.md`；如果状态文件不存在，先创建。
+3. 检查前置条件：R0-WP05通过并固定版本。
+4. 在写代码前，先报告：
+   - 当前仓库已有能力；
+   - 准备创建哪些文件；
+   - 准备修改哪些文件；
+   - 每个文件的职责；
+   - 本轮明确不修改的模块；
+   - 本轮测试与验收方法。
+5. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R0-WP06：PaperQA2 适配器
+
+负责模块：PaperQA2适配器
+
+【来源需求】
+### 目标
+
+隔离 PaperQA2 与业务代码。
+
+### 任务
+
+1. 定义 `PaperSource`；
+2. 定义 `PaperQAAnswer`；
+3. 实现 `index_documents`；
+4. 实现 `ask`；
+5. 转换外部返回；
+6. 将缺失页码设为 `None`；
+7. 转换 PaperQA2 异常；
+8. 隐藏外部对象；
+9. 增加 Mock 测试；
+10. 增加真实集成测试入口。
+
+### 学习点
+
+- 适配器模式；
+- 数据转换；
+- 错误边界；
+- 异步与同步调用；
+- 外部依赖隔离。
+
+### 交付物
+
+- PaperQA2 Adapter；
+- Schema；
+- 异常；
+- 测试；
+- README。
+
+### 验收
+
+- Service 不直接依赖 PaperQA2 对象；
+- 统一结构稳定；
+- 缺失信息不伪造；
+- 测试通过。
+
+---
+
+【建议文件范围】
+- app/integrations/paperqa2/client.py
+- app/integrations/paperqa2/schemas.py
+- app/integrations/paperqa2/exceptions.py
+- app/integrations/paperqa2/factory.py
+- tests/unit/test_paperqa2_adapter.py
+- tests/integrations/test_paperqa2_adapter.py
+- README.md
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- PaperQA2Client.index_documents
+- PaperQA2Client.ask
+
+【数据与状态要求】
+- PaperSource
+- PaperQAAnswer
+- 索引引用或标识
+- 统一项目异常
+
+【实施步骤】
+1. 从独立实验提取最小可用调用
+2. 封装索引和问答
+3. 转换原始来源为内部Schema
+4. 缺失页码保持None
+5. 同步耗时调用需要明确线程或后台策略
+6. 外部类型不得泄漏到业务层
+
+【必须处理的异常】
+- 固定版本未安装
+- 索引损坏
+- 同步调用阻塞事件循环
+- 来源字段变化
+- 模型配置错误
+
+【测试要求】
+- Mock原始返回转换
+- 缺失页码
+- 空来源
+- PaperQA2异常
+- 真实PDF集成
+- 重复索引规则
+
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 前端页面
+- 完整知识库业务
+- Obsidian完整同步
+- Mini-RAG
+- FAISS、BM25与Reranker
+- PubMed
+- 研究方向与写作
+- LangGraph Agent
+- 多向量检索
+- Docker、微服务和多用户
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 运行单元测试
+2. 运行手动真实集成测试
+3. 打印统一JSON
+4. 对照原始结果
+5. 确认业务模块不导入PaperQA2
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级，重要变更可回滚。
+5. 更新 `docs/R0_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r0): implement paperqa2 adapter`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明
+# 数据库迁移
+# 实际执行命令
+# 测试结果
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）
+```
