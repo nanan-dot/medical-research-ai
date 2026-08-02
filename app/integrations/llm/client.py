@@ -5,7 +5,7 @@ from time import perf_counter
 from typing import Any
 
 import httpx
-from pydantic import ValidationError
+from pydantic import AnyHttpUrl, SecretStr, ValidationError
 
 from app.core.config import Settings, settings
 from app.integrations.llm.exceptions import (
@@ -66,8 +66,8 @@ class LLMClient:
             config = LLMConfig(
                 provider=provider,
                 model=model,
-                api_base=api_base,
-                api_key=api_key,
+                api_base=AnyHttpUrl(api_base),
+                api_key=SecretStr(api_key),
                 timeout_seconds=app_settings.LLM_TIMEOUT_SECONDS,
             )
         except ValidationError as error:

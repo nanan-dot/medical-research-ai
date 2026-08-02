@@ -5,7 +5,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from pydantic import SecretStr, ValidationError
+from pydantic import AnyHttpUrl, SecretStr, ValidationError
 
 from app.core.config import Settings, settings
 from app.integrations.llm.client import LLMClient
@@ -54,7 +54,7 @@ class OllamaClient:
             llm_config = LLMConfig(
                 provider="ollama",
                 model=model,
-                api_base=f"{self.base_url}/v1",
+                api_base=AnyHttpUrl(f"{self.base_url}/v1"),
                 api_key=SecretStr("ollama"),
                 timeout_seconds=timeout_seconds,
             )

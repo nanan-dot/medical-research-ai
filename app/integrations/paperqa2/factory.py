@@ -10,6 +10,8 @@ from typing import Any
 from typing import Literal
 from urllib.parse import urlparse
 
+from pydantic import SecretStr
+
 from app.core.config import Settings as AppSettings
 from app.core.config import settings
 from app.integrations.paperqa2.client import PaperQA2Client, _BackendIndexResult
@@ -161,7 +163,7 @@ def create_paperqa2_client(
         version=app_settings.PAPERQA_VERSION,
         provider=selected_provider,
         api_base_url=base_url.rstrip("/"),
-        api_key=api_key,
+        api_key=SecretStr(api_key) if api_key else None,
         llm_model=model,
         embedding_model=app_settings.PAPERQA_EMBEDDING_MODEL,
         timeout_seconds=app_settings.PAPERQA_TIMEOUT_SECONDS,

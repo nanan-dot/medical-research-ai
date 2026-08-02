@@ -197,3 +197,7 @@ $env:OLLAMA_MODEL='qwen3:4b'
 ## R0 最小问答演示
 
 端到端命令行入口为 `python -m scripts.r0_paperqa_demo`，支持 PDF 路径、问题、`ollama/openai/openrouter` 模型配置、`--rebuild`、统一 JSON 输出和分阶段耗时。已使用同一公开 PDF 实际验证本地 `qwen3:4b` 与 OpenAI 兼容的 `deepseek-v4-flash`，两者输出结构一致。完整命令、实际耗时、退出码和限制见 `docs/R0_DEMO.md`。
+
+## R0 安全与回归
+
+默认 pytest 不调用真实云端或本地模型；integration 测试必须显式启用。错误码、日志脱敏、Git 敏感文件规则和 Windows 权限等价测试见 `docs/R0_SECURITY_CHECKLIST.md`，完整场景矩阵与回归命令见 `docs/R0_TEST_REPORT.md`。
