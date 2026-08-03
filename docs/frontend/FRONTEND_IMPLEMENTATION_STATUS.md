@@ -98,3 +98,24 @@ FE-06 only.
 ### Next task
 
 FE-07 only.
+
+## FE-07 — tasks, settings, Agent lab, and evaluation center
+
+**Status:** complete
+
+- Added `/tasks` as a bounded LIVE task view backed exclusively by the existing document-list and retry APIs. It shows parse/index state, timestamps, retry count, and returned errors; it does not claim a generic background queue.
+- Reworked `/models` into a settings center using the existing model-config and health APIs. Cloud authorization remains explicit and API keys are password-input only, cleared after saving, and only server-provided masked values are rendered.
+- Added `/agent` and `/evaluation` as R4 MOCK prototypes. Both visibly state that no runner is connected and contain no model, tool, evaluation, or medical-result execution.
+- Added feature-state coverage for LIVE task boundary and MOCK Agent/evaluation boundary. No LangGraph, evaluation backend, or new API endpoint was added.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (19 tests).
+- `npm run build` passed.
+- `npm audit --omit=dev --audit-level=high` found 0 vulnerabilities.
+- Browser visual inspection completed for task center, settings, Agent lab, and evaluation center at the local preview URL.
+
+### Next task
+
+FE-08 only.

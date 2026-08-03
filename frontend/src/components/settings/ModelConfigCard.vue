@@ -1,0 +1,7 @@
+<script setup lang="ts">
+import type { ModelConfig } from "../../api/modelConfigs";
+defineProps<{ item: ModelConfig }>();
+const emit = defineEmits<{ test: [item: ModelConfig]; remove: [id: number] }>();
+</script>
+<template><article class="config"><div><p class="eyebrow">{{ item.deployment_mode.toUpperCase() }} · LIVE</p><h2>{{ item.provider }} · {{ item.model_name }}</h2><p>{{ item.deployment_mode === "local" ? "完全本地" : "内容可能外发，已要求显式授权" }}</p></div><dl><div><dt>API Base</dt><dd>{{ item.api_base }}</dd></div><div><dt>密钥</dt><dd>{{ item.api_key_masked || "无需密钥" }}</dd></div></dl><div class="actions"><button @click="emit('test', item)">测试连接</button><button class="danger" @click="emit('remove', item.id)">删除</button></div></article></template>
+<style scoped>.config{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.8fr) auto;gap:1rem;align-items:center;padding:1rem;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--paper)}.eyebrow{margin:0;color:var(--color-primary);font-size:.72rem;font-weight:900;letter-spacing:.1em}.config h2{margin:.25rem 0;font-size:1rem}.config p:last-child,dt{color:var(--text-muted);font-size:.84rem}dl{margin:0}dt{font-weight:800}dd{margin:.15rem 0;overflow:hidden;text-overflow:ellipsis}button{border:1px solid var(--border-strong);border-radius:6px;padding:.45rem .6rem;background:var(--paper);font-weight:700}.danger{color:var(--color-danger)}@media(max-width:750px){.config{grid-template-columns:1fr}}</style>

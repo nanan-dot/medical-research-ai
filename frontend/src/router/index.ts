@@ -16,6 +16,9 @@ import PresentationsView from "../views/Presentations/PresentationsView.vue";
 import PresentationEditorView from "../views/Presentations/PresentationEditorView.vue";
 import WritingView from "../views/Writing/WritingView.vue";
 import WritingEditorView from "../views/Writing/WritingEditorView.vue";
+import TasksView from "../views/Tasks/TasksView.vue";
+import AgentView from "../views/Agent/AgentView.vue";
+import EvaluationView from "../views/Evaluation/EvaluationView.vue";
 import FeatureUnavailableView from "../views/System/FeatureUnavailableView.vue";
 import { features } from "../config/features";
 import { routeMeta } from "./route-meta";
@@ -39,6 +42,9 @@ export const router = createRouter({
     { path: "/presentations/:id", component: PresentationEditorView, meta: routeMeta("/presentations") },
     { path: "/writing", component: WritingView, meta: routeMeta("/writing") },
     { path: "/writing/:id", component: WritingEditorView, meta: routeMeta("/writing") },
-    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix", "/research-directions", "/presentations", "/writing"].includes(feature.path)).map((feature) => ({ path: feature.path, component: FeatureUnavailableView, meta: { feature } })),
+    { path: "/tasks", component: TasksView, meta: routeMeta("/tasks") },
+    { path: "/agent", component: AgentView, meta: routeMeta("/agent") },
+    { path: "/evaluation", component: EvaluationView, meta: routeMeta("/evaluation") },
+    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix", "/research-directions", "/presentations", "/writing", "/tasks", "/agent", "/evaluation"].includes(feature.path)).map((feature) => ({ path: feature.path, component: FeatureUnavailableView, meta: { feature } })),
   ],
 });
