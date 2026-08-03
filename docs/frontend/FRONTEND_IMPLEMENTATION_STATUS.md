@@ -17,3 +17,22 @@
 ### Next task
 
 FE-01 only.
+
+## FE-01 — Design system and application shell
+
+**Status:** complete
+
+- Added reusable tokens and base styles for the deep-navy navigation, paper-like workspace, evidence colours, focus states, and reduced-motion preference.
+- Added a componentized app shell: collapsible desktop sidebar, top tool bar, breadcrumbs, global-search entry, quick-create menu, mobile drawer, and route-aware context rail.
+- Added typed feature registry and route metadata with honest `LIVE`, `MOCK`, and `UNAVAILABLE` labels. Future paths use a single explicit unavailable shell rather than fabricated business pages.
+- Kept existing business views and backend APIs intact; no database, backend, or dependency changes were made.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (14 tests).
+- `npm run build` passed.
+
+### Next task
+
+FE-02 only.

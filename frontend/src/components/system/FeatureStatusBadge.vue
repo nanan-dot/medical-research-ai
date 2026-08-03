@@ -1,0 +1,3 @@
+<script setup lang="ts">import { computed } from "vue";import type { FeatureStatus } from "../../types/feature";const props=defineProps<{status:FeatureStatus}>();const labels={LIVE:"已接入",MOCK:"原型",UNAVAILABLE:"待接入"};const classes=computed(()=>`status status--${props.status.toLowerCase()}`);</script>
+<template><span :class="classes">{{ labels[props.status] }}</span></template>
+<style scoped>.status{display:inline-flex;padding:.18rem .45rem;border-radius:999px;font-size:.72rem;font-weight:800}.status--live{color:#096d35;background:#e3f6e9}.status--mock{color:#9a6200;background:#fff1d5}.status--unavailable{color:#667085;background:#eef1f5}</style>
