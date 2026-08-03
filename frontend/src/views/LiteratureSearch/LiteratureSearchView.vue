@@ -13,6 +13,14 @@ async function submit() {
   if (!rawTopic.value.trim()) return;
   await parse(rawTopic.value);
 }
+
+function saveDraft() {
+  if (result.value) window.localStorage.setItem("rag-medicine-search-draft", result.value.boolean_query);
+}
+
+async function copyQuery() {
+  if (result.value) await window.navigator.clipboard?.writeText(result.value.boolean_query);
+}
 </script>
 
 <template>
@@ -32,9 +40,15 @@ async function submit() {
     <button v-if="candidate" class="expand-button" :disabled="termsLoading" @click="expand(candidate)">{{ termsLoading ? "处理中…" : "扩展关键词与 MeSH" }}</button>
     <p v-if="termsError" class="request-error" role="alert">{{ termsError }}</p>
     <SearchTermsEditor v-if="expanded" :expanded="expanded" :result="result" :loading="termsLoading" @build="build" />
+    <section v-if="result" class="pubmed-boundary" aria-label="PubMed result availability">
+      <p class="eyebrow">PUBMED RESULTS · MOCK</p>
+      <h2>真实 PubMed 检索将在 R2-WP03 接入</h2>
+      <p>当前页面只构建可复制、可编辑的检索式；不会显示或伪造任何 PubMed 文献、PMID、DOI、引文次数或期刊指标。</p>
+      <div class="draft-actions"><button type="button" @click="saveDraft">保存本地草稿</button><button type="button" @click="copyQuery">复制检索式</button></div>
+    </section>
   </main>
 </template>
 
 <style scoped>
-.literature-search { max-width: 960px; margin: auto; padding: 4rem 1rem; display: grid; gap: 1.25rem; }.eyebrow { margin: 0; color: #a94d2d; font-weight: 800; letter-spacing: .14em; }.page-title { margin: .25rem 0; color: #173f3c; font: 700 clamp(2.2rem, 6vw, 4rem)/1.05 Georgia, serif; }.page-copy { max-width: 680px; color: #53686b; }.topic-form { display: flex; gap: .75rem; padding: 1rem; background: #fff; border-radius: 16px; }.topic-label { flex: 1; display: grid; gap: .35rem; font-weight: 700; color: #40585a; }.topic-label input { padding: .65rem; border: 1px solid #aabbbb; border-radius: 8px; font: inherit; }.topic-form button, .expand-button { align-self: end; padding: .7rem 1rem; border: 0; border-radius: 8px; background: #173f3c; color: #fff; font-weight: 700; }.expand-button { justify-self: start; }.request-error { margin: 0; padding: .8rem; color: #8b2c19; background: #fee5de; border-radius: 10px; }.result-meta { padding: 1rem; border-left: 4px solid #d8a347; background: #fff8e9; } @media (max-width: 640px) { .topic-form { display: grid; } }
+.literature-search { max-width:1100px; margin:auto; padding:2rem 1.2rem 3rem; display:grid; gap:1rem; }.eyebrow { margin:0; color:var(--color-primary); font-weight:800; letter-spacing:.12em; font-size:.72rem; }.page-title { margin:.25rem 0; color:var(--text-primary); font-size:clamp(2rem,4vw,3.2rem); line-height:1.1; }.page-copy { max-width:720px; color:var(--text-muted); }.topic-form { display:flex; gap:.75rem; padding:1rem; background:var(--paper); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); }.topic-label { flex:1; display:grid; gap:.35rem; font-weight:700; color:var(--text-primary); }.topic-label input { padding:.75rem; border:1px solid var(--border-strong); border-radius:8px; font:inherit; }.topic-form button,.expand-button,.draft-actions button { align-self:end; padding:.7rem 1rem; border:0; border-radius:8px; background:var(--color-primary); color:#fff; font-weight:700; }.expand-button { justify-self:start; }.request-error { margin:0; padding:.8rem; color:var(--color-danger); background:var(--color-danger-soft); border-radius:10px; }.result-meta { padding:1rem; border-left:4px solid var(--color-primary); background:var(--color-primary-soft); }.pubmed-boundary { display:grid; gap:.45rem; padding:1rem; border:1px dashed var(--border-strong); border-radius:var(--radius-md); background:var(--surface-muted); }.pubmed-boundary h2,.pubmed-boundary p { margin:0; }.pubmed-boundary p:not(.eyebrow){color:var(--text-muted)}.draft-actions{display:flex;gap:.6rem}@media (max-width:640px){.topic-form{display:grid;}}
 </style>
