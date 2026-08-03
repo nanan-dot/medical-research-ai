@@ -1,20 +1,14 @@
-# Frontend page state matrix (FE-00)
+# Frontend feature-state matrix (FE-08)
 
-| Page / capability | Primary state | Data source | Empty / failure / pending policy |
+| Page / capability | State | Data source | Boundary |
 |---|---|---|---|
-| Workbench | MOCK | Typed mock adapter for recent activity only | Clearly label prototype data; no invented papers or metrics. |
-| Knowledge sources | LIVE | Knowledge-source APIs | Empty registration state, unavailable-path state, sync failure and retry states. |
-| Document library | LIVE | Document APIs | Empty list, loading, parse/index failure, partial batch-index success, pagination. |
-| Document detail | LIVE | Document read/content-summary APIs | Not found, parsing/indexing, missing content, retry action. |
-| Paper analysis | LIVE | Paper-analysis APIs | Pending/analyzing/failed/succeeded; preserve source evidence and pending confirmations. |
-| Evidence Q&A | LIVE | Conversation APIs | No-answer, uncertainty, citations absent, model failure, empty conversation. |
-| Literature search builder | LIVE | Parse / expand / build-query APIs | Model fallback, MeSH unavailable, invalid user term, editable term/query state. |
-| PubMed results | UNAVAILABLE | No backend API | “Awaiting R2-WP03” only; optional visual prototype must be typed MOCK and cannot claim fetched results. |
-| Multi-paper comparison | MOCK | Typed mock adapter | Prototype label; no fake DOI/PMID/page/statistics. |
-| Evidence matrix | MOCK | Typed mock adapter | Prototype label and source placeholders, never factual medical evidence. |
-| Research directions | NEEDS_CONFIRMATION | Stub router exists | Do not call LIVE until schemas and acceptance are confirmed. |
-| Group report / writing | UNAVAILABLE | No project/task writing API | Entry and empty “awaiting integration” state only. |
-| Task center | UNAVAILABLE | No task API | No fake progress or task completion. |
-| Settings | LIVE (model settings), MOCK (shell preferences) | Model-config APIs | Cost acknowledgement, privacy warning, connection failure. |
-| Agent lab | UNAVAILABLE | No Agent API | Explicit unavailable state. |
-| Evaluation center | NEEDS_CONFIRMATION | Stub router exists | Do not present evaluation results as real. |
+| Workbench | MOCK | Typed local adapter | No fabricated papers or metrics. |
+| Knowledge sources / documents | LIVE | Registered APIs | Loading, empty, failure, retry and pagination remain visible. |
+| Paper analysis / evidence Q&A | LIVE | Registered APIs | Evidence and pending confirmation remain explicit. |
+| Literature builder | LIVE | Parse/expand/build-query APIs | PubMed result list remains unavailable until R2-WP03. |
+| Comparison / evidence matrix | MOCK | Typed local adapter | Demo papers only; no DOI, PMID, statistics, or factual evidence. |
+| Research directions / presentations / writing | MOCK | Typed local adapters | Candidate and local-draft surfaces only; no final decisions or generated academic content. |
+| Task center | LIVE (bounded) | Document list and retry APIs | Document parse/index state only; no generic queue. |
+| Settings | LIVE / UNAVAILABLE | Model-config and health APIs | Other categories do not fabricate diagnostics; keys are masked. |
+| Agent lab / evaluation center | MOCK | Typed local prototypes | R4 boundary; no LangGraph, tool, runner, score, or medical result. |
+| Citation check / reading plan | UNAVAILABLE | No registered API | State clearly directs users to later integration. |

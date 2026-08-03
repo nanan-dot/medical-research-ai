@@ -26,4 +26,9 @@ Status terms: **LIVE** is registered in the FastAPI application and covered by r
 - App errors use `{ "error": { "code", "message" } }` (`app/common/exception_handlers.py`). Validation errors retain FastAPI's `detail` format, which the existing `apiRequest` client also supports.
 - Offset/limit pagination is implemented for documents through `DocumentPage`; other list APIs use arrays or need endpoint-specific review.
 - No durable asynchronous task API exists. Document states are real state fields, not a task queue. Treat generic task-center progress as MOCK/UNAVAILABLE until an API is registered.
+
+## FE-08 addendum
+
+- `/tasks` is LIVE only within the bounded document-status scope: it calls the existing document list and retry endpoints, and does not claim a generic asynchronous task queue.
+- No project-writing, Agent-run, or evaluation-run endpoint is registered. Their frontend pages remain MOCK/UNAVAILABLE as described in `FRONTEND_MOCK_BOUNDARIES.md`.
 - CORS is configured through `settings.CORS_ORIGINS` in `app/main.py`; `.env.example` does not declare a CORS value. Same-origin Vite proxy works in development; deployed cross-origin frontend requires confirmation/configuration.

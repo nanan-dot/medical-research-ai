@@ -119,3 +119,24 @@ FE-07 only.
 ### Next task
 
 FE-08 only.
+
+## FE-08 — mobile, validation, build, and delivery documentation
+
+**Status:** complete
+
+- Added a keyboard-visible skip link to the application shell, unified focus-visible treatment across controls, and retained reduced-motion support.
+- Converted route components to lazy imports. The production build now emits route-level chunks and keeps the initial script separate from individual feature pages.
+- Audited existing responsive behavior: navigation uses the mobile drawer below 900px; context rails and three-column workspaces collapse at their declared breakpoints; comparison/matrix preserve horizontal table access rather than compressing data into misleading cards.
+- Added the delivery README, architecture, route map, mock-boundary, test, and accessibility reports; updated feature-state and API inventories to match the final FE-01—FE-07 implementation.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (19 tests).
+- `npm run build` passed with route-level chunks.
+- `npm audit --omit=dev --audit-level=high` found 0 vulnerabilities.
+- Browser visual inspection completed. The current browser-control surface does not expose programmable viewport sizing, so the five requested independent device screenshots remain documented as a follow-up instead of being misreported as completed.
+
+### Final status
+
+FE-01 through FE-08 front-end scope is complete. No additional front-end or backend phase was started.
