@@ -1,46 +1,20 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, shallowRef } from "vue";
+import EvidencePanel from "../../components/evidence/EvidencePanel.vue";
+import type { EvidenceItemModel } from "../../components/evidence/EvidenceItem.vue";
 import { paperAnalysisApi, type PaperAnalysis } from "../../api/paperAnalysis";
 
-const documentId = ref<number | null>(null);
-const analysis = ref<PaperAnalysis | null>(null);
-const loading = ref(false);
-const error = ref("");
-const labels: Record<string, string> = {
-  basic_information: "基本信息", one_sentence_conclusion: "一句话结论", research_background: "研究背景",
-  research_question: "研究问题", study_type: "研究类型", population: "研究对象", sample_size: "样本量",
-  intervention_or_exposure: "干预或暴露", comparator: "对照", primary_outcome: "主要结局",
-  statistical_methods: "统计方法", main_results: "主要结果", innovations: "创新点", limitations: "局限",
-  next_questions: "下一步问题", original_evidence: "原文证据", pending_items: "待确认项",
-};
+const documentId = shallowRef<number | null>(null);
+const analysis = shallowRef<PaperAnalysis | null>(null);
+const selected = shallowRef<EvidenceItemModel | null>(null);
+const loading = shallowRef(false);
+const error = shallowRef<string | null>(null);
+const labels: Record<string, string> = { basic_information:"基本信息", one_sentence_conclusion:"一句话结论", research_background:"研究背景", research_question:"科学问题", study_type:"研究设计", population:"对象和样本", sample_size:"样本量", intervention_or_exposure:"干预或暴露", comparator:"对照", primary_outcome:"主要结局", statistical_methods:"统计方法", main_results:"主要结果", innovations:"创新", limitations:"局限", next_questions:"下一步阅读", original_evidence:"原文证据", pending_items:"待确认项" };
+const evidence = computed<EvidenceItemModel[]>(() => analysis.value?.sources.map((source, index) => ({ id: index, title: source.citation ?? source.title, excerpt: null, page: source.page_start, section: null, kind: "paper" })) ?? []);
 
-async function createAnalysis() {
-  if (!documentId.value) return;
-  loading.value = true; error.value = "";
-  try { analysis.value = await paperAnalysisApi.create(documentId.value); }
-  catch (reason) { error.value = reason instanceof Error ? reason.message : "分析失败"; }
-  finally { loading.value = false; }
-}
-async function regenerate() {
-  if (!analysis.value) return;
-  loading.value = true;
-  try { analysis.value = await paperAnalysisApi.regenerate(analysis.value.id); }
-  finally { loading.value = false; }
-}
+async function createAnalysis() { if (!documentId.value) return; loading.value = true; error.value = null; try { analysis.value = await paperAnalysisApi.create(documentId.value); } catch (cause) { error.value = cause instanceof Error ? cause.message : "分析请求失败"; } finally { loading.value = false; } }
+async function regenerate() { if (!analysis.value) return; loading.value = true; try { analysis.value = await paperAnalysisApi.regenerate(analysis.value.id); } catch (cause) { error.value = cause instanceof Error ? cause.message : "重新生成失败"; } finally { loading.value = false; } }
+function createMeetingDraft() { error.value = "前端原型将于 FE-06 开放；当前不会伪造组会汇报创建成功。"; }
 </script>
-
-<template>
-  <main class="analysis-shell">
-    <header><p class="eyebrow">SINGLE PAPER READING</p><h1>单篇论文阅读报告</h1><p>从结论到方法，再回到证据。未检出的信息会明确标记，推断不会冒充原文事实。</p></header>
-    <form class="analysis-start" @submit.prevent="createAnalysis"><label>已建立索引的文档 ID <input v-model.number="documentId" type="number" min="1" required /></label><button :disabled="loading">{{ loading ? "分析中…" : "生成报告" }}</button></form>
-    <p v-if="error" role="alert" class="error">{{ error }}</p>
-    <section v-if="analysis?.structured_result" class="report">
-      <div class="report-actions"><span>第 {{ analysis.generation }} 版 · {{ analysis.template_version }}</span><button @click="regenerate">重新生成</button><a :href="paperAnalysisApi.exportUrl(analysis.id)">导出 Markdown</a></div>
-      <article v-for="(field, name) in analysis.structured_result" :key="name"><div><h2>{{ labels[name] ?? name }}</h2><span :class="['claim', field.kind]">{{ field.kind }}</span></div><p>{{ field.value }}</p><ul v-if="field.source_indices.length"><li v-for="index in field.source_indices" :key="index">{{ analysis.sources[index]?.citation ?? analysis.sources[index]?.title ?? `来源 ${index + 1}` }}<template v-if="analysis.sources[index]?.page_start"> · 第 {{ analysis.sources[index].page_start }} 页</template></li></ul></article>
-    </section>
-  </main>
-</template>
-
-<style scoped>
-.analysis-shell{max-width:920px;margin:auto;padding:4rem 1.2rem}.eyebrow{letter-spacing:.16em;color:#a94d2d;font-weight:800}h1{font:700 clamp(2.3rem,6vw,4.4rem)/1.05 Georgia,serif;color:#173f3c}.analysis-start,.report-actions{display:flex;align-items:end;gap:.7rem;padding:1rem;background:#fff;border:1px solid #d7dfda;border-radius:16px}.analysis-start label{display:grid;gap:.35rem;flex:1}.analysis-start input{padding:.7rem;border:1px solid #9cafaa;border-radius:8px}button,a{padding:.65rem .9rem;border:0;border-radius:8px;background:#173f3c;color:#fff;font-weight:700;text-decoration:none}.report{display:grid;gap:1rem;margin-top:1.5rem}.report-actions{align-items:center}.report-actions span{margin-right:auto}article{padding:1.2rem 1.4rem;background:#fff;border-left:4px solid #d8a347;border-radius:4px 14px 14px 4px}article>div{display:flex;align-items:center;gap:.7rem}h2{font-size:1.05rem}.claim{font-size:.7rem;text-transform:uppercase;padding:.2rem .45rem;border-radius:99px;background:#e9efec}.claim.inference{background:#fff0d2}.claim.not_found{background:#f4e5e2}.error{color:#9c2f2f}
-</style>
+<template><main class="analysis-layout"><section class="analysis"><header><p class="eyebrow">SINGLE PAPER READING · LIVE</p><h1>单篇论文阅读报告</h1><p>每个结论都显示来源状态；模型推断不会冒充原文事实。</p></header><form class="start" @submit.prevent="createAnalysis"><label>已建立索引的文档 ID<input v-model.number="documentId" type="number" min="1" required /></label><button :disabled="loading">{{ loading ? "分析中" : "生成报告" }}</button></form><p v-if="error" role="alert" class="error">{{ error }}</p><section v-if="analysis?.structured_result" class="report"><div class="actions"><span>版本 {{ analysis.generation }} · {{ analysis.template_version }}</span><button :disabled="loading" @click="regenerate">重新生成</button><button @click="createMeetingDraft">创建组会汇报</button><a :href="paperAnalysisApi.exportUrl(analysis.id)">导出 Markdown</a></div><p v-if="analysis.pending_confirmations.length" class="pending">待确认：{{ analysis.pending_confirmations.join("；") }}</p><article v-for="(field, name) in analysis.structured_result" :key="name"><div><h2>{{ labels[name] ?? name }}</h2><span :class="['kind', field.kind]">{{ field.kind === "not_found" ? "原文未找到" : field.kind }}</span></div><p>{{ field.value }}</p><p class="source">来源：{{ field.source_indices.length ? field.source_indices.map(index => `#${index + 1}`).join("、") : "未提供" }}</p></article></section></section><EvidencePanel title="论文证据" :items="evidence" @open="selected = $event"/><dialog :open="Boolean(selected)"><button @click="selected = null">关闭</button><h2>{{ selected?.title || "来源未提供" }}</h2><p>页码：{{ selected?.page ?? "未提供" }} · 章节：{{ selected?.section || "未提供" }}</p><blockquote>{{ selected?.excerpt || "原文证据未提供" }}</blockquote></dialog></main></template>
+<style scoped>.analysis-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:calc(100vh - 72px)}.analysis{max-width:960px;width:100%;margin:auto;padding:2rem 1.4rem}.eyebrow{margin:0;color:var(--color-primary);font-size:.72rem;font-weight:900;letter-spacing:.12em}.analysis h1{margin:.3rem 0;font-size:clamp(2rem,4vw,3.2rem)}.analysis header>p:last-child,.source{color:var(--text-muted)}.start,.actions{display:flex;gap:.7rem;padding:1rem;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--paper)}.start label{display:grid;gap:.35rem;flex:1}.start input{padding:.65rem;border:1px solid var(--border-strong);border-radius:8px}.start button,.actions button,.actions a,dialog button{border:0;border-radius:8px;padding:.65rem .85rem;background:var(--color-primary);color:#fff;font:inherit;font-weight:750;text-decoration:none}.report{display:grid;gap:.8rem;margin-top:1rem}.actions{align-items:center;flex-wrap:wrap}.actions span{margin-right:auto;color:var(--text-muted)}.pending{margin:0;padding:.75rem;border-radius:var(--radius-md);background:var(--color-warning-soft);color:var(--color-warning)}article{padding:1rem 1.2rem;border-left:4px solid var(--color-primary);border-radius:4px var(--radius-md) var(--radius-md) 4px;background:var(--paper)}article>div{display:flex;align-items:center;gap:.6rem}.kind{padding:.2rem .45rem;border-radius:99px;background:var(--color-success-soft);font-size:.7rem}.kind.inference{background:var(--color-warning-soft)}.kind.not_found{background:var(--color-danger-soft)}.error{color:var(--color-danger)}dialog{position:fixed;right:1rem;top:5rem;width:min(380px,90vw);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:1rem;background:var(--paper)}@media(max-width:900px){.analysis-layout{grid-template-columns:1fr}.analysis-layout>:nth-child(2){display:none}}</style>
