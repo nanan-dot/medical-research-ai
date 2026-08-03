@@ -58,3 +58,23 @@ FE-02 only.
 ### Next task
 
 FE-03 only.
+
+## FE-05 — multi-paper comparison and evidence-matrix prototypes
+
+**Status:** complete
+
+- Added the `/comparisons` and `/evidence-matrix` prototype pages through one typed front-end mock adapter. They use only 演示论文 A/B/C; no DOI, PMID, authors, statistics, or real medical conclusions are represented.
+- Comparison supports the requested study fields, horizontal scrolling, a frozen field column, missing-value warning, and local manual cell edits. Manual edits remain visibly distinct from unavailable source evidence.
+- Evidence matrix supports prototype version/actions, current-cell context, source status, and local user notes. No data is sent to or read from a backend.
+- Both pages use their own context area rather than duplicating the application-level evidence rail, and retain the established deep-navy navigation, paper workspace, primary blue, and restrained warning treatment.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (15 tests).
+- `npm run build` passed.
+- Browser visual inspection completed for the comparison and evidence-matrix pages at the local preview URL.
+
+### Next task
+
+FE-06 only.

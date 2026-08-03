@@ -9,6 +9,8 @@ import PaperAnalysisView from "../views/PaperAnalysis/PaperAnalysisView.vue";
 import ChatView from "../views/Chat/ChatView.vue";
 import ModelSettingsView from "../views/ModelSettings/ModelSettingsView.vue";
 import FeedbackView from "../views/Feedback/FeedbackView.vue";
+import ComparisonView from "../views/Comparison/ComparisonView.vue";
+import EvidenceMatrixView from "../views/EvidenceMatrix/EvidenceMatrixView.vue";
 import FeatureUnavailableView from "../views/System/FeatureUnavailableView.vue";
 import { features } from "../config/features";
 import { routeMeta } from "./route-meta";
@@ -25,6 +27,8 @@ export const router = createRouter({
     { path: "/analysis", component: PaperAnalysisView, meta: routeMeta("/analysis") },
     { path: "/chat", component: ChatView, meta: routeMeta("/chat") },
     { path: "/feedback", component: FeedbackView, meta: routeMeta("/feedback") },
-    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback"].includes(feature.path)).map((feature) => ({ path: feature.path, component: FeatureUnavailableView, meta: { feature } })),
+    { path: "/comparisons", component: ComparisonView, meta: routeMeta("/comparisons") },
+    { path: "/evidence-matrix", component: EvidenceMatrixView, meta: routeMeta("/evidence-matrix") },
+    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix"].includes(feature.path)).map((feature) => ({ path: feature.path, component: FeatureUnavailableView, meta: { feature } })),
   ],
 });
