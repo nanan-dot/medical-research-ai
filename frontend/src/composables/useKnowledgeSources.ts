@@ -11,6 +11,7 @@ export function useKnowledgeSources() {
   const loading = shallowRef(false);
   const error = shallowRef<string | null>(null);
   const enabledCount = computed(() => sources.value.filter((source) => source.enabled).length);
+  const lastSync = shallowRef<string | null>(null);
 
   async function run(action: () => Promise<void>): Promise<void> {
     loading.value = true;
@@ -50,6 +51,7 @@ export function useKnowledgeSources() {
       sources.value = sources.value.filter((item) => item.id !== source.id);
     });
   }
+  async function sync(source: KnowledgeSource): Promise<void> { await run(async()=>{const result=await knowledgeSourcesApi.sync(source.id);lastSync.value=result.last_sync_time;await load();}); }
 
   return {
     sources: readonly(sources),
@@ -60,5 +62,7 @@ export function useKnowledgeSources() {
     create,
     setEnabled,
     remove,
+    sync,
+    lastSync: readonly(lastSync),
   };
 }

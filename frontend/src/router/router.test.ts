@@ -1,2 +1,15 @@
-import{flushPromises,mount}from"@vue/test-utils";import{expect,test}from"vitest";import App from"../App.vue";import{router}from"./index";
-test("routes all seven guided pages and survives URL state",async()=>{await router.push("/");await router.isReady();const wrapper=mount(App,{global:{plugins:[router]}});expect(wrapper.text()).toContain("最短路径");await router.push("/feedback");await flushPromises();expect(wrapper.text()).toContain("匿名试用反馈");expect(router.currentRoute.value.fullPath).toBe("/feedback")});
+import { flushPromises, mount } from "@vue/test-utils";
+import { expect, test } from "vitest";
+import App from "../App.vue";
+import { router } from "./index";
+
+test("routes through the workbench and preserves URL state", async () => {
+  await router.push("/");
+  await router.isReady();
+  const wrapper = mount(App, { global: { plugins: [router] } });
+  expect(wrapper.text()).toContain("从可追溯的本地文档开始研究");
+  await router.push("/feedback");
+  await flushPromises();
+  expect(wrapper.text()).toContain("匿名试用反馈");
+  expect(router.currentRoute.value.fullPath).toBe("/feedback");
+});

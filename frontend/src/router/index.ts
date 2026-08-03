@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/Home/HomeView.vue";
 import KnowledgeBaseView from "../views/KnowledgeBase/KnowledgeBaseView.vue";
 import DocumentsView from "../views/Documents/DocumentsView.vue";
+import DocumentDetailView from "../views/Documents/DocumentDetailView.vue";
 import LiteratureSearchView from "../views/LiteratureSearch/LiteratureSearchView.vue";
 import PaperAnalysisView from "../views/PaperAnalysis/PaperAnalysisView.vue";
 import ChatView from "../views/Chat/ChatView.vue";
@@ -19,6 +20,7 @@ export const router = createRouter({
     { path: "/models", component: ModelSettingsView, meta: routeMeta("/models") },
     { path: "/sources", component: KnowledgeBaseView, meta: routeMeta("/sources") },
     { path: "/documents", component: DocumentsView, meta: routeMeta("/documents") },
+    { path: "/documents/:id", component: DocumentDetailView, meta: routeMeta("/documents") },
     { path: "/literature-search", component: LiteratureSearchView, meta: routeMeta("/literature-search") },
     { path: "/analysis", component: PaperAnalysisView, meta: routeMeta("/analysis") },
     { path: "/chat", component: ChatView, meta: routeMeta("/chat") },

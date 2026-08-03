@@ -24,6 +24,8 @@ export interface DocumentPage {
   offset: number;
   limit: number;
 }
+export interface BatchIndexResult { succeeded:number; failed:number; results:Array<{document_id:number; index_status:IndexStatus; error_message:string|null}>; }
+export interface ContentSummary { document_id:number; title:string|null; page_count:number; page_numbers:number[]; section_headings:string[]; yaml_metadata:Record<string,unknown>; is_scanned:boolean; character_count:number; }
 
 export interface DocumentFilters {
   parseStatus: ParseStatus | "";
@@ -51,4 +53,8 @@ export const documentsApi = {
   retryParse: (id: number) => request<DocumentRecord>(`/${id}/retry-parse`, { method: "POST" }),
   retryIndex: (id: number) => request<DocumentRecord>(`/${id}/retry-index`, { method: "POST" }),
   deleteIndex: (id: number) => request<DocumentRecord>(`/${id}/index`, { method: "DELETE" }),
+  get: (id: number) => request<DocumentRecord>(`/${id}`),
+  contentSummary: (id:number) => request<ContentSummary>(`/${id}/content-summary`),
+  parse: (id:number) => request<ContentSummary>(`/${id}/parse`, {method:"POST"}),
+  batchIndex: (documentIds:number[]) => request<BatchIndexResult>("/batch-index", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({document_ids:documentIds})}),
 };

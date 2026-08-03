@@ -14,9 +14,9 @@ import DocumentManager from "../../components/document/DocumentManager.vue";
 </template>
 
 <style scoped>
-.documents-page { width: min(100% - 2rem, 1160px); margin: 0 auto; padding: 3rem 0; }
-.page-intro { max-width: 760px; margin-bottom: 2rem; }
+.documents-page { width: min(100% - 2rem, 1160px); margin: 0 auto; padding: 1.6rem 0 2.4rem; }
+.page-intro { max-width: 760px; margin-bottom: 1.25rem; }
 .section-code { color: #b45f36; font-weight: 900; letter-spacing: 0.14em; }
-.page-intro h1 { margin: 0.4rem 0 1rem; color: #183b3a; font-family: Georgia, serif; font-size: clamp(2.3rem, 6vw, 4.5rem); font-weight: 500; line-height: 1; }
-.page-intro p:last-child { color: #53686b; font-size: 1.05rem; line-height: 1.7; }
+.page-intro h1 { margin: 0.35rem 0 .7rem; color: #183b3a; font-family: Georgia, serif; font-size: clamp(2rem, 3.2vw, 3rem); font-weight: 600; line-height: 1.1; }
+.page-intro p:last-child { color: #53686b; font-size: .98rem; line-height: 1.6; }
 </style>

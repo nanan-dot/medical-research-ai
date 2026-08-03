@@ -1,55 +1,15 @@
 <script setup lang="ts">
 import type { KnowledgeSource } from "../../api/knowledgeSources";
-
 defineProps<{ sources: readonly KnowledgeSource[]; disabled: boolean }>();
-const emit = defineEmits<{
-  toggle: [source: KnowledgeSource, enabled: boolean];
-  remove: [source: KnowledgeSource];
-}>();
-
-const typeLabels = {
-  local_folder: "本地文件夹",
-  obsidian_vault: "Obsidian Vault",
-  temporary_import: "临时导入",
-};
+const emit = defineEmits<{ toggle: [source: KnowledgeSource, enabled: boolean]; remove: [source: KnowledgeSource]; sync: [source: KnowledgeSource] }>();
+const typeLabels = { local_folder: "本地文件夹", obsidian_vault: "Obsidian 知识库", temporary_import: "临时导入" };
+const statusLabels = { idle: "可同步", scanning: "同步中", completed: "已同步", completed_with_errors: "部分完成", unavailable: "不可用" };
+function formatTime(value: string | null) { return value ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "尚未同步"; }
 </script>
-
 <template>
   <p v-if="sources.length === 0" class="empty-state">还没有知识源。添加目录后，系统只会访问你明确授权的路径。</p>
-  <ul v-else class="source-list">
-    <li v-for="source in sources" :key="source.id" class="source-card">
-      <div class="source-heading">
-        <div>
-          <span class="type-label">{{ typeLabels[source.source_type] }}</span>
-          <h3 class="source-name">{{ source.name }}</h3>
-        </div>
-        <span class="status" :class="`status-${source.sync_status}`">{{ source.sync_status === "idle" ? "可用" : "不可用" }}</span>
-      </div>
-      <p class="source-path">{{ source.root_path }}</p>
-      <p v-if="source.error_message" class="error-message" role="alert">{{ source.error_message }}</p>
-      <div class="source-actions">
-        <button type="button" :disabled="disabled" @click="emit('toggle', source, !source.enabled)">
-          {{ source.enabled ? "停用" : "启用" }}
-        </button>
-        <button class="remove-action" type="button" :disabled="disabled" @click="emit('remove', source)">移除记录</button>
-      </div>
-    </li>
-  </ul>
+  <ul v-else class="source-list"><li v-for="source in sources" :key="source.id" class="source-card"><div class="source-heading"><div><span class="type-label">{{ typeLabels[source.source_type] }}</span><h3 class="source-name">{{ source.name }}</h3></div><span class="status" :class="`status-${source.sync_status}`">{{ statusLabels[source.sync_status] }}</span></div><p class="source-path">{{ source.root_path }}</p><p class="sync-time">最近同步：{{ formatTime(source.last_sync_time) }}</p><p v-if="source.error_message" class="error-message" role="alert">{{ source.error_message }}</p><div class="source-actions"><button type="button" :disabled="disabled" @click="emit('toggle', source, !source.enabled)">{{ source.enabled ? "停用" : "启用" }}</button><button type="button" :disabled="disabled || !source.enabled" @click="emit('sync', source)">手动同步</button><button class="remove-action" type="button" :disabled="disabled" @click="emit('remove', source)">移除系统记录</button></div></li></ul>
 </template>
-
 <style scoped>
-.source-list { display: grid; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
-.source-card { border: 1px solid #dbe3e3; border-radius: 14px; padding: 1rem; background: #fff; }
-.source-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.type-label { color: #5e7477; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.source-name { margin: 0.2rem 0 0; }
-.source-path { overflow-wrap: anywhere; color: #4e6168; font-family: ui-monospace, monospace; font-size: 0.82rem; }
-.status { border-radius: 99px; padding: 0.28rem 0.6rem; font-size: 0.75rem; font-weight: 800; }
-.status-idle { background: #d9f0e9; color: #096052; }
-.status-unavailable { background: #fee5de; color: #9a321e; }
-.error-message { color: #9a321e; }
-.source-actions { display: flex; gap: 0.6rem; }
-.source-actions button { border: 1px solid #b8c8cb; border-radius: 8px; padding: 0.5rem 0.75rem; background: #f7faf9; cursor: pointer; }
-.remove-action { color: #9a321e; }
-.empty-state { margin: 0; padding: 2rem; border: 1px dashed #b8c8cb; border-radius: 14px; color: #607276; text-align: center; }
+.source-list { display:grid; gap:.9rem; margin:0; padding:0; list-style:none }.source-card { border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:1rem; background:var(--paper) }.source-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem }.type-label,.sync-time { color:var(--text-muted); font-size:.75rem; font-weight:700; letter-spacing:.04em }.source-name { margin:.2rem 0 0 }.source-path { overflow-wrap:anywhere; color:var(--text-primary); font-family:ui-monospace,monospace; font-size:.82rem }.status { border-radius:99px; padding:.28rem .6rem; font-size:.75rem; font-weight:800 }.status-idle,.status-completed { background:var(--color-success-soft); color:var(--color-success) }.status-scanning { background:var(--color-primary-soft); color:var(--color-primary) }.status-unavailable,.status-completed_with_errors { background:var(--color-danger-soft); color:var(--color-danger) }.error-message { color:var(--color-danger) }.source-actions { display:flex; gap:.6rem; flex-wrap:wrap }.source-actions button { border:1px solid var(--border-strong); border-radius:8px; padding:.5rem .75rem; background:var(--paper); cursor:pointer }.remove-action { color:var(--color-danger) }.empty-state { margin:0; padding:2rem; border:1px dashed var(--border-strong); border-radius:14px; color:var(--text-muted); text-align:center }
 </style>

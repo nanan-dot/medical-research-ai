@@ -5,7 +5,7 @@ import KnowledgeSourceForm from "./KnowledgeSourceForm.vue";
 import KnowledgeSourceList from "./KnowledgeSourceList.vue";
 import { useKnowledgeSources } from "../../composables/useKnowledgeSources";
 
-const { sources, loading, error, enabledCount, load, create, setEnabled, remove } =
+const { sources, loading, error, enabledCount, load, create, setEnabled, remove, sync } =
   useKnowledgeSources();
 
 onMounted(load);
@@ -27,6 +27,7 @@ onMounted(load);
       :disabled="loading"
       @toggle="setEnabled"
       @remove="remove"
+      @sync="sync"
     />
   </section>
 </template>

@@ -33,7 +33,7 @@ describe("DocumentManager", () => {
         new Response(JSON.stringify({ ...failedDocument, parse_status: "pending", error_code: null, error_message: null, retry_count: 2 })),
       );
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(DocumentManager);
+    const wrapper = mount(DocumentManager, { global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } } });
     await flushPromises();
 
     expect(wrapper.text()).toContain("解析失败，可安全重试");
@@ -52,7 +52,7 @@ describe("DocumentManager", () => {
       new Response(JSON.stringify({ items: [], total: 0, offset: 0, limit: 20 })),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const wrapper = mount(DocumentManager);
+    const wrapper = mount(DocumentManager, { global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } } });
     await flushPromises();
     const selects = wrapper.findAll("select");
     await selects[0].setValue("failed");

@@ -36,3 +36,25 @@ FE-01 only.
 ### Next task
 
 FE-02 only.
+
+## FE-02 — workbench, knowledge sources, and document workflows
+
+**Status:** complete
+
+- Reworked the workbench into a clear next-action surface. Live knowledge-source health is separated from explicitly labelled MOCK task and UNAVAILABLE research-question capability; no fabricated papers or task progress are shown.
+- Connected knowledge-source list, enablement, removal, and manual synchronization to the existing LIVE API. Source path, type, synchronization state, time, and returned errors remain visible; removing a record is stated not to remove original files.
+- Connected document filtering and retry operations to the existing LIVE API, added typed batch-index calls and selection, and added a route to a real document-detail record.
+- Added a document-detail state surface for returned metadata, parse/index retries, summaries, scanned-PDF OCR limitation, errors, and original-file safety. Original-file opening is explicitly UNAVAILABLE.
+- Tightened page title density after visual comparison with the supplied product board while retaining the deep-navy navigation, paper workspace, primary blue, and restrained evidence status colours.
+
+### Verification
+
+- `npm test -- --run` passed (14 tests).
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm audit --omit=dev --audit-level=high` found 0 vulnerabilities.
+- Browser visual inspection completed for the workbench and document library at the local preview URL.
+
+### Next task
+
+FE-03 only.
