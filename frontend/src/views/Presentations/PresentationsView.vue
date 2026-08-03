@@ -1,0 +1,16 @@
+<script setup lang="ts">
+import { computed, shallowRef } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import PresentationList from "../../components/presentations/PresentationList.vue";
+import { presentationDrafts, presentationTypes } from "../../mocks/research-prototype";
+import type { PresentationDraft } from "../../types/research-prototype";
+const router = useRouter(); const route = useRoute(); const drafts = shallowRef<PresentationDraft[]>([...presentationDrafts]); const selectedType = shallowRef(presentationTypes[0]); const isNewOpen = shallowRef(false);
+const sourceLabel = computed(() => route.query.source ? "从候选方向创建的本地草稿" : "所有内容均为本地 MOCK 原型");
+function createDraft() { const id = `local-${Date.now()}`; drafts.value = [{ id, title: "未命名组会草稿", type: selectedType.value, progress: "待开始", evidenceStatus: "MOCK / 未接入", pending: "待用户补充材料", updatedAt: "刚刚创建（本地）" }, ...drafts.value]; isNewOpen.value = false; void router.push(`/presentations/${id}`); }
+function duplicate(id: string) { const original = drafts.value.find((draft) => draft.id === id); if (original) drafts.value = [{ ...original, id: `local-${Date.now()}`, title: `${original.title}（副本）`, updatedAt: "刚刚复制（本地）" }, ...drafts.value]; }
+function remove(id: string) { drafts.value = drafts.value.filter((draft) => draft.id !== id); }
+</script>
+
+<template><main class="page"><header class="page-header"><div><p class="eyebrow">PRESENTATIONS · MOCK</p><h1>组会汇报</h1><p>独立高频入口。{{ sourceLabel }}，不会编造实验数据或论文证据。</p></div><button class="primary" @click="isNewOpen = true">+ 新建组会</button></header><section v-if="isNewOpen" class="new-panel"><div><p class="eyebrow">NEW LOCAL DRAFT</p><h2>选择汇报类型</h2><p>将创建本地草稿；材料、证据与引用仍待后续接入。</p></div><div class="type-list"><button v-for="type in presentationTypes" :key="type" :class="{ selected: type === selectedType }" @click="selectedType = type">{{ type }}</button></div><footer><button @click="isNewOpen = false">取消</button><button class="primary" @click="createDraft">创建本地草稿</button></footer></section><PresentationList :drafts="drafts" @open="router.push(`/presentations/${$event}`)" @duplicate="duplicate" @remove="remove"/></main></template>
+
+<style scoped>.page{padding:2rem 1.4rem;max-width:1400px}.page-header{display:flex;justify-content:space-between;gap:1rem;align-items:start}.eyebrow{margin:0;color:var(--color-primary);font-size:.72rem;font-weight:900;letter-spacing:.12em}.page-header h1{margin:.25rem 0;font-size:2.3rem}.page-header p:last-child{color:var(--text-muted)}button{border:1px solid var(--border-strong);border-radius:7px;padding:.55rem .75rem;background:var(--paper);font-weight:750;cursor:pointer}.primary{border-color:var(--color-primary);background:var(--color-primary);color:#fff}.new-panel{margin-top:1rem;padding:1.1rem;border:1px solid var(--color-primary);border-radius:var(--radius-md);background:var(--surface-muted)}.new-panel h2{margin:.25rem 0}.new-panel p{color:var(--text-muted)}.type-list{display:flex;flex-wrap:wrap;gap:.55rem;margin:1rem 0}.type-list .selected{border-color:var(--color-primary);box-shadow:inset 0 0 0 1px var(--color-primary);color:var(--color-primary)}.new-panel footer{display:flex;justify-content:flex-end;gap:.55rem}@media(max-width:720px){.page-header{display:block}.page-header>.primary{margin-top:1rem}}</style>

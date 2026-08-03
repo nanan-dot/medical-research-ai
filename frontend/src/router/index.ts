@@ -11,6 +11,11 @@ import ModelSettingsView from "../views/ModelSettings/ModelSettingsView.vue";
 import FeedbackView from "../views/Feedback/FeedbackView.vue";
 import ComparisonView from "../views/Comparison/ComparisonView.vue";
 import EvidenceMatrixView from "../views/EvidenceMatrix/EvidenceMatrixView.vue";
+import ResearchDirectionsView from "../views/ResearchDirections/ResearchDirectionsView.vue";
+import PresentationsView from "../views/Presentations/PresentationsView.vue";
+import PresentationEditorView from "../views/Presentations/PresentationEditorView.vue";
+import WritingView from "../views/Writing/WritingView.vue";
+import WritingEditorView from "../views/Writing/WritingEditorView.vue";
 import FeatureUnavailableView from "../views/System/FeatureUnavailableView.vue";
 import { features } from "../config/features";
 import { routeMeta } from "./route-meta";
@@ -29,6 +34,11 @@ export const router = createRouter({
     { path: "/feedback", component: FeedbackView, meta: routeMeta("/feedback") },
     { path: "/comparisons", component: ComparisonView, meta: routeMeta("/comparisons") },
     { path: "/evidence-matrix", component: EvidenceMatrixView, meta: routeMeta("/evidence-matrix") },
-    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix"].includes(feature.path)).map((feature) => ({ path: feature.path, component: FeatureUnavailableView, meta: { feature } })),
+    { path: "/research-directions", component: ResearchDirectionsView, meta: routeMeta("/research-directions") },
+    { path: "/presentations", component: PresentationsView, meta: routeMeta("/presentations") },
+    { path: "/presentations/:id", component: PresentationEditorView, meta: routeMeta("/presentations") },
+    { path: "/writing", component: WritingView, meta: routeMeta("/writing") },
+    { path: "/writing/:id", component: WritingEditorView, meta: routeMeta("/writing") },
+    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix", "/research-directions", "/presentations", "/writing"].includes(feature.path)).map((feature) => ({ path: feature.path, component: FeatureUnavailableView, meta: { feature } })),
   ],
 });

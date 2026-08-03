@@ -78,3 +78,23 @@ FE-03 only.
 ### Next task
 
 FE-06 only.
+
+## FE-06 — research directions, presentations, and writing prototypes
+
+**Status:** complete
+
+- Added the research-context and candidate-direction prototype at `/research-directions`. All twelve unknown conditions remain explicit, and candidates are framed as discussion inputs rather than authoritative decisions.
+- Added a standalone high-frequency presentation workspace at `/presentations`, including five new-draft types, local draft list actions, candidate-direction handoff, and `/presentations/:id` editor with outline, speaker notes, discussion questions, source status, and explicit evidence gaps.
+- Added writing-project and writing-editor prototypes at `/writing` and `/writing/:id`, including local draft/version surfaces, content-origin markers, and visibly unavailable citation/original-text/AI-usage states.
+- All FE-06 records are type-safe front-end mocks; no backend route, fabricated paper, DOI/PMID, experiment result, ethical approval, or claim of generated academic content was added.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (18 tests).
+- `npm run build` passed.
+- Browser visual inspection completed for research directions, presentations, and writing pages at the local preview URL.
+
+### Next task
+
+FE-07 only.

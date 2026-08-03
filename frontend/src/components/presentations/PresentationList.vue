@@ -1,0 +1,9 @@
+<script setup lang="ts">
+import type { PresentationDraft } from "../../types/research-prototype";
+defineProps<{ drafts: PresentationDraft[] }>();
+const emit = defineEmits<{ open: [id: string]; remove: [id: string]; duplicate: [id: string] }>();
+</script>
+
+<template><section class="list"><article v-for="draft in drafts" :key="draft.id" class="presentation-row"><div><p class="type">{{ draft.type }} · MOCK</p><h2>{{ draft.title }}</h2><p>{{ draft.progress }} · 证据：{{ draft.evidenceStatus }}</p></div><div class="meta"><span>待确认：{{ draft.pending }}</span><span>最后修改：{{ draft.updatedAt }}</span></div><div class="actions"><button class="primary" @click="emit('open', draft.id)">继续准备</button><button @click="emit('duplicate', draft.id)">复制</button><button>导出（原型）</button><button class="danger" @click="emit('remove', draft.id)">删除</button></div></article></section></template>
+
+<style scoped>.list{display:grid;gap:.8rem;margin-top:1rem}.presentation-row{display:grid;grid-template-columns:minmax(0,1fr) 220px auto;gap:1rem;align-items:center;padding:1rem 1.15rem;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--paper)}.type{margin:0;color:var(--color-primary);font-size:.76rem;font-weight:900;letter-spacing:.07em}.presentation-row h2{margin:.25rem 0;font-size:1.1rem}.presentation-row p:last-child,.meta{color:var(--text-muted);font-size:.86rem}.meta{display:grid;gap:.35rem}.actions{display:flex;flex-wrap:wrap;gap:.45rem}.actions button{border:1px solid var(--border-subtle);border-radius:6px;padding:.45rem .55rem;background:var(--paper);cursor:pointer}.actions .primary{border-color:var(--color-primary);background:var(--color-primary);color:#fff}.actions .danger{color:var(--color-danger)}@media(max-width:900px){.presentation-row{grid-template-columns:1fr}.meta{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>
