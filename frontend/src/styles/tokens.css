@@ -32,8 +32,8 @@
   --text-faint: var(--slate-400);
   --surface-raised: var(--surface);
   --surface-muted: #f1f5f9;
-  --border-subtle: var(--line);
-  --border-strong: var(--line-strong);
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
   --radius-md: var(--radius);
   --radius-lg: 16px;
   --shadow-card: var(--shadow);

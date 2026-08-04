@@ -34,7 +34,7 @@ const capabilities = [
 </script>
 <template>
   <main class="home">
-    <ResearchHero title="LIGHT RESEARCH WORKSPACE" description="管理知识源、追踪论文解析与索引，并在真实状态上继续你的研究。检索、分析、问答等能力均已如实标注接入状态。" />
+    <ResearchHero title="RESEARCH WORKSPACE" description="面向医学科研人员的 AI 工作空间：管理知识资产、解析论文、构建检索式、生成汇报材料。所有能力均如实标注接入状态。" />
     <ResearchSearch @open="openSearch" />
     <h2 class="section-title">研究能力入口</h2>
     <FeatureEntry :items="capabilities" />
