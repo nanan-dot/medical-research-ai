@@ -1,18 +1,51 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
-import { useKnowledgeSources } from "../../composables/useKnowledgeSources";
-const { sources, enabledCount, loading, error, load } = useKnowledgeSources();
-const sourceHealth = computed(() => loading.value ? "正在读取知识源状态" : error.value ? "知识源状态暂不可用" : sources.value.length === 0 ? "尚未登记知识源" : `${enabledCount.value} 个已启用的知识源`);
-onMounted(load);
+import { inject, onMounted, shallowRef } from "vue";
+import { documentsApi, type DocumentRecord } from "../../api/documents";
+import ResearchHero from "../../components/home/ResearchHero.vue";
+import ResearchSearch from "../../components/home/ResearchSearch.vue";
+import FeatureEntry from "../../components/home/FeatureEntry.vue";
+import RecentResearchList from "../../components/home/RecentResearchList.vue";
+import TaskProgressPanel from "../../components/home/TaskProgressPanel.vue";
+import KnowledgeOverview from "../../components/home/KnowledgeOverview.vue";
+
+const openSearch = inject<() => void>("openSearch", () => {});
+const documents = shallowRef<DocumentRecord[]>([]);
+const documentsLoading = shallowRef(true);
+const documentsError = shallowRef("");
+
+onMounted(async () => {
+  try {
+    documents.value = (await documentsApi.list({ parseStatus: "", indexStatus: "" }, 0, 20)).items;
+  } catch (cause) {
+    documentsError.value = cause instanceof Error ? cause.message : "无法读取最近研究";
+  } finally {
+    documentsLoading.value = false;
+  }
+});
+
+const capabilities = [
+  { label: "论文分析", description: "深入解析医学论文", path: "/analysis", icon: "◈" },
+  { label: "证据问答", description: "基于证据链回答", path: "/chat", icon: "◌" },
+  { label: "文献检索", description: "构建医学检索任务", path: "/literature-search", icon: "⌕" },
+  { label: "多论文比较", description: "发现研究差异", path: "/comparisons", icon: "≋" },
+  { label: "知识库", description: "管理科研资产", path: "/sources", icon: "◫" },
+  { label: "组会汇报", description: "自动生成材料", path: "/presentations", icon: "▥" },
+];
 </script>
 <template>
-  <main class="home"><header class="hero"><p class="eyebrow">RESEARCH WORKBENCH · MOCK</p><div class="hero-copy"><div><p class="greeting">下午好，研究员</p><h1>从可追溯的本地文档开始研究。</h1><p class="lead">先登记知识源、检查解析和索引状态；文献分析与问答会在后续阶段接入。</p></div><RouterLink class="primary-action" to="/documents">继续上次研究<span>进入文档库</span></RouterLink></div></header>
-    <section class="question-panel" aria-label="研究问题"><label for="research-question">你准备研究什么？</label><div><input id="research-question" disabled placeholder="研究问题输入将在文献检索阶段接入" /><span class="prototype-tag">UNAVAILABLE</span></div><p>当前未连接研究问题检索接口，因此不会生成或伪造检索结果。</p></section>
-    <section class="action-grid" aria-label="下一步"><RouterLink to="/sources"><b>登记知识源</b><span>授权一个文件夹、Obsidian 库或临时导入路径</span></RouterLink><RouterLink to="/documents"><b>检查文档状态</b><span>查看真实系统记录的解析和索引状态</span></RouterLink><RouterLink to="/analysis"><b>新建分析</b><span>待 FE-03 接入</span></RouterLink><RouterLink to="/presentations"><b>组会汇报</b><span>新建或继续本地原型草稿</span></RouterLink></section>
-    <section class="workspace-status"><article><p class="eyebrow">KNOWLEDGE HEALTH · LIVE</p><h2>知识库健康状态</h2><p>{{ sourceHealth }}</p><RouterLink to="/sources">管理知识源 →</RouterLink></article><article><p class="eyebrow">RUNNING TASKS · MOCK</p><h2>当前运行任务</h2><p>暂未连接任务执行接口。本区域只作为前端原型，不展示虚构任务进度。</p><RouterLink to="/tasks">查看任务能力 →</RouterLink></article></section>
-    <footer class="phase-note">本阶段已开放：知识源与文档管线。检索、分析、问答等能力会以明确状态接入。</footer>
+  <main class="home">
+    <ResearchHero title="LIGHT RESEARCH WORKSPACE" description="管理知识源、追踪论文解析与索引，并在真实状态上继续你的研究。检索、分析、问答等能力均已如实标注接入状态。" />
+    <ResearchSearch @open="openSearch" />
+    <h2 class="section-title">研究能力入口</h2>
+    <FeatureEntry :items="capabilities" />
+    <div class="columns">
+      <RecentResearchList :items="documents" :loading="documentsLoading" :error="documentsError" />
+      <TaskProgressPanel />
+      <KnowledgeOverview />
+    </div>
+    <p class="phase-note">本阶段仅重构工作台视觉与信息架构；所有状态均来自真实接口或如实标注，不伪造论文与任务进度。</p>
   </main>
 </template>
 <style scoped>
-.home{max-width:1180px;margin:auto;padding:1.5rem 1.5rem 2.4rem}.hero{padding:1.5rem;border:1px solid var(--border-subtle);border-radius:var(--radius-lg);background:linear-gradient(120deg,var(--paper),var(--color-primary-soft));box-shadow:var(--shadow-card)}.eyebrow{margin:0;color:var(--color-primary);font-size:.72rem;font-weight:900;letter-spacing:.13em}.hero-copy{display:flex;align-items:end;justify-content:space-between;gap:2rem}.greeting{margin:1rem 0 .2rem;color:var(--text-muted)}h1{max-width:700px;margin:0;color:var(--text-primary);font-size:clamp(2rem,3.3vw,3.1rem);line-height:1.12;letter-spacing:-.035em}.lead{max-width:680px;color:var(--text-muted);font-size:1rem;line-height:1.6}.primary-action{display:grid;gap:.3rem;min-width:190px;padding:1rem 1.15rem;border-radius:var(--radius-md);background:var(--color-primary);color:#fff;text-decoration:none;font-weight:800}.primary-action span{font-size:.8rem;font-weight:600;opacity:.8}.question-panel{margin-top:1rem;padding:1.2rem 1.35rem;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--paper)}.question-panel label{display:block;margin-bottom:.55rem;font-weight:800}.question-panel div{display:flex;gap:.6rem}.question-panel input{flex:1;min-width:0;border:1px solid var(--border-strong);border-radius:8px;padding:.72rem;background:var(--surface-muted);color:var(--text-muted)}.question-panel p{margin:.65rem 0 0;color:var(--text-muted);font-size:.84rem}.prototype-tag{align-self:center;border-radius:99px;padding:.3rem .5rem;background:var(--color-warning-soft);color:var(--color-warning);font-size:.7rem;font-weight:800}.action-grid,.workspace-status{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1rem}.action-grid a,.workspace-status article{display:grid;gap:.5rem;min-height:120px;padding:1.1rem;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--paper);color:var(--text-primary);text-decoration:none;box-shadow:var(--shadow-card)}.action-grid b{color:var(--color-primary)}.action-grid span,.workspace-status article>p:not(.eyebrow){color:var(--text-muted);font-size:.88rem;line-height:1.5}.workspace-status{grid-template-columns:repeat(2,1fr)}.workspace-status h2{margin:0;font-size:1.1rem}.workspace-status a{color:var(--color-primary);font-weight:750;text-decoration:none}.phase-note{margin-top:1rem;color:var(--text-muted);font-size:.82rem}@media(max-width:800px){.hero-copy{align-items:flex-start;flex-direction:column}.action-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:540px){.home{padding:1rem}.action-grid,.workspace-status{grid-template-columns:1fr}.question-panel div{align-items:flex-start;flex-direction:column}}
+.home{max-width:1180px;margin:auto;padding:1.6rem 1.6rem 2.4rem;display:grid;gap:1.5rem}.section-title{margin:0;color:var(--text-primary);font-size:1rem}.columns{display:grid;grid-template-columns:35fr 35fr 30fr;gap:1.4rem;align-items:start}.columns>section{min-width:0}.phase-note{margin:0;color:var(--text-faint);font-size:.78rem}@media(max-width:1100px){.columns{grid-template-columns:1fr 1fr}.columns>section:last-child{grid-column:1/-1}}@media(max-width:760px){.columns{grid-template-columns:1fr}.columns>section:last-child{grid-column:auto}.home{padding:1rem}}
 </style>

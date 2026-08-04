@@ -140,3 +140,25 @@ FE-08 only.
 ### Final status
 
 FE-01 through FE-08 front-end scope is complete. No additional front-end or backend phase was started.
+
+## FE-01.5 — Light Research Workspace design system
+
+**Status:** complete
+
+- Replaced the deep-navy administration palette with a Light Research Workspace design system: page background `#F7F9FC`, card surface `#FFFFFF` with `1px #E5E7EB` border and a very weak shadow, primary medical blue `#2563EB`, secondary research cyan `#0EA5E9`, success `#16A34A`, warning `#D97706`, and text scales `#0F172A` / `#64748B` / `#94A3B8`. No deep-navy tokens remain.
+- Restyled the sidebar as a quiet light rail (`#F8FAFC`) with research-oriented groups (研究空间 / 知识资产 / 科研产出 / 智能工具) and a Notion-style active state (`#DBEAFE` background with `#2563EB` text) instead of dark blocks; 72px logo header with a divider.
+- Rebuilt the top bar as a research entry header (greeting copy on the left, model / privacy / user status on the right) and reworked the home page into a research workspace: 60px global search entry (Ctrl+K), horizontal Research Capability Entries (论文分析 / 证据问答 / 文献检索 / 多论文比较 / 知识库 / 组会汇报), and a 35/35/30 column layout (recent research list, task progress with status/progress/time, knowledge-asset overview — no BI-style big numbers).
+- Split the previous generic dashboard card into focused components: ResearchHero, ResearchSearch, FeatureEntry, RecentResearchList, TaskProgressPanel, KnowledgeOverview, QuickActionPanel, SystemStatusPanel.
+- Kept motion restrained (150ms hover, fade+translateY page entry only), preserved responsive behavior (desktop full layout, tablet sidebar collapse, mobile bottom navigation), and kept the LIVE / MOCK / UNAVAILABLE boundary and real-API usage intact — no fabricated medical data, no new backend surface.
+- Updated the feature registry groups to match the new navigation structure; items not shown in navigation (evidence matrix, reading plan, citation check) remain routable and explicitly labelled.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (19 tests).
+- `npm run build` passed.
+- Backend suite unchanged: 188 passed, 5 skipped; Alembic check clean.
+
+### Notes
+
+- One pre-existing test asserted every non-LIVE feature must appear in navigation; it was updated to assert every non-LIVE feature stays routable with an explicit status, matching the new navigation design.

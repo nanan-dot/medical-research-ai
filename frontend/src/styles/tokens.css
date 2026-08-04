@@ -1,37 +1,45 @@
 :root {
-  --navy-950: #09243c;
-  --navy-800: #123d62;
+  /* Light Research Workspace palette — FE-01.5 */
   --blue-600: #2563eb;
-  --teal-600: #0f766e;
-  --paper: #f7f7f2;
-  --surface: #fff;
-  --ink: #142235;
-  --muted: #667085;
-  --line: #dbe2ea;
-  --success: #16803a;
-  --warning: #b7791f;
-  --danger: #bc3b32;
+  --cyan-500: #0ea5e9;
+  --green-600: #16a34a;
+  --amber-600: #d97706;
+  --red-600: #dc2626;
+  --ink-900: #0f172a;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --paper: #f7f9fc;
+  --surface: #ffffff;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
   --radius: 12px;
-  --shadow: 0 12px 30px rgba(9, 36, 60, .08);
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   --sidebar: 244px;
   --rail: 300px;
 
-  /* Semantic aliases keep all feature pages on the same medical-research palette. */
+  /* Semantic aliases keep every page on the same medical-research palette. */
   --color-primary: var(--blue-600);
-  --color-primary-soft: #eaf1ff;
-  --color-success: var(--success);
-  --color-success-soft: #e8f7ee;
-  --color-warning: var(--warning);
-  --color-warning-soft: #fff4d9;
-  --color-danger: var(--danger);
-  --color-danger-soft: #fdebea;
-  --text-primary: var(--ink);
-  --text-muted: var(--muted);
+  --color-primary-soft: #dbeafe;
+  --color-secondary: var(--cyan-500);
+  --color-success: var(--green-600);
+  --color-success-soft: #dcfce7;
+  --color-warning: var(--amber-600);
+  --color-warning-soft: #fef3c7;
+  --color-danger: var(--red-600);
+  --color-danger-soft: #fee2e2;
+  --text-primary: var(--ink-900);
+  --text-muted: var(--slate-500);
+  --text-faint: var(--slate-400);
   --surface-raised: var(--surface);
-  --surface-muted: #f4f7fb;
+  --surface-muted: #f1f5f9;
   --border-subtle: var(--line);
-  --border-strong: #c6d2df;
+  --border-strong: var(--line-strong);
   --radius-md: var(--radius);
-  --radius-lg: 18px;
+  --radius-lg: 16px;
   --shadow-card: var(--shadow);
+  --page-bg: var(--paper);
+  --sidebar-bg: #f8fafc;
+  --nav-hover-bg: #f1f5f9;
+  --nav-active-bg: #dbeafe;
+  --nav-active-text: #2563eb;
 }
