@@ -4,7 +4,7 @@ defineProps<{ title: string; description: string }>();
 <template>
   <section class="research-hero">
     <div class="hero-copy">
-      <p class="eyebrow">RESEARCH WORKSPACE · {{ title }}</p>
+      <p class="eyebrow">{{ title }}</p>
       <h1>你的医学科研工作空间</h1>
       <p class="lead">{{ description }}</p>
     </div>
