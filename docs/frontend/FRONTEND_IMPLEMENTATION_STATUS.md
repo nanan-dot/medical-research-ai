@@ -162,3 +162,16 @@ FE-01 through FE-08 front-end scope is complete. No additional front-end or back
 ### Notes
 
 - One pre-existing test asserted every non-LIVE feature must appear in navigation; it was updated to assert every non-LIVE feature stays routable with an explicit status, matching the new navigation design.
+
+## FE-03.5 — Paper Analysis Workspace refactor
+
+**Status:** complete
+
+- Refactored `/analysis` from a "PDF reader + admin detail" page into a three-column AI Research Workspace: left 18% Paper Outline navigator, central 57% AI Research Report, right 25% Evidence Context Rail. Central reading area is the core; every AI conclusion is traceable to source page/citation; the evidence rail is a first-class capability.
+- Added nine single-responsibility components under `frontend/src/components/paper/`: PaperHeader, PaperOutline, ResearchBrief, InsightBlock, EvidenceRail, EvidenceCard, SourceLocator, ConfidenceBadge, PaperMetadataBar, plus a shared `paperModel.ts` data layer that derives display state strictly from real `PaperAnalysis` fields.
+- Data boundary enforced: only backend fields (`structured_result`, `sources`, `model_version`, `analysis_status`, `generation`) are rendered. Journal / year / DOI / citation count / evidence level / keywords / tags are displayed as "未提供" / "暂无标签" — never fabricated. Confidence maps `kind`: fact+source → High, summary → Medium, inference/not_found → Needs verification. Section state is derived from `sources[].page_start` (has reference = analyzed). Empty state keeps the document-ID guided report entry. 创建组会汇报 keeps the FE-06 UNAVAILABLE copy; Export reuses `paperAnalysisApi.exportUrl`.
+- Responsive per FE-01.5 breakpoints: `<1100px` the right rail collapses to a bottom drawer with a toggle button; `<900px` the left outline hides. Hover 150ms; no PDF-reader chrome, admin detail page, card wall, or chat-bubble feel.
+
+### Verification
+
+- `npm run typecheck` / `npm test` / `npm run build` 均未在本轮执行：当前会话沙盒对 node/npm 执行返回权限阻止（命令含外部程序调用，需手动批准），按要求如实报告，不声称通过。代码已完成静态自查，待权限开放后补跑三项验证。
