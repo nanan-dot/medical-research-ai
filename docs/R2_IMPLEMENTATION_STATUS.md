@@ -69,3 +69,54 @@ Stop after R2-WP01. Do not begin R2-WP02 as part of this work package.
 ### Next boundary
 
 Stop after R2-WP02. The next task is R2-WP03; do not start it here.
+
+## R2-WP03 — PubMed client (NCBI E-utilities)
+
+**Status:** implemented — automated tests NOT yet executed in this session
+
+### Entry decision
+
+R2-WP02 completed (188 passed, 5 skipped). WP03 depends on WP02 only in the sense that
+the query builder emits PubMed boolean strings; WP03 itself adds the execution layer.
+
+### Delivered
+
+- Added `app/integrations/pubmed/` following the existing `paperqa2/` adapter pattern:
+  `client.py`, `schemas.py`, `exceptions.py`, `rate_limit.py`, `cache.py`, `__init__.py`.
+- ESearch / ESummary / EFetch orchestration with:
+  - API key + email support (`PubMedConfig`, `SecretStr` for the key, no hardcoding);
+  - timeout (httpx, configurable), retry (3 attempts, exponential backoff, honors
+    `Retry-After` on 429), rate limiting (`RateLimiter`, 350ms no-key / 100ms with key);
+  - TTL cache keyed on normalized parameters (email/api_key/tool excluded);
+  - structured exceptions deriving from `AppError`; no raw httpx/XML/JSON leakage;
+  - request logging at debug/info level without exposing XML bodies or secrets.
+- `PubMedRecord` with pmid/doi/title/authors/journal/year/abstract/publication_types plus
+  `is_open_access` and `withdrawn` flags.
+- Metadata normalization: complex author formats (collective authors, initials-only,
+  missing name parts), missing year/abstract/journal degrade to `None`, withdrawn records
+  detected via `CommentsCorrectionsList` `RefType="RetractionIn"`.
+- XML parsing is namespace-agnostic (local-name matching) to tolerate NCBI returning both
+  namespaced and plain `PubmedArticleSet` XML.
+- Unit tests `tests/unit/test_pubmed_client.py` (Mock-based, no network) and live-gated
+  integration tests `tests/integrations/test_pubmed_live.py` (`RUN_PUBMED_LIVE_TEST=1`).
+- `.env.example` PubMed section clarified (key optional, email required).
+
+### Verification status — PENDING
+
+- pytest for the new files could not be executed in this session: every external program
+  invocation (`python`, `pytest`, `bash`, `cmd`, project venv python) was blocked by the
+  session permission system ("requires approval") before it could run.
+- This document is updated WITHOUT claiming test results. Tests must be run and the
+  results recorded here before the work package is considered accepted.
+- Static review of the new code was performed; no claims of runtime verification are made.
+
+### Known limitations / R2 backlog
+
+- Rate limiting and backoff are in-process only (single process); multi-instance
+  deployments need an external limiter.
+- Cache is in-memory TTL; a restart clears it.
+- `is_open_access` is inferred from the presence of a PMC id, not from a license check.
+
+### Next boundary
+
+Stop after R2-WP03. The next task is R2-WP04; do not start it here.
