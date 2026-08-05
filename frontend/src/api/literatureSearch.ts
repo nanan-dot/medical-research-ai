@@ -132,6 +132,13 @@ export interface LiteratureSearchTaskRerun {
   change: SearchResultChange | null;
   new_result_id: number;
 }
+export type DuplicateMatchMethod = "pmid" | "doi" | "title_normalized" | "author_year" | "manual";
+export type DuplicateConfidence = "clear" | "fuzzy";
+export type DuplicateResolutionAction = "keep_record" | "keep_all" | "merge_all" | "undo";
+export interface DuplicateGroupMember { result_id: number; record_pmid: string; canonical_result_id: number | null; canonical_record_pmid: string | null; source_search_ids: number[]; }
+export interface DuplicateGroup { id: number; trigger_task_id: number; match_method: DuplicateMatchMethod; confidence: DuplicateConfidence; status: string; created_at: string; members: DuplicateGroupMember[]; resolution: { resolved_at: string; resolved_action: DuplicateResolutionAction; resolved_by: string; } | null; }
+export interface DuplicateGroupList { items: DuplicateGroup[]; }
+export interface DuplicateResolveRequest { action: DuplicateResolutionAction; canonical_result_id?: number; canonical_record_pmid?: string; resolved_by?: string; }
 const json = { headers: { "Content-Type": "application/json" } };
 export const literatureSearchApi = {
   parseQuery: (rawTopic: string) => apiRequest<ParsedQuery>("/literature-search/parse-query", { method: "POST", ...json, body: JSON.stringify({ raw_topic: rawTopic }) }),
@@ -159,4 +166,7 @@ export const literatureSearchApi = {
   // 单条结果用户态读写（R2-WP05）：saved / read_status / tags / 自定义排序序号。
   updateItemState: (id: number, pmid: string, request: ItemStateUpdate) =>
     apiRequest<ItemStateRead>(`/literature-search/${id}/items/${pmid}/state`, { method: "PATCH", ...json, body: JSON.stringify(request) }),
+  deduplicateTask: (id: number) => apiRequest<DuplicateGroupList>(`/literature-search/${id}/deduplicate`, { method: "POST" }),
+  resolveDuplicateGroup: (id: number, request: DuplicateResolveRequest) =>
+    apiRequest<DuplicateGroup>(`/duplicate-groups/${id}/resolve`, { method: "POST", ...json, body: JSON.stringify(request) }),
 };

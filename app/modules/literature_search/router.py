@@ -8,6 +8,9 @@ from app.core.database import get_session
 from app.modules.literature_search.schema import (
     BuildQueryRequest,
     BuildQueryResponse,
+    DuplicateGroupList,
+    DuplicateGroupRead,
+    DuplicateResolveRequest,
     ExpandTermsRequest,
     ExpandTermsResponse,
     ItemStateRead,
@@ -27,6 +30,7 @@ from app.modules.literature_search.schema import (
 from app.modules.literature_search.service import LiteratureSearchService
 
 router = APIRouter(prefix="/literature-search", tags=["Literature search"])
+duplicate_group_router = APIRouter(prefix="/duplicate-groups", tags=["Literature deduplication"])
 
 
 # ----------------------------------------------------------------------
@@ -157,3 +161,27 @@ async def export_bibtex(
     session: AsyncSession = Depends(get_session),
 ) -> str:
     return await LiteratureSearchService(session).bibtex(id)
+
+
+@router.post("/{id}/deduplicate", response_model=DuplicateGroupList)
+async def deduplicate_task(
+    id: int, session: AsyncSession = Depends(get_session)
+) -> DuplicateGroupList:
+    """对指定任务及各任务当前快照生成可解释、可撤销的去重决策。"""
+    return await LiteratureSearchService(session).deduplicate_task(id)
+
+
+@duplicate_group_router.get("", response_model=DuplicateGroupList)
+async def list_duplicate_groups(
+    session: AsyncSession = Depends(get_session),
+) -> DuplicateGroupList:
+    return await LiteratureSearchService(session).list_duplicate_groups()
+
+
+@duplicate_group_router.post("/{id}/resolve", response_model=DuplicateGroupRead)
+async def resolve_duplicate_group(
+    id: int,
+    request: DuplicateResolveRequest,
+    session: AsyncSession = Depends(get_session),
+) -> DuplicateGroupRead:
+    return await LiteratureSearchService(session).resolve_duplicate_group(id, request)

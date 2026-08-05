@@ -6,6 +6,7 @@ import json
 import re
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from typing import Literal, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +18,11 @@ from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
 from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
+from app.modules.literature_search.dedup import DedupRecord, find_duplicate_candidates
 from app.modules.literature_search.model import (
+    LiteratureDuplicateGroup,
+    LiteratureDuplicateGroupMember,
+    LiteratureDuplicateResolution,
     LiteratureSearchItemState,
     LiteratureSearchResult,
     LiteratureSearchResultVersion,
@@ -30,6 +35,11 @@ from app.modules.literature_search.repository import LiteratureSearchRepository
 from app.modules.literature_search.schema import (
     BooleanQueryResult,
     CitationItem,
+    DuplicateGroupList,
+    DuplicateGroupMemberRead,
+    DuplicateGroupRead,
+    DuplicateResolveRequest,
+    DuplicateResolutionRead,
     ExpandTermsResponse,
     ItemStateRead,
     ItemStateUpdate,
@@ -507,6 +517,122 @@ class LiteratureSearchService:
                 custom_order_index=None,
             )
         return self._to_state_read(entity)
+
+    async def deduplicate_task(self, task_id: int) -> DuplicateGroupList:
+        """跨各任务当前快照生成可撤销决策；不会改写或删除原始检索记录。"""
+        if await self.repo.get_task(task_id) is None:
+            raise NotFoundError(f"LiteratureSearchTask not found: {task_id}")
+        await self.repo.delete_groups_for_task(task_id)
+        for candidate in find_duplicate_candidates(await self._dedup_records()):
+            canonical = candidate.records[0]
+            canonical_result_id = int(canonical.record_id.split(":", maxsplit=1)[0])
+            group = LiteratureDuplicateGroup(
+                trigger_task_id=task_id,
+                match_method=candidate.match_method,
+                confidence=candidate.confidence,
+                status="auto_merged" if candidate.confidence == "clear" else "pending_resolution",
+            )
+            for record in candidate.records:
+                group.members.append(
+                    LiteratureDuplicateGroupMember(
+                        result_id=int(record.record_id.split(":", maxsplit=1)[0]),
+                        record_pmid=record.item.pmid,
+                        source_search_ids_json=json.dumps(record.source_search_ids),
+                        canonical_result_id=(canonical_result_id if candidate.confidence == "clear" else None),
+                        canonical_record_pmid=(canonical.item.pmid if candidate.confidence == "clear" else None),
+                    )
+                )
+            await self.repo.create_duplicate_group(group)
+        return await self.list_duplicate_groups()
+
+    async def list_duplicate_groups(self) -> DuplicateGroupList:
+        return DuplicateGroupList(
+            items=[self._to_duplicate_group_read(group) for group in await self.repo.list_duplicate_groups()]
+        )
+
+    async def resolve_duplicate_group(
+        self, group_id: int, request: DuplicateResolveRequest
+    ) -> DuplicateGroupRead:
+        group = await self.repo.get_duplicate_group(group_id)
+        if group is None:
+            raise NotFoundError(f"Duplicate group not found: {group_id}")
+        if request.action == "undo":
+            if group.resolution is not None:
+                await self.repo.delete_duplicate_resolution(group.resolution)
+            for member in group.members:
+                member.canonical_result_id = None
+                member.canonical_record_pmid = None
+            group.status = "pending_resolution" if group.confidence == "fuzzy" else "auto_merged"
+            await self.repo.save_duplicate_group(group)
+            return self._to_duplicate_group_read(group)
+
+        canonical = self._resolve_canonical_member(group, request)
+        should_merge = request.action in {"keep_record", "merge_all"}
+        for member in group.members:
+            member.canonical_result_id = canonical.result_id if should_merge else None
+            member.canonical_record_pmid = canonical.record_pmid if should_merge else None
+        group.status = "resolved_merged" if should_merge else "resolved_keep_all"
+        group.resolution = await self.repo.replace_duplicate_resolution(
+            LiteratureDuplicateResolution(
+                group_id=group.id, resolved_action=request.action, resolved_by=request.resolved_by
+            )
+        )
+        await self.repo.save_duplicate_group(group)
+        return self._to_duplicate_group_read(group)
+
+    async def _dedup_records(self) -> list[DedupRecord]:
+        task_results = await self.repo.latest_task_results()
+        sources: dict[int, list[int]] = {}
+        results: dict[int, LiteratureSearchResult] = {}
+        for task_id, result in task_results:
+            sources.setdefault(result.id, []).append(task_id)
+            results[result.id] = result
+        return [
+            DedupRecord(
+                record_id=f"{result_id}:{item.pmid}",
+                item=item,
+                source_search_ids=tuple(sorted(sources[result_id])),
+            )
+            for result_id, result in results.items()
+            for item in self._result_items(result)
+        ]
+
+    @staticmethod
+    def _resolve_canonical_member(
+        group: LiteratureDuplicateGroup, request: DuplicateResolveRequest
+    ) -> LiteratureDuplicateGroupMember:
+        if request.action in {"keep_all", "merge_all"}:
+            return group.members[0]
+        if request.canonical_result_id is None or request.canonical_record_pmid is None:
+            raise ValueError("keep_record requires canonical_result_id and canonical_record_pmid")
+        for member in group.members:
+            if member.result_id == request.canonical_result_id and member.record_pmid == request.canonical_record_pmid:
+                return member
+        raise ValueError("canonical record is not a member of the duplicate group")
+
+    @staticmethod
+    def _to_duplicate_group_read(group: LiteratureDuplicateGroup) -> DuplicateGroupRead:
+        return DuplicateGroupRead(
+            id=group.id, trigger_task_id=group.trigger_task_id,
+            match_method=cast("Literal['pmid', 'doi', 'title_normalized', 'author_year', 'manual']", group.match_method),
+            confidence=cast("Literal['clear', 'fuzzy']", group.confidence),
+            status=cast("Literal['pending_resolution', 'auto_merged', 'resolved_keep_all', 'resolved_merged']", group.status),
+            created_at=group.created_at,
+            members=[
+                DuplicateGroupMemberRead(
+                    result_id=member.result_id, record_pmid=member.record_pmid,
+                    canonical_result_id=member.canonical_result_id,
+                    canonical_record_pmid=member.canonical_record_pmid,
+                    source_search_ids=json.loads(member.source_search_ids_json),
+                )
+                for member in group.members
+            ],
+            resolution=None if group.resolution is None else DuplicateResolutionRead(
+                resolved_at=group.resolution.resolved_at,
+                resolved_action=cast("Literal['keep_record', 'keep_all', 'merge_all', 'undo']", group.resolution.resolved_action),
+                resolved_by=group.resolution.resolved_by,
+            ),
+        )
 
     @staticmethod
     def _result_items(entity: LiteratureSearchResult) -> list[CitationItem]:

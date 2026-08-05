@@ -8,7 +8,10 @@ from app.modules.knowledge_source.router import router as knowledge_source_route
 from app.modules.document.router import router as document_router
 from app.modules.conversation.router import router as conversation_router
 from app.modules.paper_analysis.router import router as paper_analysis_router
-from app.modules.literature_search.router import router as literature_search_router
+from app.modules.literature_search.router import (
+    duplicate_group_router,
+    router as literature_search_router,
+)
 from app.modules.research_direction.router import router as research_direction_router
 from app.modules.writing.router import router as writing_router
 from app.modules.feedback.router import router as feedback_router
@@ -26,6 +29,7 @@ api_router.include_router(document_router, tags=["文档"])
 api_router.include_router(conversation_router, tags=["会话"])
 api_router.include_router(paper_analysis_router, tags=["论文分析"])
 api_router.include_router(literature_search_router, tags=["文献检索"])
+api_router.include_router(duplicate_group_router, tags=["文献去重"])
 api_router.include_router(research_direction_router, tags=["研究方向"])
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])

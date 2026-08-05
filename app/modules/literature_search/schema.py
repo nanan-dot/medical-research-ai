@@ -323,3 +323,51 @@ class ItemStateRead(BaseModel):
     read_status: ReadStatus
     tags: list[str]
     custom_order_index: int | None = None
+
+
+# ----------------------------------------------------------------------
+# R2-WP06：可撤销文献去重
+# ----------------------------------------------------------------------
+
+DuplicateMatchMethod = Literal["pmid", "doi", "title_normalized", "author_year", "manual"]
+DuplicateConfidence = Literal["clear", "fuzzy"]
+DuplicateGroupStatus = Literal["pending_resolution", "auto_merged", "resolved_keep_all", "resolved_merged"]
+DuplicateResolutionAction = Literal["keep_record", "keep_all", "merge_all", "undo"]
+
+
+class DuplicateGroupMemberRead(BaseModel):
+    result_id: int
+    record_pmid: str
+    canonical_result_id: int | None
+    canonical_record_pmid: str | None
+    source_search_ids: list[int]
+
+
+class DuplicateResolutionRead(BaseModel):
+    resolved_at: datetime
+    resolved_action: DuplicateResolutionAction
+    resolved_by: str
+
+
+class DuplicateGroupRead(BaseModel):
+    id: int
+    trigger_task_id: int
+    match_method: DuplicateMatchMethod
+    confidence: DuplicateConfidence
+    status: DuplicateGroupStatus
+    created_at: datetime
+    members: list[DuplicateGroupMemberRead]
+    resolution: DuplicateResolutionRead | None
+
+
+class DuplicateGroupList(BaseModel):
+    items: list[DuplicateGroupRead]
+
+
+class DuplicateResolveRequest(BaseModel):
+    """人工决策；keep_record 需要明确选择保留的 result_id 与 PMID。"""
+
+    action: Literal["keep_record", "keep_all", "merge_all", "undo"]
+    canonical_result_id: int | None = Field(default=None, ge=1)
+    canonical_record_pmid: str | None = Field(default=None, min_length=1, max_length=20)
+    resolved_by: str = Field(default="local_user", min_length=1, max_length=100)

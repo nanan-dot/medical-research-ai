@@ -1,9 +1,12 @@
 """literature_search — 数据库访问"""
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.literature_search.model import (
+    LiteratureDuplicateGroup,
+    LiteratureDuplicateResolution,
     LiteratureSearch,
     LiteratureSearchItemState,
     LiteratureSearchResult,
@@ -192,3 +195,77 @@ class LiteratureSearchRepository:
         await self.session.flush()
         await self.session.refresh(entity)
         return entity
+
+    # ------------------------------------------------------------------
+    # 可撤销去重决策（R2-WP06）
+    # ------------------------------------------------------------------
+
+    async def latest_task_results(self) -> list[tuple[int, LiteratureSearchResult]]:
+        """返回每个任务的当前结果快照，以便跨任务识别重复且不扫描历史版本。"""
+        result = await self.session.execute(
+            select(LiteratureSearchTask.id, LiteratureSearchResult)
+            .join(LiteratureSearchResult, LiteratureSearchTask.latest_result_id == LiteratureSearchResult.id)
+            .where(LiteratureSearchTask.latest_result_id.is_not(None))
+        )
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def delete_groups_for_task(self, task_id: int) -> None:
+        """重跑去重时仅替换该任务触发的旧决策，不影响其他任务的审计记录。"""
+        await self.session.execute(
+            delete(LiteratureDuplicateGroup).where(LiteratureDuplicateGroup.trigger_task_id == task_id)
+        )
+        await self.session.flush()
+
+    async def create_duplicate_group(self, entity: LiteratureDuplicateGroup) -> LiteratureDuplicateGroup:
+        self.session.add(entity)
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity
+
+    async def list_duplicate_groups(self) -> list[LiteratureDuplicateGroup]:
+        result = await self.session.execute(
+            select(LiteratureDuplicateGroup)
+            .options(
+                selectinload(LiteratureDuplicateGroup.members),
+                selectinload(LiteratureDuplicateGroup.resolution),
+            )
+            .order_by(LiteratureDuplicateGroup.created_at.desc(), LiteratureDuplicateGroup.id.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get_duplicate_group(self, group_id: int) -> LiteratureDuplicateGroup | None:
+        result = await self.session.execute(
+            select(LiteratureDuplicateGroup)
+            .where(LiteratureDuplicateGroup.id == group_id)
+            .options(
+                selectinload(LiteratureDuplicateGroup.members),
+                selectinload(LiteratureDuplicateGroup.resolution),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def save_duplicate_group(self, entity: LiteratureDuplicateGroup) -> LiteratureDuplicateGroup:
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity
+
+    async def replace_duplicate_resolution(
+        self, entity: LiteratureDuplicateResolution
+    ) -> LiteratureDuplicateResolution:
+        existing = await self.session.execute(
+            select(LiteratureDuplicateResolution).where(
+                LiteratureDuplicateResolution.group_id == entity.group_id
+            )
+        )
+        prior = existing.scalar_one_or_none()
+        if prior is not None:
+            await self.session.delete(prior)
+            await self.session.flush()
+        self.session.add(entity)
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity
+
+    async def delete_duplicate_resolution(self, entity: LiteratureDuplicateResolution) -> None:
+        await self.session.delete(entity)
+        await self.session.flush()

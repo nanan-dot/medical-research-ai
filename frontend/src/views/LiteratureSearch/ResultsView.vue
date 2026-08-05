@@ -1,12 +1,36 @@
 <script setup lang="ts">
+import { shallowRef } from "vue";
 import { useRoute } from "vue-router";
 
+import { literatureSearchApi, type DuplicateGroup, type DuplicateResolutionAction } from "../../api/literatureSearch";
+import DuplicateReview from "../../components/DuplicateReview/DuplicateReview.vue";
 import { useLiteratureResults } from "../../composables/useLiteratureResults";
 import LiteratureFilters from "../../components/LiteratureFilters/LiteratureFilters.vue";
 import PaperResults from "../../components/PaperResults/PaperResults.vue";
 
 const route = useRoute();
 const resultId = Number(route.params.id);
+const duplicateGroups = shallowRef<DuplicateGroup[]>([]);
+const deduplicating = shallowRef(false);
+const deduplicationError = shallowRef("");
+
+async function runDeduplication(): Promise<void> {
+  deduplicating.value = true;
+  deduplicationError.value = "";
+  try { duplicateGroups.value = (await literatureSearchApi.deduplicateTask(resultId)).items; }
+  catch (error) { deduplicationError.value = error instanceof Error ? error.message : "去重请求失败"; }
+  finally { deduplicating.value = false; }
+}
+
+async function resolveDuplicate(groupId: number, action: DuplicateResolutionAction): Promise<void> {
+  deduplicating.value = true;
+  deduplicationError.value = "";
+  try {
+    const group = await literatureSearchApi.resolveDuplicateGroup(groupId, { action });
+    duplicateGroups.value = duplicateGroups.value.map((item) => item.id === group.id ? group : item);
+  } catch (error) { deduplicationError.value = error instanceof Error ? error.message : "去重决策保存失败"; }
+  finally { deduplicating.value = false; }
+}
 const {
   page,
   filters,
@@ -36,6 +60,7 @@ const {
     </header>
 
     <p v-if="error" class="request-error" role="alert">{{ error }}</p>
+    <p v-if="deduplicationError" class="request-error" role="alert">{{ deduplicationError }}</p>
 
     <LiteratureFilters :filters="filters" :disabled="loading" @apply="applyFilters" />
     <PaperResults
@@ -53,6 +78,7 @@ const {
       @toggle-saved="(pmid, saved) => updateState(pmid, { saved })"
       @toggle-read="(pmid, read) => updateState(pmid, { read_status: read ? 'read' : 'unread' })"
     />
+    <DuplicateReview :groups="duplicateGroups" :loading="deduplicating" @run="runDeduplication" @resolve="resolveDuplicate" />
   </main>
 </template>
 

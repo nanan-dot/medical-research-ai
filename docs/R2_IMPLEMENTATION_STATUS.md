@@ -201,3 +201,41 @@ Stop after R2-WP04. The next task is R2-WP05; do not start it here.
 ### Next boundary
 
 Stop after R2-WP05. The next task is R2-WP06; do not start it here.
+
+## R2-WP06 — reversible literature deduplication
+
+**Status:** complete
+
+### Delivered
+
+- Added reversible duplicate groups, members, and resolution audit records. Original
+  `literature_search_results.items_json` and task/result associations are never modified or deleted.
+- Matches prioritize PMID then normalized DOI; normalized title and first-author/year are fuzzy
+  candidates requiring a human decision. Every group records the actual match method and confidence.
+- Added `POST /literature-search/{id}/deduplicate`, `GET /duplicate-groups`, and
+  `POST /duplicate-groups/{id}/resolve`; undo clears the merge decision and canonical pointers.
+- Added a result-page review panel that renders only server-provided matching evidence and source task IDs.
+
+### Known limitations
+
+- Local single-user scope uses `local_user` as the default resolver identifier; multi-user identity
+  and permission workflows remain out of scope.
+- Title comparison is deliberately exact after normalization, not semantic similarity or translation inference.
+
+### Verification
+
+- Backend: `266 passed, 13 skipped` (`pytest tests/ -q`).
+- Static checks: `mypy app/modules/literature_search/` passed; `ruff check app tests alembic` passed.
+- Migration: upgrade head, downgrade to `d3e4f5a6b7c8`, then upgrade head all completed.
+- Frontend: Vue typecheck passed; Vitest `27 passed`; production build passed.
+
+### Independent verification（2026-08-05 Hermes 独立复测）
+
+- `pytest tests/ -q` → **266 passed, 13 skipped**（真实输出，与 Codex 报告一致）。
+- `mypy`（17 源文件）/ `ruff` / `alembic upgrade head` → 全部通过。
+- 前端 `npm run typecheck` / `npm run test`（27 passed）/ `npm run build` → 全过。
+- `dedup.py` 代码审查：纯函数设计、不可变 dataclass、匹配方法 Literal、不推断翻译标题——符合 CODE_STANDARDS.md。
+
+### Next boundary
+
+Stop after R2-WP06. The next task is R2-WP07; do not start it here.

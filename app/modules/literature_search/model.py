@@ -149,3 +149,65 @@ class LiteratureSearchItemState(Base):
     # 用户自定义排序序号（custom 排序使用）：由用户拖拽顺序写入，同一结果内
     # 每条记录保存自己的序号，避免在每个条目上冗余存全量 PMID 顺序列表。
     custom_order_index: Mapped[int | None] = mapped_column(nullable=True)
+
+
+class LiteratureDuplicateGroup(Base):
+    """一次去重运行产生的候选组；决策与原始检索快照严格分离。"""
+
+    __tablename__ = "literature_duplicate_groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    trigger_task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("literature_search_tasks.id"), nullable=False
+    )
+    match_method: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    members: Mapped[list["LiteratureDuplicateGroupMember"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
+    resolution: Mapped["LiteratureDuplicateResolution | None"] = relationship(
+        back_populates="group", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class LiteratureDuplicateGroupMember(Base):
+    """组成员及其合并指向；空 canonical 字段表示原始记录保持独立。"""
+
+    __tablename__ = "literature_duplicate_group_members"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"), nullable=False
+    )
+    result_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("literature_search_results.id"), nullable=False
+    )
+    record_pmid: Mapped[str] = mapped_column(Text, nullable=False)
+    canonical_result_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    canonical_record_pmid: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_search_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    group: Mapped[LiteratureDuplicateGroup] = relationship(back_populates="members")
+
+
+class LiteratureDuplicateResolution(Base):
+    """人工决策审计记录；撤销通过删除该记录和成员指向实现。"""
+
+    __tablename__ = "literature_duplicate_resolutions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    resolved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    resolved_action: Mapped[str] = mapped_column(Text, nullable=False)
+    resolved_by: Mapped[str] = mapped_column(Text, nullable=False)
+    group: Mapped[LiteratureDuplicateGroup] = relationship(back_populates="resolution")
