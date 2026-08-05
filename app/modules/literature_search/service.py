@@ -15,8 +15,10 @@ from app.integrations.llm.schemas import ChatMessage
 from app.integrations.ollama.client import OllamaClient
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
+from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
 from app.modules.literature_search.model import (
+    LiteratureSearchItemState,
     LiteratureSearchResult,
     LiteratureSearchResultVersion,
     LiteratureSearchTask,
@@ -29,6 +31,9 @@ from app.modules.literature_search.schema import (
     BooleanQueryResult,
     CitationItem,
     ExpandTermsResponse,
+    ItemStateRead,
+    ItemStateUpdate,
+    LiteratureSearchResultPage,
     LiteratureSearchResultRead,
     LiteratureSearchTaskCreate,
     LiteratureSearchTaskList,
@@ -37,11 +42,19 @@ from app.modules.literature_search.schema import (
     LiteratureSearchTaskVersion,
     MeshCandidate,
     ParseQueryResponse,
+    RankedCitationItem,
+    ReadStatus,
+    ResultQueryParams,
     SearchResultChange,
     SearchStrategyExport,
     SearchTaskStatus,
     SearchTermGroup,
     SearchExecuteRequest,
+)
+from app.modules.literature_search.user_state import (
+    DEFAULT_READ_STATUS,
+    deserialize_tags,
+    serialize_tags,
 )
 from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.query_builder import build_boolean_query
@@ -399,6 +412,151 @@ class LiteratureSearchService:
         if entity is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {id}")
         return self._to_result_read(entity)
+
+    # ------------------------------------------------------------------
+    # R2-WP05：筛选、排序与分页
+    # ------------------------------------------------------------------
+
+    async def get_result_page(
+        self, id: int, params: ResultQueryParams
+    ) -> LiteratureSearchResultPage:
+        """按筛选/排序/分页参数返回结果页。
+
+        流程：读取 items_json 快照 → 并入用户态 → 组合筛选 → 排序（带
+        sort_reason）→ 切片。筛选与排序都在内存完成，结果快照不可写回；
+        分页切片发生在排序之后，保证"排序理由可解释"且翻页稳定。
+        """
+        entity = await self.repo.get_result(id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {id}")
+        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        state_map = await self.repo.get_item_states(id)
+        filtered = filtering.apply_filters(
+            items,
+            params,
+            state_by_pmid=lambda pmid: self._state_tuple(state_map.get(pmid)),
+        )
+        ranked = ranking.sort_items(
+            filtered,
+            params,
+            current_year=datetime.now(UTC).year,
+            custom_order=self._custom_order_map(state_map),
+        )
+        start = (params.page - 1) * params.page_size
+        page_items = ranked[start : start + params.page_size]
+        return LiteratureSearchResultPage(
+            result_id=entity.id,
+            query=entity.query,
+            total_count=entity.total_count,
+            filtered_total=len(filtered),
+            page=params.page,
+            page_size=params.page_size,
+            sort=params.sort,
+            items=[self._ranked_with_state(entry, state_map) for entry in page_items],
+        )
+
+    async def update_item_state(
+        self, result_id: int, pmid: str, request: ItemStateUpdate
+    ) -> ItemStateRead:
+        """写入单条结果的用户态（saved / read_status / tags / custom 序号）。
+
+        先校验结果与 PMID 存在，避免对不存在的结果写用户态；三个状态字段
+        只在请求提供了值时才覆盖（None 表示"本次不改"），已存在的旧值保留。
+        """
+        result = await self.repo.get_result(result_id)
+        if result is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        if not any(item.pmid == pmid for item in self._result_items(result)):
+            raise NotFoundError(f"PMID not found in result: {pmid}")
+        existing = await self.repo.get_item_state(result_id, pmid)
+        # tags 处理与 saved/read_status 一致：请求未提供时保留旧值，无旧值则空标签。
+        tags = (
+            existing.tags_json
+            if request.tags is None and existing is not None
+            else serialize_tags(request.tags or [])
+        )
+        entity = await self.repo.upsert_item_state(
+            LiteratureSearchItemState(
+                result_id=result_id,
+                pmid=pmid,
+                saved=request.saved if request.saved is not None else (
+                    existing.saved if existing is not None else False
+                ),
+                read_status=request.read_status if request.read_status is not None else (
+                    existing.read_status if existing is not None else DEFAULT_READ_STATUS
+                ),
+                tags_json=tags,
+                custom_order_index=(
+                    request.custom_order_index
+                    if request.custom_order_index is not None
+                    else existing.custom_order_index if existing is not None else None
+                ),
+            )
+        )
+        return self._to_state_read(entity)
+
+    async def get_item_state(self, result_id: int, pmid: str) -> ItemStateRead:
+        """读取单条结果的用户态；从未写入过时返回默认值（不报错）。"""
+        entity = await self.repo.get_item_state(result_id, pmid)
+        if entity is None:
+            return ItemStateRead(
+                saved=False,
+                # DEFAULT_READ_STATUS 值为 "unread"，此处用字面量以符合 Literal 类型。
+                read_status="unread",
+                tags=[],
+                custom_order_index=None,
+            )
+        return self._to_state_read(entity)
+
+    @staticmethod
+    def _result_items(entity: LiteratureSearchResult) -> list[CitationItem]:
+        """从结果快照解析条目列表（仅用于 PMID 存在性校验）。"""
+        return [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+
+    @staticmethod
+    def _state_tuple(state: LiteratureSearchItemState | None) -> tuple[bool, str, list[str]]:
+        """把用户态实体收敛为 filtering 回调签名 (saved, read_status, tags)。"""
+        if state is None:
+            return False, DEFAULT_READ_STATUS, []
+        return state.saved, state.read_status, deserialize_tags(state.tags_json)
+
+    @staticmethod
+    def _custom_order_map(state_map: dict[str, LiteratureSearchItemState]) -> dict[str, int]:
+        """提取 {pmid: 自定义序号}，供 ranking.custom 排序使用。"""
+        return {
+            pmid: state.custom_order_index
+            for pmid, state in state_map.items()
+            if state.custom_order_index is not None
+        }
+
+    @staticmethod
+    def _ranked_with_state(
+        entry: RankedCitationItem, state_map: dict[str, LiteratureSearchItemState]
+    ) -> RankedCitationItem:
+        """为排序结果并入用户态（分页响应每个条目直接展示）。"""
+        state = state_map.get(entry.item.pmid)
+        return RankedCitationItem(
+            item=entry.item,
+            sort_reason=entry.sort_reason,
+            state=None if state is None else LiteratureSearchService._to_state_read(state),
+        )
+
+    @staticmethod
+    def _to_state_read(state: LiteratureSearchItemState) -> ItemStateRead:
+        # read_status 在 DB 层是 str，收敛为 ReadStatus Literal（非法值按 unread 兜底，
+        # 与 DEFAULT_READ_STATUS 语义一致；正常数据不会走到兜底分支）。
+        # 显式分支赋值：read 直接收敛为 Literal；其余（含非法值）兜底 unread，
+        # 与 DEFAULT_READ_STATUS（"unread"）语义一致。
+        if state.read_status == "read":
+            read_status: ReadStatus = "read"
+        else:
+            read_status = "unread"
+        return ItemStateRead(
+            saved=state.saved,
+            read_status=read_status,
+            tags=deserialize_tags(state.tags_json),
+            custom_order_index=state.custom_order_index,
+        )
 
     async def bibtex(self, id: int) -> str:
         """导出指定检索结果的 BibTeX 文本。

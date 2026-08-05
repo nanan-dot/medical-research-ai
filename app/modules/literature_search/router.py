@@ -10,6 +10,9 @@ from app.modules.literature_search.schema import (
     BuildQueryResponse,
     ExpandTermsRequest,
     ExpandTermsResponse,
+    ItemStateRead,
+    ItemStateUpdate,
+    LiteratureSearchResultPage,
     LiteratureSearchResultRead,
     LiteratureSearchTaskCreate,
     LiteratureSearchTaskList,
@@ -17,6 +20,7 @@ from app.modules.literature_search.schema import (
     LiteratureSearchTaskRerun,
     ParseQueryRequest,
     ParseQueryResponse,
+    ResultQueryParams,
     SearchExecuteRequest,
     SearchStrategyExport,
 )
@@ -111,12 +115,40 @@ async def execute_search(
     return await LiteratureSearchService(session).execute_search(request)
 
 
-@router.get("/{id}/results", response_model=LiteratureSearchResultRead)
-async def get_search_result(
+@router.get("/{id}/results", response_model=LiteratureSearchResultPage)
+async def get_search_results(
     id: int,
+    params: ResultQueryParams = Depends(),
     session: AsyncSession = Depends(get_session),
-) -> LiteratureSearchResultRead:
-    return await LiteratureSearchService(session).get_result(id)
+) -> LiteratureSearchResultPage:
+    """分页返回检索结果，支持筛选、排序与排序理由。
+
+    params 为白名单 query 参数（ResultQueryParams），未知参数由 FastAPI
+    忽略；page 越界时 items 为空。响应中每个条目携带 sort_reason（排序理由）
+    与 state（已保存/已读/标签用户态）。
+    """
+    return await LiteratureSearchService(session).get_result_page(id, params)
+
+
+@router.patch("/{id}/items/{pmid}/state", response_model=ItemStateRead)
+async def update_item_state(
+    id: int,
+    pmid: str,
+    request: ItemStateUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> ItemStateRead:
+    """写入单条结果的用户态（saved / read_status / tags / 自定义排序序号）。"""
+    return await LiteratureSearchService(session).update_item_state(id, pmid, request)
+
+
+@router.get("/{id}/items/{pmid}/state", response_model=ItemStateRead)
+async def get_item_state(
+    id: int,
+    pmid: str,
+    session: AsyncSession = Depends(get_session),
+) -> ItemStateRead:
+    """读取单条结果的用户态；从未写入过时返回默认值。"""
+    return await LiteratureSearchService(session).get_item_state(id, pmid)
 
 
 @router.get("/{id}/bibtex", response_class=PlainTextResponse)

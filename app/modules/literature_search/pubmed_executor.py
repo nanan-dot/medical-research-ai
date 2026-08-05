@@ -41,7 +41,12 @@ class PubMedExecutor:
 
     @staticmethod
     def _to_citation(record: PubMedRecord, verified_on: str) -> CitationItem:
-        """把 PubMedRecord 收敛为 CitationItem，并打上真实来源验证标记。"""
+        """把 PubMedRecord 收敛为 CitationItem，并打上真实来源验证标记。
+
+        has_abstract / publication_types 自 R2-WP05 起如实标注：摘要与文献
+        类型字段直接来自 EFetch 响应，缺失时不补造、不推断，保证筛选
+        "是否有摘要 / 文献类型"基于真实数据。
+        """
         return CitationItem(
             pmid=record.pmid,
             doi=record.doi,
@@ -52,4 +57,6 @@ class PubMedExecutor:
             verified=True,
             verified_by=VERIFIED_BY_PUBMED,
             verified_on=verified_on,
+            has_abstract=bool(record.abstract),
+            publication_types=record.publication_types,
         )

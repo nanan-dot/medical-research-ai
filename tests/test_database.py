@@ -24,6 +24,7 @@ EXPECTED_TABLES = {
     "literature_search_results",
     "literature_search_tasks",
     "literature_search_task_results",
+    "literature_search_item_state",
     "model_configs",
     "paper_analysiss",
     "research_directions",

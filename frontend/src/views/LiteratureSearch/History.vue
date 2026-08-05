@@ -103,6 +103,7 @@ onMounted(load);
         <div class="item-head">
           <span class="status-badge" :class="`status-${task.status}`">{{ statusLabels[task.status] }}</span>
           <h2 class="item-title">{{ task.original_query }}</h2>
+          <RouterLink v-if="task.latest_result_id" class="view-results" :to="`/literature-search/results/${task.latest_result_id}`">查看结果</RouterLink>
           <button class="rerun" :disabled="rerunning === task.id || task.status === 'running'" @click="rerun(task)">
             {{ rerunning === task.id ? "重跑中…" : "重跑" }}
           </button>
@@ -158,6 +159,8 @@ onMounted(load);
 .status-running, .status-pending { background: var(--color-primary-soft); color: var(--color-primary); }
 .rerun { padding: .45rem .8rem; border: 0; border-radius: 8px; background: var(--color-primary); color: #fff; font-weight: 750; }
 .rerun:disabled { opacity: .6; }
+.view-results { padding: .45rem .8rem; border: 1px solid var(--color-primary); border-radius: 8px; color: var(--color-primary); font-weight: 750; text-decoration: none; white-space: nowrap; }
+.view-results:hover { background: var(--color-primary-soft); }
 
 .search-string { margin: 0; padding: .6rem .75rem; border-radius: 8px; background: var(--surface-muted); color: var(--text-muted); font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: .8rem; overflow-wrap: anywhere; }
 

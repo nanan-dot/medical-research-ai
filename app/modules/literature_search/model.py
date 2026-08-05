@@ -123,3 +123,29 @@ class LiteratureSearchResultVersion(Base):
         server_default=text("CURRENT_TIMESTAMP"),
     )
     task: Mapped[LiteratureSearchTask] = relationship(back_populates="result_versions")
+
+
+class LiteratureSearchItemState(Base):
+    """检索结果的用户态（manage-refs 融合）：saved / read_status / tags。
+
+    设计说明：items_json 是检索时刻的只读快照，用户"已保存/已读/标签"属于
+    个人工作状态，写入该表而不是回写快照，避免污染可复现的检索记录。主键
+    用 result_id + pmid 复合键（同一结果快照内 PMID 唯一）；result 删除时
+    级联清理用户态，避免孤儿数据。tags 与 custom_order 存 JSON 字符串。
+    """
+
+    __tablename__ = "literature_search_item_state"
+
+    result_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("literature_search_results.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    pmid: Mapped[str] = mapped_column(Text, primary_key=True)
+    saved: Mapped[bool] = mapped_column(nullable=False, default=False)
+    read_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="unread"
+    )
+    tags_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # 用户自定义排序序号（custom 排序使用）：由用户拖拽顺序写入，同一结果内
+    # 每条记录保存自己的序号，避免在每个条目上冗余存全量 PMID 顺序列表。
+    custom_order_index: Mapped[int | None] = mapped_column(nullable=True)

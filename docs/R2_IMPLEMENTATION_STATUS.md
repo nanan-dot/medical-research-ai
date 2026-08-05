@@ -168,3 +168,36 @@ Stop after R2-WP03.5. The next task is R2-WP04（检索任务与历史）; do no
 ### Next boundary
 
 Stop after R2-WP04. The next task is R2-WP05; do not start it here.
+
+## R2-WP05 — 筛选、排序与分页（2026-08-05 完成）
+
+### Delivered
+
+- `filtering.py`：白名单筛选参数（year / publication_type / journal / author / has_abstract /
+  saved / read_status / tags），未知参数拒绝，非法值 422。
+- `ranking.py`：relevance（PubMed 默认序）/ newest / classic / custom 四种排序；classic 用
+  可解释信号（权威期刊白名单 + verified + 近 5 年）替代被引量（不编造数据）；每条结果带
+  sort_reason；年份缺失硬排最后；同分用 pmid 次级键稳定排序。
+- `user_state.py` + `literature_search_item_state` 表：saved / read_status / tags / custom
+  排序序号（manage-refs 融合：用户态与结果快照分离，不污染 items_json）。
+- `GET /literature-search/{id}/results` 扩展筛选/排序/分页（服务端切片，避免整份下发）；
+  用户态读写最小端点。
+- 前端：LiteratureFilters 组件、PaperResults 分页组件、useLiteratureResults composable
+  （筛选状态同步 URL query，刷新不丢失）、ResultsView 页。
+- Alembic 迁移 `d3e4f5a6b7c8`（item_state 表）。
+
+### Verification status — VERIFIED（2026-08-05 Hermes 实测）
+
+- `pytest tests/ -q` → **261 passed, 13 skipped**（含 test_filters.py 21 个新测试）。
+- live 联网测试 → **8 passed**（PubMed + citation_check 真实 API）。
+- `mypy app/modules/literature_search/` → Success（16 源文件 0 错误；修复 None 处理、
+  ReadStatus Literal 收窄）。
+- `ruff check app/ tests/` → All checks passed。
+- 前端 `npm run typecheck` / `npm run test`（26 passed）/ `npm run build` 全过。
+- `alembic upgrade head` 实测成功（c1d2e3f4a5b6 → d3e4f5a6b7c8）。
+- 修复记录：classic 排序 None 年份硬排最后；update_item_state 首次写入 None 崩溃；
+  Vue readonly() 深度包装导致 readonly string[] 类型冲突；分页按钮当前页禁用。
+
+### Next boundary
+
+Stop after R2-WP05. The next task is R2-WP06; do not start it here.

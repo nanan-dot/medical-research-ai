@@ -49,6 +49,84 @@ export interface LiteratureSearchTaskPage {
   limit: number;
   items: LiteratureSearchTask[];
 }
+// ---------------------------------------------------------------------------
+// R2-WP05 筛选 / 排序 / 分页
+// ---------------------------------------------------------------------------
+
+// 排序枚举：relevance（PubMed 返回顺序=天然相关性）/ newest（年份降序）/
+// classic（期刊权威性+verified）/ custom（用户自定义序号）。与后端 Literal 对齐。
+export type SearchSort = "relevance" | "newest" | "classic" | "custom";
+// 已读状态：unread（未读）/ read（已读）。
+export type ReadStatus = "unread" | "read";
+
+// 单条结果（CitationItem 的前端镜像，字段名与后端一致）。
+export interface CitationItem {
+  pmid: string;
+  doi: string | null;
+  title: string | null;
+  authors: string[];
+  journal: string | null;
+  year: number | null;
+  entry_type: string;
+  verified: boolean;
+  verified_by: string | null;
+  verified_on: string | null;
+  has_abstract: boolean;
+  publication_types: string[];
+}
+
+// 单条结果的用户态（saved / read_status / tags / 自定义排序序号）。
+export interface ItemStateRead {
+  saved: boolean;
+  read_status: ReadStatus;
+  tags: string[];
+  custom_order_index: number | null;
+}
+
+// 单条结果 + 排序理由 + 用户态：排序理由由后端 ranking 生成，只描述真实信号。
+export interface RankedCitationItem {
+  item: CitationItem;
+  sort_reason: string;
+  state: ItemStateRead | null;
+}
+
+// 结果分页响应：total 为应用筛选后的总条数，items 为当前页带排序理由的条目。
+export interface LiteratureSearchResultPage {
+  result_id: number;
+  query: string;
+  total_count: number;
+  filtered_total: number;
+  page: number;
+  page_size: number;
+  sort: SearchSort;
+  items: RankedCitationItem[];
+}
+
+// 白名单筛选/排序/分页参数，与后端 ResultQueryParams 对齐；空值表示不筛选。
+export interface ResultQueryParams {
+  year: number | null;
+  publication_type: string;
+  journal: string;
+  author: string;
+  has_abstract: boolean | null;
+  saved: boolean | null;
+  read_status: ReadStatus | "";
+  tags: string;
+  sort: SearchSort;
+  page: number;
+  page_size: number;
+}
+
+// 筛选表单只关心筛选字段（不含分页）；分页由 composable 单独管理。
+export type ResultFilterValues = Omit<ResultQueryParams, "page" | "page_size">;
+
+// 用户态写入：四个字段全部可选，只传想更新的字段（与后端 ItemStateUpdate 对齐）。
+export interface ItemStateUpdate {
+  saved?: boolean;
+  read_status?: ReadStatus;
+  tags?: string[];
+  custom_order_index?: number;
+}
 export interface LiteratureSearchTaskRerun {
   task: LiteratureSearchTask;
   change: SearchResultChange | null;
@@ -62,4 +140,23 @@ export const literatureSearchApi = {
   // 检索任务与历史（R2-WP04）
   listTasks: (offset: number, limit: number) => apiRequest<LiteratureSearchTaskPage>(`/literature-search?offset=${offset}&limit=${limit}`),
   rerunTask: (id: number) => apiRequest<LiteratureSearchTaskRerun>(`/literature-search/${id}/rerun`, { method: "POST" }),
+  // 检索结果分页（R2-WP05）：白名单参数拼入 query，page_size 恒 ≤100。
+  getResults: (id: number, params: ResultQueryParams) => {
+    const query = new URLSearchParams();
+    if (params.year !== null) query.set("year", String(params.year));
+    if (params.publication_type) query.set("publication_type", params.publication_type);
+    if (params.journal) query.set("journal", params.journal);
+    if (params.author) query.set("author", params.author);
+    if (params.has_abstract !== null) query.set("has_abstract", String(params.has_abstract));
+    if (params.saved !== null) query.set("saved", String(params.saved));
+    if (params.read_status) query.set("read_status", params.read_status);
+    if (params.tags) query.set("tags", params.tags);
+    query.set("sort", params.sort);
+    query.set("page", String(params.page));
+    query.set("page_size", String(params.page_size));
+    return apiRequest<LiteratureSearchResultPage>(`/literature-search/${id}/results?${query.toString()}`);
+  },
+  // 单条结果用户态读写（R2-WP05）：saved / read_status / tags / 自定义排序序号。
+  updateItemState: (id: number, pmid: string, request: ItemStateUpdate) =>
+    apiRequest<ItemStateRead>(`/literature-search/${id}/items/${pmid}/state`, { method: "PATCH", ...json, body: JSON.stringify(request) }),
 };

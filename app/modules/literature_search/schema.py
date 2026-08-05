@@ -198,6 +198,10 @@ class CitationItem(BaseModel):
 
     verified 只反映数据来源：true 表示字段来自 PubMed 真实 API 响应；
     false 表示本次检索未能验证（如 PMID 存在但摘要缺失），绝不来自记忆补全。
+
+    has_abstract / publication_types 自 R2-WP05 起由 PubMedExecutor 依据
+    EFetch 真实摘要与文献类型字段如实打标；旧快照缺这两个字段时默认为
+    False / 空列表，不会谎称"有摘要"或伪造文献类型。
     """
 
     model_config = ConfigDict(frozen=True)
@@ -212,6 +216,8 @@ class CitationItem(BaseModel):
     verified: bool = False
     verified_by: str | None = Field(default=None, max_length=40)
     verified_on: str | None = Field(default=None, max_length=40)
+    has_abstract: bool = False
+    publication_types: list[str] = Field(default_factory=list)
 
 
 class LiteratureSearchResultRead(BaseModel):
@@ -224,3 +230,96 @@ class LiteratureSearchResultRead(BaseModel):
     total_count: int
     created_at: datetime
     items: list[CitationItem]
+
+
+# ----------------------------------------------------------------------
+# R2-WP05：筛选、排序与分页
+# ----------------------------------------------------------------------
+
+# 排序枚举：relevance（PubMed 返回顺序=天然相关性）/ newest（年份降序）/
+# classic（期刊权威性+verified）/ custom（用户自定义序号升序）。
+SearchSort = Literal["relevance", "newest", "classic", "custom"]
+
+# 已读状态枚举：unread（未读）/ read（已读）。
+ReadStatus = Literal["unread", "read"]
+
+
+class ResultQueryParams(BaseModel):
+    """GET /literature-search/{id}/results 的筛选/排序/分页参数。
+
+    白名单设计：FastAPI 只接受本模型声明的字段，未知 query 参数被 FastAPI
+    忽略（不会静默改判）。year 为单个整数（精确年份）；journal / author /
+    tags 为子串包含匹配；publication_type 与 publication_types 条目做不区分
+    大小写的包含匹配。筛选在服务端对 items_json 快照做内存过滤，不改写快照。
+    """
+
+    year: int | None = Field(default=None, ge=1900, le=2100)
+    publication_type: str | None = Field(default=None, max_length=100)
+    journal: str | None = Field(default=None, max_length=500)
+    author: str | None = Field(default=None, max_length=500)
+    has_abstract: bool | None = None
+    saved: bool | None = None
+    read_status: ReadStatus | None = None
+    tags: str | None = Field(default=None, max_length=500)
+    sort: SearchSort = "relevance"
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
+
+
+class RankedCitationItem(BaseModel):
+    """带排序理由与用户态的单条结果，在前端结果卡片上直接展示可解释性。
+
+    sort_reason 由 ranking 模块生成，只描述本次检索内采用的排序信号
+    （如 "top journal + recent year" / "verified by pubmed" / "year unknown"），
+    绝不包含虚构的被引次数或影响因子。state 由 service 在装配分页响应时并入，
+    ranking 纯函数本身不感知用户态。
+    """
+
+    item: CitationItem
+    sort_reason: str
+    state: "ItemStateRead | None" = None
+
+
+class LiteratureSearchResultPage(BaseModel):
+    """结果分页响应：items 为当前页带排序理由的条目，另返回过滤后总数。
+
+    total 是应用筛选后的总条数（用于前端分页条），而非 ESearch 原始命中数。
+    page_size 恒小于等于 100，页码越界时 items 为空列表而非 500。
+    """
+
+    result_id: int
+    query: str
+    total_count: int
+    filtered_total: int
+    page: int
+    page_size: int
+    sort: SearchSort
+    items: list[RankedCitationItem]
+
+
+class ItemStateUpdate(BaseModel):
+    """单条结果用户态写入（saved / read_status / tags / 自定义排序序号）。
+
+    四个字段全部可选：调用方只传想更新的字段。saved 为整体布尔标记；
+    read_status 只能是 unread/read；tags 整体替换（去重、去空、限长）。
+    custom_order_index 为用户拖拽顺序后的序号（custom 排序使用），写入后
+    该条记录在 custom 排序中按序号升序排位。
+    """
+
+    saved: bool | None = None
+    read_status: ReadStatus | None = None
+    tags: list[str] | None = Field(default=None, max_length=20)
+    custom_order_index: int | None = Field(default=None, ge=0, le=100000)
+
+
+class ItemStateRead(BaseModel):
+    """单条结果用户态读取响应（GET 时并入分页响应每个条目）。
+
+    tags 为当前标签列表（已按规范去重、限长）；custom_order_index 为
+    用户自定义排序序号（未设置时为 None）。
+    """
+
+    saved: bool
+    read_status: ReadStatus
+    tags: list[str]
+    custom_order_index: int | None = None

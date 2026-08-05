@@ -102,9 +102,14 @@ def test_results_endpoint_returns_persisted_items(client):
     )
     result_id = created.json()["id"]
 
+    # R2-WP05 起 GET /{id}/results 返回分页响应：items 为带排序理由的条目。
     loaded = client.get(f"/api/v1/literature-search/{result_id}/results")
     assert loaded.status_code == 200
-    assert loaded.json()["items"][0]["pmid"] == "39000401"
+    payload = loaded.json()
+    assert payload["items"][0]["item"]["pmid"] == "39000401"
+    assert payload["sort"] == "relevance"
+    assert payload["page"] == 1
+    assert payload["filtered_total"] == 1
 
 
 def test_bibtex_for_missing_result_returns_404(client):

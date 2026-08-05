@@ -13,6 +13,7 @@ from app.modules.health.model import Health
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.literature_search.model import (
     LiteratureSearch,
+    LiteratureSearchItemState,
     LiteratureSearchResult,
     LiteratureSearchResultVersion,
     LiteratureSearchTask,
@@ -31,6 +32,7 @@ __all__ = [
     "Health",
     "KnowledgeSource",
     "LiteratureSearch",
+    "LiteratureSearchItemState",
     "LiteratureSearchResult",
     "LiteratureSearchResultVersion",
     "LiteratureSearchTask",
