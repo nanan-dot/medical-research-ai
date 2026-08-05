@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -157,7 +158,7 @@ class PubMedClient:
             cached = self._cache.get(cache_key)
             if cached is not None:
                 logger.debug("PubMed ESearch cache hit query=%r", query[:80])
-                return cached  # type: ignore[no-any-return]
+                return cached
 
         payload = await self._get_json("esearch.fcgi", params)
         result = self._parse_esearch(payload)
@@ -184,7 +185,7 @@ class PubMedClient:
             cached = self._cache.get(cache_key)
             if cached is not None:
                 logger.debug("PubMed ESummary cache hit ids=%d", len(ids))
-                return cached  # type: ignore[no-any-return]
+                return cached
 
         payload = await self._get_json("esummary.fcgi", params)
         result = self._parse_esummary(payload)
@@ -241,7 +242,7 @@ class PubMedClient:
             cached = self._cache.get(cache_key)
             if cached is not None:
                 logger.debug("PubMed EFetch cache hit ids=%d", len(ids))
-                return list(cached)  # type: ignore[arg-type]
+                return list(cached)
 
         xml_text = await self._get_xml("efetch.fcgi", params)
         records = self._parse_efetch(xml_text)

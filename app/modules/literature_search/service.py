@@ -12,15 +12,22 @@ from app.common.exceptions import NotFoundError
 from app.integrations.llm.client import LLMClient
 from app.integrations.llm.schemas import ChatMessage
 from app.integrations.ollama.client import OllamaClient
+from app.integrations.pubmed.client import PubMedClient
+from app.modules.literature_search.bibtex import to_bibtex
+from app.modules.literature_search.model import LiteratureSearchResult
 from app.modules.literature_search.prompts import PROMPT_VERSION, build_candidate_prompt
+from app.modules.literature_search.pubmed_executor import PubMedExecutor
 from app.modules.literature_search.query_model import SearchIntentCandidate, relative_year_range
 from app.modules.literature_search.repository import LiteratureSearchRepository
 from app.modules.literature_search.schema import (
     BooleanQueryResult,
+    CitationItem,
     ExpandTermsResponse,
+    LiteratureSearchResultRead,
     MeshCandidate,
     ParseQueryResponse,
     SearchTermGroup,
+    SearchExecuteRequest,
 )
 from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.query_builder import build_boolean_query
@@ -36,10 +43,12 @@ class LiteratureSearchService:
         *,
         candidate_extractor: CandidateExtractor | None = None,
         mesh_client: MeshClient | None = None,
+        pubmed_executor: PubMedExecutor | None = None,
     ):
         self.repo = LiteratureSearchRepository(session)
         self.candidate_extractor = candidate_extractor or self._extract_with_configured_model
         self.mesh_client = mesh_client or MeshClient()
+        self.pubmed_executor = pubmed_executor or PubMedExecutor(PubMedClient.from_settings())
 
     async def get(self, id: int):
         entity = await self.repo.get(id)
@@ -126,6 +135,58 @@ class LiteratureSearchService:
     @staticmethod
     def build_query(groups: list[SearchTermGroup]) -> BooleanQueryResult:
         return build_boolean_query(groups)
+
+    async def execute_search(self, request: SearchExecuteRequest) -> LiteratureSearchResultRead:
+        """执行 PubMed 检索并把结果落库。
+
+        反幻觉边界：条目 verified 标记由 pubmed_executor 依据真实 EFetch 响应
+        打标，这里只做持久化与读取，不修改任何验证状态。
+        """
+        items, total_count = await self.pubmed_executor.execute(
+            request.boolean_query, retmax=request.retmax
+        )
+        entity = LiteratureSearchResult(
+            query=request.boolean_query,
+            total_count=total_count,
+            items_json=json.dumps([item.model_dump() for item in items], ensure_ascii=False),
+        )
+        saved = await self.repo.create_result(entity)
+        return self._to_result_read(saved, items)
+
+    async def get_result(self, id: int) -> LiteratureSearchResultRead:
+        entity = await self.repo.get_result(id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {id}")
+        return self._to_result_read(entity)
+
+    async def bibtex(self, id: int) -> str:
+        """导出指定检索结果的 BibTeX 文本。
+
+        条目来自数据库持久化的 items_json（当时检索的真实验证状态），导出不
+        重新调用 PubMed，也不补全任何缺失字段。
+        """
+        entity = await self.repo.get_result(id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {id}")
+        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        return to_bibtex(items)
+
+    @staticmethod
+    def _to_result_read(
+        entity: LiteratureSearchResult,
+        items: list[CitationItem] | None = None,
+    ) -> LiteratureSearchResultRead:
+        if items is None:
+            items = [
+                CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+            ]
+        return LiteratureSearchResultRead(
+            id=entity.id,
+            query=entity.query,
+            total_count=entity.total_count,
+            created_at=entity.created_at,
+            items=items,
+        )
 
     @staticmethod
     async def _extract_with_configured_model(prompt: str) -> str:

@@ -14,6 +14,7 @@ from app.modules.writing.router import router as writing_router
 from app.modules.feedback.router import router as feedback_router
 from app.modules.evaluation.router import router as evaluation_router
 from app.modules.export.router import router as export_router
+from app.modules.citation_check.router import router as citation_check_router
 
 api_router = APIRouter()
 api_router.include_router(export_router, tags=["导出"])
@@ -29,3 +30,4 @@ api_router.include_router(research_direction_router, tags=["研究方向"])
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])
 api_router.include_router(evaluation_router, tags=["评测"])
+api_router.include_router(citation_check_router, tags=["引用核验"])

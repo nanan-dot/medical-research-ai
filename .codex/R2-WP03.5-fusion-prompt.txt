@@ -1,0 +1,70 @@
+你是一名高级 Python/FastAPI/RAG 工程师，正在维护"医学科研智能助手平台"。
+
+【工作目录】H:\AI_project\rag_medicine，所有操作在此目录下。
+【环境】PYTHONPATH 被全局设为 Hermes venv，所有 python 命令前必须加 `env PYTHONPATH=""`。
+【后端 Python】/f/software/programme/Anaconda/envs/med-research-ai/python.exe（Python 3.12）。
+【前端】frontend/，包管理器 npm。
+
+【最高规范——必须先读并全程遵守】
+- 代码生成强制规范 V2.0：`docs/CODE_STANDARDS.md`（42 条，最高规范）。核心：文件单一职责；分层（入口/业务/工具/配置分离）；中文注释讲设计意图不复述行为；类型注解齐全；命名语义化；抽取常量消魔法数字；禁空 except/裸捕获；密钥零泄漏；未实际运行的命令不得声称通过，无法实测标注【未实测】；严禁虚构运行日志与结果；多文件交付先给目录树并标注文件路径；核心逻辑必配测试。
+- 融合蓝图：`docs/SKILLS_FUSION_MAP.md`（本任务的两个融合动作均出自此文档）。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、docs/R2_IMPLEMENTATION_STATUS.md、docs/CODE_STANDARDS.md。
+2. 检查前置条件：R2-WP03（PubMed 客户端）已完成且测试通过。
+3. 在写代码前，先报告：当前已有能力、准备创建/修改哪些文件、每个文件职责、本轮不修改的模块、测试与验收方法。
+
+【本任务目标——两个融合动作】
+
+=== 动作一：文献检索反幻觉字段 + BibTeX 导出（WP03.5 增量，改 literature_search 模块）===
+
+参考 skill：`F:\AIxiangguanneirong\Hermes\skills\medical\search-lit\SKILL.md` 的反幻觉协议与 BibTeX 规范。
+
+1. **反幻觉 verified 字段**：
+   - 在文献检索结果数据模型（app/modules/literature_search/ 下）增加引用验证标记，字段设计参考 search-lit skill：
+     - `verified: bool`（是否经 API 验证）
+     - `verified_by: str`（验证来源，如 pubmed/crossref）
+     - `verified_on: str`（验证日期 ISO）
+   - 检索结果返回时，对每条文献依据 PubMed 真实响应标注验证状态；无法验证的标记 verified=false。
+   - 禁止伪造验证状态：只有真实 API 返回的数据才能标 verified=true。
+
+2. **BibTeX 导出接口**：
+   - 新增端点：`GET /api/v1/literature-search/{id}/bibtex`，返回检索结果的 BibTeX 条目。
+   - BibTeX key 规范（来自 skill）：`FirstAuthorLastName_Year_OneWord`（如 `Kim_2024_Validation`）。
+   - BibTeX 每条含 verified/verified_by/verified_on 字段（对齐 skill 规范）。
+   - 不伪造任何文献元数据；所有字段来自数据库真实数据。
+
+=== 动作二：激活"引用核验"子功能（citation-check，导航预留位）===
+
+参考 skill：`F:\AIxiangguanneirong\Hermes\skills\medical\verify-refs\SKILL.md`（引用真实性审计）+ `F:\AIxiangguanneirong\Hermes\skills\medical\manage-refs\SKILL.md`。
+
+导航约束：**左侧导航大功能（研究空间/知识资产/科研产出/智能工具/底部）不可更改、不可增删**；citation-check 已在"科研产出"分组内定义（frontend/src/config/features.ts 中 id="citation-check"，path="/citation-check"，目前 status=UNAVAILABLE、showInNavigation=false）。
+
+1. **后端：新增 app/modules/citation_check/ 模块**（独立模块，遵守单一职责）：
+   - 职责：用户提交手稿文本/引用列表 → 提取引用 → 对 PubMed/CrossRef 校验真实性 → 输出审计报告。
+   - 文件规划（参考现有模块结构，如 literature_search）：
+     - `schema.py`：请求/响应模型（CitationCheckRequest、CitationCheckResult、CitationAuditItem）
+     - `service.py`：审计编排（提取引用 → 校验 → 汇总）
+     - `repository.py`：持久化（如需要）
+     - `router.py`：路由（挂载到 app/api/v1）
+     - `extractor.py`：从文本提取引用（可先用规则/正则，标注实现方式）
+     - `verifier.py`：对 PubMed/CrossRef 校验（复用 app/integrations/pubmed/ 的 PubMedClient）
+   - 审计报告结构：每条引用含 `verified`、`verified_by`、`verified_on`、`matched`（匹配的 PMID/DOI）、`notes`；输出整体统计。
+   - 复用现有 PubMedClient（app/integrations/pubmed/client.py），不重复造轮子。
+
+2. **前端：激活引用核验页**：
+   - `frontend/src/config/features.ts`：citation-check 设 `showInNavigation: true`（status 视实现进度标 LIVE 或保持 UNAVAILABLE，由你根据后端完成度判断）。
+   - 新增 `frontend/src/views/CitationCheck/CitationCheckView.vue`：输入手稿/引用 → 调用后端 → 展示审计结果（✅/⚠️/❌ + 每条引用详情）。
+   - 路由注册：frontend/src/router/index.ts 增加 `/citation-check`。
+   - 前端遵循现有设计系统（参考其他视图的样式与组件用法，如 FeatureStatusBadge）。
+
+【测试与验收——必须真实运行】
+- 后端：`env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m pytest tests/ -x -q`（新增模块必须有单元测试；PubMed 相关可仿照现有 live 测试门控 RUN_PUBMED_LIVE_TEST=1）。
+- 前端：`cd frontend && npm run typecheck && npm run test && npm run build`。
+- 真实网络能力（PubMed/CrossRef 校验）必须跑 live 测试验证，未实测标注【未实测】。
+- 完成后报告：改动文件清单、真实测试输出、已知限制、【未实测】项、是否满足验收。
+
+【禁止】
+- 不伪造论文/DOI/PMID/验证结果；所有文献数据来自 API 真实响应。
+- 不修改左侧导航大功能结构与分组。
+- 不得声称未运行的命令"验证通过"。

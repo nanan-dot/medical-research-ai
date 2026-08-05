@@ -21,6 +21,7 @@ EXPECTED_TABLES = {
     "healths",
     "knowledge_sources",
     "literature_searchs",
+    "literature_search_results",
     "model_configs",
     "paper_analysiss",
     "research_directions",

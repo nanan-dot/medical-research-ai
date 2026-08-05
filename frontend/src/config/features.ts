@@ -13,7 +13,7 @@ export const features: FeatureDefinition[] = [
   { id: "directions", label: "研究方向", path: "/research-directions", icon: "↗", group: "科研产出", phase: "FE-06", status: "MOCK", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "writing", label: "写作与汇报", path: "/writing", icon: "✎", group: "科研产出", phase: "FE-06", status: "MOCK", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "report", label: "组会汇报", path: "/presentations", icon: "▥", group: "科研产出", phase: "FE-06", status: "MOCK", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
-  { id: "citation-check", label: "引用核验", path: "/citation-check", icon: "✓", group: "科研产出", phase: "FE-06", status: "UNAVAILABLE", showInNavigation: false, requiresContextRail: false, mobileSupport: false },
+  { id: "citation-check", label: "引用核验", path: "/citation-check", icon: "✓", group: "科研产出", phase: "FE-06", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "agent", label: "Agent 实验室", path: "/agent", icon: "◉", group: "智能工具", phase: "FE-07", status: "MOCK", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "evaluation", label: "评测中心", path: "/evaluation", icon: "✓", group: "智能工具", phase: "FE-07", status: "MOCK", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "tasks", label: "任务中心", path: "/tasks", icon: "◷", group: "底部", phase: "FE-07", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },

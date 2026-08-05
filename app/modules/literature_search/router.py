@@ -1,6 +1,7 @@
 """Literature-search endpoints."""
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -9,8 +10,10 @@ from app.modules.literature_search.schema import (
     BuildQueryResponse,
     ExpandTermsRequest,
     ExpandTermsResponse,
+    LiteratureSearchResultRead,
     ParseQueryRequest,
     ParseQueryResponse,
+    SearchExecuteRequest,
 )
 from app.modules.literature_search.service import LiteratureSearchService
 
@@ -46,6 +49,30 @@ async def expand_terms(
 async def build_query(request: BuildQueryRequest) -> BuildQueryResponse:
     result = LiteratureSearchService.build_query(request.term_groups)
     return BuildQueryResponse(**result.model_dump(), user_edits=request.user_edits)
+
+
+@router.post("/execute", response_model=LiteratureSearchResultRead)
+async def execute_search(
+    request: SearchExecuteRequest,
+    session: AsyncSession = Depends(get_session),
+) -> LiteratureSearchResultRead:
+    return await LiteratureSearchService(session).execute_search(request)
+
+
+@router.get("/{id}/results", response_model=LiteratureSearchResultRead)
+async def get_search_result(
+    id: int,
+    session: AsyncSession = Depends(get_session),
+) -> LiteratureSearchResultRead:
+    return await LiteratureSearchService(session).get_result(id)
+
+
+@router.get("/{id}/bibtex", response_class=PlainTextResponse)
+async def export_bibtex(
+    id: int,
+    session: AsyncSession = Depends(get_session),
+) -> str:
+    return await LiteratureSearchService(session).bibtex(id)
 
 
 @router.get("/{id}")

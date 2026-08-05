@@ -18,6 +18,7 @@ export const router = createRouter({
     { path: "/comparisons", component: () => import("../views/Comparison/ComparisonView.vue"), meta: routeMeta("/comparisons") },
     { path: "/evidence-matrix", component: () => import("../views/EvidenceMatrix/EvidenceMatrixView.vue"), meta: routeMeta("/evidence-matrix") },
     { path: "/research-directions", component: () => import("../views/ResearchDirections/ResearchDirectionsView.vue"), meta: routeMeta("/research-directions") },
+    { path: "/citation-check", component: () => import("../views/CitationCheck/CitationCheckView.vue"), meta: routeMeta("/citation-check") },
     { path: "/presentations", component: () => import("../views/Presentations/PresentationsView.vue"), meta: routeMeta("/presentations") },
     { path: "/presentations/:id", component: () => import("../views/Presentations/PresentationEditorView.vue"), meta: routeMeta("/presentations") },
     { path: "/writing", component: () => import("../views/Writing/WritingView.vue"), meta: routeMeta("/writing") },
@@ -25,6 +26,6 @@ export const router = createRouter({
     { path: "/tasks", component: () => import("../views/Tasks/TasksView.vue"), meta: routeMeta("/tasks") },
     { path: "/agent", component: () => import("../views/Agent/AgentView.vue"), meta: routeMeta("/agent") },
     { path: "/evaluation", component: () => import("../views/Evaluation/EvaluationView.vue"), meta: routeMeta("/evaluation") },
-    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix", "/research-directions", "/presentations", "/writing", "/tasks", "/agent", "/evaluation"].includes(feature.path)).map((feature) => ({ path: feature.path, component: () => import("../views/System/FeatureUnavailableView.vue"), meta: { feature } })),
+    ...features.filter((feature) => !["/", "/models", "/sources", "/documents", "/literature-search", "/analysis", "/chat", "/feedback", "/comparisons", "/evidence-matrix", "/research-directions", "/citation-check", "/presentations", "/writing", "/tasks", "/agent", "/evaluation"].includes(feature.path)).map((feature) => ({ path: feature.path, component: () => import("../views/System/FeatureUnavailableView.vue"), meta: { feature } })),
   ],
 });
