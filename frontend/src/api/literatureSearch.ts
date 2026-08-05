@@ -141,6 +141,40 @@ export interface DuplicateGroupList { items: DuplicateGroup[]; }
 export interface DuplicateResolveRequest { action: DuplicateResolutionAction; canonical_result_id?: number; canonical_record_pmid?: string; resolved_by?: string; }
 export type FulltextStatus = "metadata_only" | "local_pdf_available" | "open_access_available" | "unavailable";
 export interface LibraryItem { id: number; pmid: string; doi: string | null; title: string | null; journal: string | null; year: number | null; document_id: number | null; source_search_id: number; fulltext_status: FulltextStatus; fulltext_status_reason: string; created_at: string; updated_at: string; }
+// ---------------------------------------------------------------------------
+// R2-WP08 推荐阅读顺序
+// ---------------------------------------------------------------------------
+
+// 证据金字塔层级：数值越小越先读，顺序固定为 综述 → 指南/共识 → 原始研究 → 前沿 → 高相关。
+export type ReadingCategory = "review" | "guideline" | "original_research" | "frontier" | "highly_relevant";
+// 排序来源：rule（算法顺序）/ manual（用户人工顺序优先）。
+export type ReadingOrderSource = "rule" | "manual";
+
+// 单条阅读顺序条目：category 由规则分类器依据真实字段得出；priority 为 1..n；
+// reason 为可解释文本；evidence_features 为触发分类的真实特征列表。
+export interface ReadingOrderItem {
+  pmid: string;
+  category: ReadingCategory;
+  priority: number;
+  reason: string;
+  evidence_features: string[];
+  title: string | null;
+  year: number | null;
+}
+
+// 一次阅读顺序生成的结果：order_source 供前端明确展示排序来源。
+export interface ReadingOrder {
+  result_id: number;
+  order_source: ReadingOrderSource;
+  generated_at: string;
+  items: ReadingOrderItem[];
+}
+
+// 生成阅读顺序的请求：manual_order 为用户已保存的人工顺序（完整 PMID 列表，
+// 位置即顺序）；空列表表示"未调整过"，使用算法顺序。
+export interface ReadingOrderRequest {
+  manual_order: string[];
+}
 const json = { headers: { "Content-Type": "application/json" } };
 export const literatureSearchApi = {
   parseQuery: (rawTopic: string) => apiRequest<ParsedQuery>("/literature-search/parse-query", { method: "POST", ...json, body: JSON.stringify({ raw_topic: rawTopic }) }),
@@ -172,4 +206,9 @@ export const literatureSearchApi = {
   resolveDuplicateGroup: (id: number, request: DuplicateResolveRequest) =>
     apiRequest<DuplicateGroup>(`/duplicate-groups/${id}/resolve`, { method: "POST", ...json, body: JSON.stringify(request) }),
   saveToLibrary: (id: number, pmid: string) => apiRequest<LibraryItem>(`/literature-results/${id}/save`, { method: "POST", ...json, body: JSON.stringify({ pmid }) }),
+  // 推荐阅读顺序（R2-WP08）：生成（可带 manual_order）与保存人工顺序（全量替换）。
+  generateReadingOrder: (id: number, request: ReadingOrderRequest = { manual_order: [] }) =>
+    apiRequest<ReadingOrder>(`/literature-search/${id}/reading-order`, { method: "POST", ...json, body: JSON.stringify(request) }),
+  saveReadingOrder: (id: number, manualOrder: string[]) =>
+    apiRequest<ReadingOrder>(`/literature-search/${id}/reading-order/order`, { method: "PUT", ...json, body: JSON.stringify({ manual_order: manualOrder }) }),
 };

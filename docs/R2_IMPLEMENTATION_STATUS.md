@@ -268,3 +268,32 @@ Stop after R2-WP06. The next task is R2-WP07; do not start it here.
 ### Next boundary
 
 Stop after R2-WP07. The next task is R2-WP08; do not start it here.
+
+## R2-WP08 — explainable reading-order recommendations（推荐阅读顺序，2026-08-05 完成）
+
+### Delivered
+
+- `reading_order.py`：纯函数规则分类器（review-paper 证据金字塔融合）——
+  review → guideline → original_research → frontier → highly_relevant；
+  分类依据 CitationItem.publication_types 真实字段；明确排除 "Journal Article"
+  （PubMed 默认类型，不能作为一手研究判据）；不编造影响因子/被引量。
+- 每篇解释：category / priority / reason / evidence_features（触发分类的真实特征）；
+  search-lit 融合：相关度只用 verified + PMID 检索序。
+- 人工顺序：manual_order 持久化（reading_order 表 + 迁移 f5c6d7e8f9a0），
+  重新生成不覆盖人工顺序（order_source: rule/manual）。
+- 端点：POST /literature-search/{id}/reading-order。
+- 前端 ReadingPlan 组件（类别标签 + 优先序 + 理由 + 特征 + 手动调整）接入结果页。
+- library_item.repository 新增 list_by_pmids（按 PMID 批量查全文状态，供阅读顺序用）。
+
+### Verification status — VERIFIED（2026-08-05 Hermes 独立复测）
+
+- `pytest tests/ -q` → **289 passed, 13 skipped**（含 test_reading_order.py 20 个新测试）。
+- `mypy`（18 源文件）/ `ruff` → 全过（修复 order_source Literal 收窄、F401 未用 import、
+  test_library_item.py 遗留 E701/E702 紧凑风格）。
+- Alembic upgrade head 实测成功（f5a6b7c8d9e0 → f5c6d7e8f9a0）。
+- 前端 `npm run typecheck` / `npm run test`（31 passed）/ `npm run build` 全过。
+- Claude Code 执行 3 轮（每轮 60 轮上限），命令经 subagent 逃逸沙箱运行。
+
+### Next boundary
+
+Stop after R2-WP08. The next task is R2-WP09; do not start it here.

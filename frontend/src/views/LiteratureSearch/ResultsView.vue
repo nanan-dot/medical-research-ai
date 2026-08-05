@@ -2,8 +2,9 @@
 import { shallowRef } from "vue";
 import { useRoute } from "vue-router";
 
-import { literatureSearchApi, type DuplicateGroup, type DuplicateResolutionAction } from "../../api/literatureSearch";
+import { literatureSearchApi, type DuplicateGroup, type DuplicateResolutionAction, type ReadingOrder } from "../../api/literatureSearch";
 import DuplicateReview from "../../components/DuplicateReview/DuplicateReview.vue";
+import ReadingPlan from "../../components/ReadingPlan/ReadingPlan.vue";
 import { useLiteratureResults } from "../../composables/useLiteratureResults";
 import LiteratureFilters from "../../components/LiteratureFilters/LiteratureFilters.vue";
 import PaperResults from "../../components/PaperResults/PaperResults.vue";
@@ -14,6 +15,37 @@ const duplicateGroups = shallowRef<DuplicateGroup[]>([]);
 const deduplicating = shallowRef(false);
 const deduplicationError = shallowRef("");
 const libraryStatus = shallowRef("");
+
+// 推荐阅读顺序（R2-WP08）：算法顺序由服务端规则分类器生成；人工顺序保存后
+// 重新生成仍优先人工顺序（不覆盖）。
+const readingOrder = shallowRef<ReadingOrder | null>(null);
+const readingLoading = shallowRef(false);
+const readingSaving = shallowRef(false);
+const readingError = shallowRef("");
+
+async function generateReadingOrder(): Promise<void> {
+  readingLoading.value = true;
+  readingError.value = "";
+  try {
+    readingOrder.value = await literatureSearchApi.generateReadingOrder(resultId);
+  } catch (error) {
+    readingError.value = error instanceof Error ? error.message : "阅读顺序生成失败";
+  } finally {
+    readingLoading.value = false;
+  }
+}
+
+async function saveReadingOrder(manualOrder: string[]): Promise<void> {
+  readingSaving.value = true;
+  readingError.value = "";
+  try {
+    readingOrder.value = await literatureSearchApi.saveReadingOrder(resultId, manualOrder);
+  } catch (error) {
+    readingError.value = error instanceof Error ? error.message : "人工顺序保存失败";
+  } finally {
+    readingSaving.value = false;
+  }
+}
 
 async function runDeduplication(): Promise<void> {
   deduplicating.value = true;
@@ -81,6 +113,14 @@ const {
       @toggle-saved="(pmid, saved) => updateState(pmid, { saved })"
       @toggle-read="(pmid, read) => updateState(pmid, { read_status: read ? 'read' : 'unread' })"
       @saved-to-library="(reason) => libraryStatus = reason"
+    />
+    <ReadingPlan
+      :order="readingOrder"
+      :loading="readingLoading"
+      :saving="readingSaving"
+      :error="readingError"
+      @generate="generateReadingOrder"
+      @save="saveReadingOrder"
     />
     <DuplicateReview :groups="duplicateGroups" :loading="deduplicating" @run="runDeduplication" @resolve="resolveDuplicate" />
   </main>

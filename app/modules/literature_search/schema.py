@@ -371,3 +371,68 @@ class DuplicateResolveRequest(BaseModel):
     canonical_result_id: int | None = Field(default=None, ge=1)
     canonical_record_pmid: str | None = Field(default=None, min_length=1, max_length=20)
     resolved_by: str = Field(default="local_user", min_length=1, max_length=100)
+
+
+# ----------------------------------------------------------------------
+# R2-WP08：推荐阅读顺序
+# ----------------------------------------------------------------------
+
+# 证据金字塔层级（review-paper 融合）：数值越小越先读。
+# 顺序固定为 综述 → 指南/共识 → 原始研究 → 前沿 → 高相关。
+ReadingCategory = Literal[
+    "review", "guideline", "original_research", "frontier", "highly_relevant"
+]
+
+
+class ReadingOrderRequest(BaseModel):
+    """生成阅读顺序的请求。
+
+    manual_order 为用户已保存的人工顺序（完整 PMID 列表）；调用方在 POST
+    生成时携带它，服务端优先应用（重新生成不覆盖人工顺序）。manual_order
+    为空列表表示"未调整过"，使用算法顺序。
+    """
+
+    manual_order: list[str] = Field(default_factory=list, max_length=500)
+
+
+class ReadingOrderItem(BaseModel):
+    """单条文献的阅读顺序条目。
+
+    category 由规则分类器依据 publication_types 等真实字段得出，模型输出
+    不得改变它；priority 为 1..n 的阅读顺序；reason 为可解释文本（含
+    为什么推荐 + 先读/后读 + 背景/方法/前沿 + 相关性 + 全文状态 + 不确定性）；
+    evidence_features 为触发分类的真实特征列表（如 ["publication_type=Review"]），
+    不包含被引量/影响因子等不可得数据。
+    """
+
+    pmid: str
+    category: ReadingCategory
+    priority: int = Field(ge=1)
+    reason: str
+    evidence_features: list[str]
+    title: str | None = None
+    year: int | None = None
+
+
+class ReadingOrderRead(BaseModel):
+    """一次阅读顺序生成的结果（含全部条目与来源结果 id）。
+
+    order_source 为 "rule"（算法顺序）或 "manual"（用户人工顺序优先），
+    供前端明确展示排序来源。
+    """
+
+    result_id: int
+    order_source: Literal["rule", "manual"]
+    generated_at: datetime
+    items: list[ReadingOrderItem] = Field(default_factory=list)
+
+
+class ReadingOrderSaveRequest(BaseModel):
+    """保存人工顺序的请求：完整 PMID 列表，位置即顺序。
+
+    manual_order 全量替换：前端拖拽结束后提交完整列表，避免增量合并的
+    顺序歧义。列表长度与结果条目数不要求严格一致（检索更新后部分 PMID
+    可能消失），服务端只按 PMID 收敛。
+    """
+
+    manual_order: list[str] = Field(min_length=0, max_length=500)

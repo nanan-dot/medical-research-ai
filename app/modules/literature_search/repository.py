@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,
     LiteratureDuplicateResolution,
+    LiteratureReadingOrder,
     LiteratureSearch,
     LiteratureSearchItemState,
     LiteratureSearchResult,
@@ -269,3 +270,36 @@ class LiteratureSearchRepository:
     async def delete_duplicate_resolution(self, entity: LiteratureDuplicateResolution) -> None:
         await self.session.delete(entity)
         await self.session.flush()
+
+    # ------------------------------------------------------------------
+    # 阅读顺序人工顺序持久化（R2-WP08，manage-refs 融合）
+    # ------------------------------------------------------------------
+
+    async def get_reading_order(self, result_id: int) -> LiteratureReadingOrder | None:
+        """读取某结果快照下的人工顺序记录（无则返回 None）。"""
+        result = await self.session.execute(
+            select(LiteratureReadingOrder).where(
+                LiteratureReadingOrder.result_id == result_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert_reading_order(
+        self, entity: LiteratureReadingOrder
+    ) -> LiteratureReadingOrder:
+        """写入或更新人工顺序。
+
+        设计说明：result_id 唯一约束已保证每个结果只有一份人工顺序；先查
+        后写避免 SQLite 的 INSERT OR REPLACE 触发外键级联删除（与
+        upsert_item_state 的处理一致）。调用方须传入完整实体。
+        """
+        existing = await self.get_reading_order(entity.result_id)
+        if existing is not None:
+            existing.manual_order_json = entity.manual_order_json
+            existing.updated_at = entity.updated_at
+            entity = existing
+        else:
+            self.session.add(entity)
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity

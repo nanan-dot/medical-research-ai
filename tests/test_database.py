@@ -28,6 +28,7 @@ EXPECTED_TABLES = {
     "literature_duplicate_groups",
     "literature_duplicate_group_members",
     "literature_duplicate_resolutions",
+    "literature_reading_orders",
     "library_items",
     "model_configs",
     "paper_analysiss",

@@ -211,3 +211,33 @@ class LiteratureDuplicateResolution(Base):
     resolved_action: Mapped[str] = mapped_column(Text, nullable=False)
     resolved_by: Mapped[str] = mapped_column(Text, nullable=False)
     group: Mapped[LiteratureDuplicateGroup] = relationship(back_populates="resolution")
+
+
+class LiteratureReadingOrder(Base):
+    """一次阅读顺序生成的人工顺序持久化（manage-refs 融合，R2-WP08）。
+
+    设计说明：表只保存"用户拖拽后的人工顺序"（完整 PMID 列表 JSON），
+    算法顺序每次生成时由规则分类器实时计算，不落库。result_id 外键指向
+    阅读顺序所基于的结果快照，防止引用另一个结果时错用顺序；同一结果
+    只保留一份人工顺序（唯一约束），重新生成阅读顺序时读取它并优先应用，
+    实现"重新生成不覆盖人工顺序"。created_at 记录人工顺序首次保存时间，
+    updated_at 记录最近一次拖拽保存时间。
+    """
+
+    __tablename__ = "literature_reading_orders"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    result_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("literature_search_results.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    # 人工顺序：完整 PMID 列表（JSON 数组），位置即顺序。
+    manual_order_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )

@@ -23,6 +23,9 @@ from app.modules.literature_search.schema import (
     LiteratureSearchTaskRerun,
     ParseQueryRequest,
     ParseQueryResponse,
+    ReadingOrderRead,
+    ReadingOrderRequest,
+    ReadingOrderSaveRequest,
     ResultQueryParams,
     SearchExecuteRequest,
     SearchStrategyExport,
@@ -185,3 +188,39 @@ async def resolve_duplicate_group(
     session: AsyncSession = Depends(get_session),
 ) -> DuplicateGroupRead:
     return await LiteratureSearchService(session).resolve_duplicate_group(id, request)
+
+
+# ----------------------------------------------------------------------
+# 推荐阅读顺序（R2-WP08）
+# ----------------------------------------------------------------------
+
+
+@router.post("/{id}/reading-order", response_model=ReadingOrderRead)
+async def generate_reading_order(
+    id: int,
+    request: ReadingOrderRequest,
+    session: AsyncSession = Depends(get_session),
+) -> ReadingOrderRead:
+    """生成基于规则特征的分层阅读顺序。
+
+    manual_order（可选）为用户已保存的人工顺序：携带时优先应用，保证
+    "重新生成不覆盖人工顺序"；不携带则使用算法顺序或库中已保存顺序。
+    """
+    return await LiteratureSearchService(session).generate_reading_order(
+        id, request.manual_order
+    )
+
+
+@router.put("/{id}/reading-order/order", response_model=ReadingOrderRead)
+async def save_reading_order(
+    id: int,
+    request: ReadingOrderSaveRequest,
+    session: AsyncSession = Depends(get_session),
+) -> ReadingOrderRead:
+    """保存用户拖拽后的人工顺序（完整 PMID 列表，全量替换）。
+
+    保存后返回应用该人工顺序的阅读顺序（order_source="manual"）。
+    """
+    return await LiteratureSearchService(session).save_reading_order(
+        id, request.manual_order
+    )

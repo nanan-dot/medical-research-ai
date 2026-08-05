@@ -19,22 +19,29 @@ from app.modules.literature_search.schema import CitationItem
 async def client(tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'library.db').as_posix()}")
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with engine.begin() as connection: await connection.run_sync(Base.metadata.create_all)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
     async def override_session():
         async with factory() as session:
             try:
-                yield session; await session.commit()
+                yield session
+                await session.commit()
             except Exception:
-                await session.rollback(); raise
+                await session.rollback()
+                raise
+
     app.dependency_overrides[get_session] = override_session
     try:
         async with factory() as session:
             citation = CitationItem(pmid="123", doi="10.1234/ABC", title="Test", journal="Journal", year=2026)
             session.add(LiteratureSearchResult(query="test", total_count=1, items_json=json.dumps([citation.model_dump()])))
             await session.commit()
-        with TestClient(app) as test_client: yield test_client, factory
+        with TestClient(app) as test_client:
+            yield test_client, factory
     finally:
-        app.dependency_overrides.clear(); await engine.dispose()
+        app.dependency_overrides.clear()
+        await engine.dispose()
 
 
 def test_save_metadata_is_idempotent_and_explains_no_fulltext(client):

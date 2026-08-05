@@ -18,6 +18,18 @@ class LibraryItemRepository:
         result = await self.session.execute(select(LibraryItem).where(or_(*clauses)))
         return result.scalar_one_or_none()
 
+    async def list_by_pmids(self, pmids: list[str]) -> list[LibraryItem]:
+        """按 PMID 集合批量查询正式收藏。
+
+        供阅读顺序等场景按 PMID 一次取回全文状态，避免对每条文献单独发查询。
+        """
+        if not pmids:
+            return []
+        result = await self.session.execute(
+            select(LibraryItem).where(LibraryItem.pmid.in_(pmids))
+        )
+        return list(result.scalars().all())
+
     async def get(self, item_id: int) -> LibraryItem | None:
         result = await self.session.execute(select(LibraryItem).where(LibraryItem.id == item_id))
         return result.scalar_one_or_none()

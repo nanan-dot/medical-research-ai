@@ -19,10 +19,17 @@ from app.integrations.pubmed.exceptions import PubMedError
 from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
 from app.modules.literature_search.dedup import DedupRecord, find_duplicate_candidates
+from app.modules.literature_search.reading_order import (
+    ReadingContext,
+    apply_manual_order,
+    classify_reading_item,
+    rank_reading_order,
+)
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,
     LiteratureDuplicateGroupMember,
     LiteratureDuplicateResolution,
+    LiteratureReadingOrder,
     LiteratureSearchItemState,
     LiteratureSearchResult,
     LiteratureSearchResultVersion,
@@ -54,6 +61,8 @@ from app.modules.literature_search.schema import (
     ParseQueryResponse,
     RankedCitationItem,
     ReadStatus,
+    ReadingOrderItem,
+    ReadingOrderRead,
     ResultQueryParams,
     SearchResultChange,
     SearchStrategyExport,
@@ -69,6 +78,7 @@ from app.modules.literature_search.user_state import (
 from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.query_builder import build_boolean_query
 from app.modules.literature_search.term_expansion import expand_term, is_ascii_search_term
+from app.modules.library_item.repository import LibraryItemRepository
 
 CandidateExtractor = Callable[[str], Awaitable[str]]
 
@@ -102,6 +112,9 @@ class LiteratureSearchService:
         mesh_client: MeshClient | None = None,
         pubmed_executor: PubMedExecutor | None = None,
     ):
+        # 保存 session 供批量全文状态查询等跨仓储操作使用（如
+        # generate_reading_order 里的 LibraryItemRepository）。
+        self.session = session
         self.repo = LiteratureSearchRepository(session)
         self.candidate_extractor = candidate_extractor or self._extract_with_configured_model
         self.mesh_client = mesh_client or MeshClient()
@@ -517,6 +530,126 @@ class LiteratureSearchService:
                 custom_order_index=None,
             )
         return self._to_state_read(entity)
+
+    # ------------------------------------------------------------------
+    # R2-WP08：推荐阅读顺序
+    # ------------------------------------------------------------------
+
+    async def generate_reading_order(
+        self,
+        result_id: int,
+        manual_order: list[str],
+    ) -> ReadingOrderRead:
+        """生成基于规则特征的分层阅读顺序。
+
+        review-paper 融合：分类依据 publication_types（真实字段）与年份/相关度
+        信号；search-lit 融合：相关度只用 verified 与检索序（不编造被引量）；
+        manage-refs 融合：已保存的人工顺序优先于算法顺序（重新生成不覆盖）。
+
+        流程：读取结果快照 → 读人工顺序 → 规则分类（纯函数）→ 算法排序 →
+        应用人工顺序（若存在）→ 编号 priority 1..n → 组装响应。
+        """
+        entity = await self.repo.get_result(result_id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        if not items:
+            return ReadingOrderRead(
+                result_id=result_id,
+                order_source="rule",
+                generated_at=datetime.now(UTC),
+                items=[],
+            )
+
+        # 读取全文状态：批量按 PMID 查询本地知识库，未收藏的条目为 None。
+        fulltext_map = {
+            item.pmid: item.fulltext_status
+            for item in await LibraryItemRepository(self.session).list_by_pmids(
+                [item.pmid for item in items]
+            )
+        }
+        current_year = datetime.now(UTC).year
+        total = len(items)
+        classified = [
+            classify_reading_item(
+                item,
+                ReadingContext(
+                    current_year=current_year,
+                    position=position,
+                    total_items=total,
+                    fulltext_status=fulltext_map.get(item.pmid),
+                ),
+            )
+            for position, item in enumerate(items)
+        ]
+
+        # 人工顺序优先：POST 请求携带的 manual_order 覆盖算法顺序；
+        # 未携带（空列表）时读库中已保存的人工顺序（重新生成不覆盖）。
+        effective_manual = manual_order or await self._saved_manual_order(result_id)
+        algorithm_ranked = rank_reading_order(classified)
+        ordered = apply_manual_order(algorithm_ranked, effective_manual)
+        # order_source 收敛为 Literal["rule", "manual"]：有人工顺序则 manual 优先。
+        order_source: Literal["rule", "manual"] = "manual" if effective_manual else "rule"
+
+        return ReadingOrderRead(
+            result_id=result_id,
+            order_source=order_source,
+            generated_at=datetime.now(UTC),
+            items=[
+                ReadingOrderItem(
+                    pmid=entry.pmid,
+                    category=entry.category,
+                    priority=index + 1,
+                    reason=entry.reason,
+                    evidence_features=list(entry.evidence_features),
+                    title=next((item.title for item in items if item.pmid == entry.pmid), None),
+                    year=entry.year,
+                )
+                for index, entry in enumerate(ordered)
+            ],
+        )
+
+    async def save_reading_order(
+        self, result_id: int, manual_order: list[str]
+    ) -> ReadingOrderRead:
+        """保存用户拖拽后的人工顺序并返回应用该顺序的阅读顺序。
+
+        manage-refs 融合：只保存用户态（PMID 顺序 JSON），不改写结果快照；
+        返回结果由保存后的人工顺序驱动（order_source="manual"）。对不存在
+        的结果快照直接 404，避免给不存在的引用挂人工顺序。
+        """
+        entity = await self.repo.get_result(result_id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        now = datetime.now(UTC)
+        # 人工顺序全量替换：结果快照中不存在的 PMID 由 apply_manual_order 忽略，
+        # 但这里仍原样保存用户提交的顺序，保证"用户拖拽的原始顺序"完整留存。
+        await self.repo.upsert_reading_order(
+            LiteratureReadingOrder(
+                result_id=result_id,
+                manual_order_json=json.dumps(manual_order, ensure_ascii=False),
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        return await self.generate_reading_order(result_id, manual_order)
+
+    async def _saved_manual_order(self, result_id: int) -> list[str]:
+        """读取库中已保存的人工顺序；不存在时返回空列表。
+
+        manual_order_json 是 JSON 数组字符串，解析失败（旧数据/手工编辑）
+        时兜底为空列表，保证损坏的人工顺序不阻塞阅读顺序生成。
+        """
+        saved = await self.repo.get_reading_order(result_id)
+        if saved is None:
+            return []
+        try:
+            value = json.loads(saved.manual_order_json)
+        except ValueError:
+            return []
+        if not isinstance(value, list):
+            return []
+        return [str(pmid) for pmid in value]
 
     async def deduplicate_task(self, task_id: int) -> DuplicateGroupList:
         """跨各任务当前快照生成可撤销决策；不会改写或删除原始检索记录。"""
