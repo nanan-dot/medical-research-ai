@@ -11,7 +11,12 @@ from app.modules.feedback.model import Feedback
 from app.modules.export.model import ExportRecord
 from app.modules.health.model import Health
 from app.modules.knowledge_source.model import KnowledgeSource
-from app.modules.literature_search.model import LiteratureSearch, LiteratureSearchResult
+from app.modules.literature_search.model import (
+    LiteratureSearch,
+    LiteratureSearchResult,
+    LiteratureSearchResultVersion,
+    LiteratureSearchTask,
+)
 from app.modules.model_config.model import ModelConfig
 from app.modules.paper_analysis.model import PaperAnalysis
 from app.modules.research_direction.model import ResearchDirection
@@ -27,6 +32,8 @@ __all__ = [
     "KnowledgeSource",
     "LiteratureSearch",
     "LiteratureSearchResult",
+    "LiteratureSearchResultVersion",
+    "LiteratureSearchTask",
     "ModelConfig",
     "PaperAnalysis",
     "ResearchDirection",

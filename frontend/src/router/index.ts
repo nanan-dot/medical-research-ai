@@ -12,6 +12,7 @@ export const router = createRouter({
     { path: "/documents", component: () => import("../views/Documents/DocumentsView.vue"), meta: routeMeta("/documents") },
     { path: "/documents/:id", component: () => import("../views/Documents/DocumentDetailView.vue"), meta: routeMeta("/documents") },
     { path: "/literature-search", component: () => import("../views/LiteratureSearch/LiteratureSearchView.vue"), meta: routeMeta("/literature-search") },
+    { path: "/literature-search/history", component: () => import("../views/LiteratureSearch/History.vue"), meta: routeMeta("/literature-search") },
     { path: "/analysis", component: () => import("../views/PaperAnalysis/PaperAnalysisView.vue"), meta: routeMeta("/analysis") },
     { path: "/chat", component: () => import("../views/Chat/ChatView.vue"), meta: routeMeta("/chat") },
     { path: "/feedback", component: () => import("../views/Feedback/FeedbackView.vue"), meta: routeMeta("/feedback") },

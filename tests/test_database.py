@@ -22,6 +22,8 @@ EXPECTED_TABLES = {
     "knowledge_sources",
     "literature_searchs",
     "literature_search_results",
+    "literature_search_tasks",
+    "literature_search_task_results",
     "model_configs",
     "paper_analysiss",
     "research_directions",

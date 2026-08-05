@@ -139,3 +139,32 @@ the query builder emits PubMed boolean strings; WP03 itself adds the execution l
 ### Next boundary
 
 Stop after R2-WP03.5. The next task is R2-WP04（检索任务与历史）; do not start it here.
+
+## R2-WP04 — 检索任务与历史（2026-08-05 完成）
+
+### Delivered
+
+- `literature_search` 新增任务实体（original_query / structured_query / search_string /
+  database / result_count / retmax / filters / model_version / user_edits / status 状态机），
+  任务与 WP03.5 的 `LiteratureSearchResult` 通过 `literature_search_task_results` 关联表
+  连接（保存结果引用而非复制 items_json，处理"历史记录过大"）。
+- 端点：POST /literature-search（创建任务）、GET /literature-search（分页历史）、
+  GET /literature-search/{id}（详情含版本）、POST /literature-search/{id}/rerun（重跑创建新版本）、
+  GET /literature-search/{id}/strategy（检索策略导出）。
+- 重跑创建新版本不覆盖旧版本；新旧版本结果数量变化生成 change 摘要。
+- 前端 `History.vue` + 路由 /literature-search/history + API 客户端。
+- Alembic 迁移 `c1d2e3f4a5b6`（literature_search_tasks + task_results）。
+
+### Verification status — VERIFIED（2026-08-05 Hermes 实测）
+
+- `pytest tests/ -q` → **240 passed, 13 skipped**（含 test_history.py 7 个新测试）。
+- live 联网测试 → **8 passed**（PubMed + citation_check 真实 API）。
+- `mypy app/modules/literature_search/` → Success（0 错误；修复 def list 遮蔽内置 list、
+  status Literal 收窄、delete/get_task None 保护）。
+- `ruff check app/ tests/` → All checks passed。
+- 前端 `npm run typecheck` / `npm run test`（21 passed）/ `npm run build` 全过。
+- `alembic upgrade head` 实测成功（a1b2c3d4e5f6 → c1d2e3f4a5b6）。
+
+### Next boundary
+
+Stop after R2-WP04. The next task is R2-WP05; do not start it here.

@@ -1,6 +1,7 @@
 """Literature search API structures."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,6 +15,117 @@ class LiteratureSearchCreate(BaseModel):
 class LiteratureSearchRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+
+# ----------------------------------------------------------------------
+# R2-WP04：检索任务（literature search task）
+# ----------------------------------------------------------------------
+
+# 任务状态机：pending → running → succeeded / failed。
+SearchTaskStatus = Literal["pending", "running", "succeeded", "failed"]
+# 数据库枚举：当前仅支持 PubMed，扩展前必须先扩展枚举与执行逻辑。
+SearchDatabase = Literal["pubmed"]
+
+
+class LiteratureSearchTaskCreate(BaseModel):
+    """创建检索任务的请求。
+
+    original_query 为用户原始主题；search_string 是发往 PubMed 的布尔检索式，
+    必须来自 build-query 的输出（经用户编辑）。structured_query / filters /
+    user_edits 为可选的输入快照，用于重跑时复现完整检索过程。
+    """
+
+    original_query: str = Field(min_length=1, max_length=1000)
+    structured_query: str = Field(default="", max_length=20000)
+    search_string: str = Field(min_length=1, max_length=2000)
+    database: SearchDatabase = "pubmed"
+    filters: str = Field(default="", max_length=5000)
+    model_version: str = Field(min_length=1, max_length=200)
+    user_edits: str = Field(default="", max_length=20000)
+    retmax: int = Field(default=20, ge=1, le=MAX_RETMX)
+
+
+class LiteratureSearchTaskVersion(BaseModel):
+    """任务的一个结果版本（引用结果，不复制 items_json）。
+
+    change 为重跑后相对上一版本的变化摘要；首个版本 change 为 None。
+    """
+
+    version: int
+    result_id: int
+    searched_at: datetime
+    result_count: int
+    change: "SearchResultChange | None" = None
+
+
+class SearchResultChange(BaseModel):
+    """新旧版本对比摘要：结果数量与条目集合的变化。"""
+
+    previous_count: int
+    current_count: int
+    count_delta: int
+    added_count: int
+    removed_count: int
+    added_pmids: list[str] = Field(default_factory=list)
+    removed_pmids: list[str] = Field(default_factory=list)
+
+
+class LiteratureSearchTaskRead(BaseModel):
+    """检索任务详情（含全部版本，不含正文摘录）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    original_query: str
+    structured_query: str
+    search_string: str
+    database: str
+    result_count: int
+    retmax: int
+    filters: str
+    model_version: str
+    user_edits: str
+    status: SearchTaskStatus
+    error_message: str | None = None
+    created_at: datetime
+    searched_at: datetime | None = None
+    latest_result_id: int | None = None
+    versions: list[LiteratureSearchTaskVersion] = Field(default_factory=list)
+
+
+class LiteratureSearchTaskList(BaseModel):
+    """检索历史列表页（分页；不携带条目明细，避免响应过大）。"""
+
+    total: int
+    offset: int
+    limit: int
+    items: list[LiteratureSearchTaskRead]
+
+
+class LiteratureSearchTaskRerun(BaseModel):
+    """重跑任务后返回的更新后任务详情。"""
+
+    task: LiteratureSearchTaskRead
+    change: "SearchResultChange | None" = None
+    new_result_id: int
+
+
+class SearchStrategyExport(BaseModel):
+    """PRISMA-compliant 检索策略导出（数据库、检索日期、查询串、结果数）。"""
+
+    original_query: str
+    database: str
+    search_string: str
+    searched_at: datetime
+    result_count: int
+    filters: str
+    model_version: str
+    status: SearchTaskStatus
+
+
+# 前向引用在 Pydantic 2 中需通过 model_rebuild 解析。
+LiteratureSearchTaskVersion.model_rebuild()
+LiteratureSearchTaskRerun.model_rebuild()
 
 
 class ParseQueryRequest(BaseModel):
