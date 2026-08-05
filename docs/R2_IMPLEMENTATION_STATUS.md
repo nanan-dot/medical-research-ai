@@ -239,3 +239,32 @@ Stop after R2-WP05. The next task is R2-WP06; do not start it here.
 ### Next boundary
 
 Stop after R2-WP06. The next task is R2-WP07; do not start it here.
+
+## R2-WP07 — connect pubmed records to local library（保存论文与知识库衔接，2026-08-05 完成）
+
+### Delivered
+
+- `library_item` 模块（model/schema/service/router/repository）：正式收藏（区别于
+  item_state.saved 的临时收藏，语义在注释说明）；保存元数据、绑定/解绑本地 PDF、
+  分页列表 + 状态筛选。
+- `document/matcher.py`：按精确 PMID/DOI 匹配本地文档（纯函数，无模糊匹配防误配）。
+- 全文状态 enum：metadata_only / local_pdf_available / open_access_available / unavailable，
+  带 fulltext_status_reason 可解释理由。
+- 幂等保存：同 (pmid|doi) 返回已有记录。
+- **版权边界（fulltext-retrieval 融合）**：保存不自动下载、不绕过付费墙；OA 状态仅基于
+  可验证信号记录，无任何抓取逻辑。
+- 前端 SaveToLibraryButton 组件 + 结果页"加入知识库"按钮。
+- Alembic 迁移 `f5a6b7c8d9e0`（library_items 表）。
+
+### Verification status — VERIFIED（2026-08-05 Hermes 独立复测）
+
+- `pytest tests/ -q` → **269 passed, 13 skipped**（修复 test_database EXPECTED_TABLES 缺 library_items）。
+- `mypy`（21 源文件）/ `ruff` → 全过（修复 Codex 遗留的 19 处 E701/E702 单行多语句，
+  重命名 repository.list → list_items 避免遮蔽内置 list）。
+- Alembic：upgrade head → downgrade → upgrade head 实测通过（可回滚）。
+- 前端 `npm run typecheck` / `npm run test`（27 passed）/ `npm run build` 全过。
+- Codex 自测（3 定向 passed + 前端）与 Hermes 复测一致；全量 pytest/mypy/ruff/迁移回滚由 Hermes 补齐。
+
+### Next boundary
+
+Stop after R2-WP07. The next task is R2-WP08; do not start it here.

@@ -11,6 +11,7 @@ from app.modules.feedback.model import Feedback
 from app.modules.export.model import ExportRecord
 from app.modules.health.model import Health
 from app.modules.knowledge_source.model import KnowledgeSource
+from app.modules.library_item.model import LibraryItem
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,
     LiteratureDuplicateGroupMember,
@@ -34,6 +35,7 @@ __all__ = [
     "ExportRecord",
     "Health",
     "KnowledgeSource",
+    "LibraryItem",
     "LiteratureDuplicateGroup",
     "LiteratureDuplicateGroupMember",
     "LiteratureDuplicateResolution",

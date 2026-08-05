@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { RankedCitationItem } from "../../api/literatureSearch";
+import SaveToLibraryButton from "../SaveToLibrary/SaveToLibraryButton.vue";
 
 interface Props {
+  resultId?: number;
   items: readonly RankedCitationItem[];
   loading: boolean;
   updating: Readonly<Record<string, boolean>>;
@@ -19,6 +21,7 @@ const emit = defineEmits<{
   goToPage: [page: number];
   toggleSaved: [pmid: string, saved: boolean];
   toggleRead: [pmid: string, read: boolean];
+  savedToLibrary: [reason: string];
 }>();
 
 const PAGE_RANGE = 2;
@@ -71,6 +74,7 @@ function abstractState(item: RankedCitationItem["item"]): string {
             >
               {{ entry.state?.saved ? "★ 已保存" : "☆ 保存" }}
             </button>
+            <SaveToLibraryButton v-if="resultId !== undefined" :result-id="resultId" :pmid="entry.item.pmid" :disabled="loading || updating[entry.item.pmid]" @saved="emit('savedToLibrary', $event.fulltext_status_reason)" />
             <button
               class="state-chip"
               :class="{ active: entry.state?.read_status === 'read' }"

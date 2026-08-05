@@ -139,6 +139,8 @@ export interface DuplicateGroupMember { result_id: number; record_pmid: string; 
 export interface DuplicateGroup { id: number; trigger_task_id: number; match_method: DuplicateMatchMethod; confidence: DuplicateConfidence; status: string; created_at: string; members: DuplicateGroupMember[]; resolution: { resolved_at: string; resolved_action: DuplicateResolutionAction; resolved_by: string; } | null; }
 export interface DuplicateGroupList { items: DuplicateGroup[]; }
 export interface DuplicateResolveRequest { action: DuplicateResolutionAction; canonical_result_id?: number; canonical_record_pmid?: string; resolved_by?: string; }
+export type FulltextStatus = "metadata_only" | "local_pdf_available" | "open_access_available" | "unavailable";
+export interface LibraryItem { id: number; pmid: string; doi: string | null; title: string | null; journal: string | null; year: number | null; document_id: number | null; source_search_id: number; fulltext_status: FulltextStatus; fulltext_status_reason: string; created_at: string; updated_at: string; }
 const json = { headers: { "Content-Type": "application/json" } };
 export const literatureSearchApi = {
   parseQuery: (rawTopic: string) => apiRequest<ParsedQuery>("/literature-search/parse-query", { method: "POST", ...json, body: JSON.stringify({ raw_topic: rawTopic }) }),
@@ -169,4 +171,5 @@ export const literatureSearchApi = {
   deduplicateTask: (id: number) => apiRequest<DuplicateGroupList>(`/literature-search/${id}/deduplicate`, { method: "POST" }),
   resolveDuplicateGroup: (id: number, request: DuplicateResolveRequest) =>
     apiRequest<DuplicateGroup>(`/duplicate-groups/${id}/resolve`, { method: "POST", ...json, body: JSON.stringify(request) }),
+  saveToLibrary: (id: number, pmid: string) => apiRequest<LibraryItem>(`/literature-results/${id}/save`, { method: "POST", ...json, body: JSON.stringify({ pmid }) }),
 };

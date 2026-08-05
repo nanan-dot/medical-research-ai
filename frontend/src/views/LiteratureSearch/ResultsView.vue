@@ -13,6 +13,7 @@ const resultId = Number(route.params.id);
 const duplicateGroups = shallowRef<DuplicateGroup[]>([]);
 const deduplicating = shallowRef(false);
 const deduplicationError = shallowRef("");
+const libraryStatus = shallowRef("");
 
 async function runDeduplication(): Promise<void> {
   deduplicating.value = true;
@@ -61,10 +62,12 @@ const {
 
     <p v-if="error" class="request-error" role="alert">{{ error }}</p>
     <p v-if="deduplicationError" class="request-error" role="alert">{{ deduplicationError }}</p>
+    <p v-if="libraryStatus" class="library-status">{{ libraryStatus }}</p>
 
     <LiteratureFilters :filters="filters" :disabled="loading" @apply="applyFilters" />
     <PaperResults
       :items="page?.items ?? []"
+      :result-id="resultId"
       :loading="loading"
       :updating="updating"
       :current-page="currentPage"
@@ -77,6 +80,7 @@ const {
       @go-to-page="goToPage"
       @toggle-saved="(pmid, saved) => updateState(pmid, { saved })"
       @toggle-read="(pmid, read) => updateState(pmid, { read_status: read ? 'read' : 'unread' })"
+      @saved-to-library="(reason) => libraryStatus = reason"
     />
     <DuplicateReview :groups="duplicateGroups" :loading="deduplicating" @run="runDeduplication" @resolve="resolveDuplicate" />
   </main>
@@ -88,4 +92,5 @@ const {
 .page-title { margin: 0.25rem 0; color: var(--text-primary); font-size: clamp(1.6rem, 3.5vw, 2.6rem); line-height: 1.15; }
 .page-copy { max-width: 760px; margin: 0; color: var(--text-muted); line-height: 1.6; overflow-wrap: anywhere; }
 .request-error { margin: 0; padding: 0.8rem; color: var(--color-danger); background: var(--color-danger-soft); border-radius: 10px; }
+.library-status { margin: 0; padding: .8rem; color: var(--color-success); background: var(--color-success-soft, #edf8f1); border-radius: 10px; }
 </style>
