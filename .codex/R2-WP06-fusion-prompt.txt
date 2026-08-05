@@ -1,0 +1,165 @@
+【环境】PYTHONPATH 已全局设为 Hermes venv，所有 python 命令前需加 `env PYTHONPATH=""`。
+【后端 Python】/f/software/programme/Anaconda/envs/med-research-ai/python.exe（Python 3.12）。
+【前端】frontend/，包管理器 npm。
+
+【最高规范——必须先读并全程遵守】
+- 代码生成强制规范 V2.0：`docs/CODE_STANDARDS.md`（42 条，最高规范）。核心：文件单一职责；分层（入口/业务/工具/配置分离）；中文注释讲设计意图不复述行为；类型注解齐全；命名语义化；抽取常量消魔法数字；禁空 except/裸捕获；密钥零泄漏；未实际运行的命令不得声称通过，无法实测标注【未实测】；严禁虚构运行日志与结果；多文件交付先给目录树并标注文件路径；核心逻辑必配测试。
+- 融合蓝图：`docs/SKILLS_FUSION_MAP.md`；本次 WP06 融合 manage-refs（引用去重/撤销/合并依据）与 search-lit（检索结果跨任务管理）的能力设计。
+
+本次只执行：R2-WP06《文献去重》。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+2. 读取当前阶段任务文档与 `docs/R2_IMPLEMENTATION_STATUS.md`。
+3. 检查前置条件：R2-WP04/WP05 完成（已实测验证：261 passed + live 8 passed + 前端全过，提交 7fe09bf）。
+4. **重点审查 WP03.5~WP05 已有能力**，WP06 必须在其之上扩展：
+   - `literature_search_results` 表（items_json 存 CitationItem：pmid/doi/title/authors/journal/year/verified）；
+   - `literature_search_tasks` + `literature_search_task_results`（结果引用多任务复用，跨来源去重的天然基础）；
+   - `literature_search_item_state`（用户态：saved/read_status/tags）；
+   - `GET /literature-search/{id}/results`（筛选/排序/分页）。
+5. 在写代码前，先报告：当前已有能力、准备创建/修改哪些文件、每个文件职责、本轮不修改的模块、测试与验收方法。
+6. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R2-WP06：文献去重——跨检索来源的重复识别、合并与撤销。
+
+【来源需求】
+### 去重优先级
+1. PMID；
+2. DOI；
+3. 标准化标题；
+4. 作者 + 年份；
+5. 人工确认。
+
+### 业务规则
+- 不自动永久删除不确定重复项；
+- 显示合并依据；
+- 保留来源检索任务；
+- 用户可撤销。
+
+### 验收
+- 构造重复数据集；
+- 自动识别明确重复；
+- 模糊重复进入人工确认；
+- 不误删不同论文。
+
+【与 skills 的融合点（必须体现）】
+1. **manage-refs 引用去重哲学**：去重只产生"合并决策"，永不物理删除原始记录。
+   每条被合并记录保留 source_search_ids（来源任务）与 canonical_record_id（保留记录），
+   撤销 = 删除合并决策，原始数据原样回归。
+2. **合并依据可解释（反幻觉延伸）**：每个 duplicate_group 携带 match_method
+   （pmid/doi/title_normalized/author_year/manual）与 confidence（明确/模糊），
+   前端展示合并依据，禁止虚构匹配理由。
+3. **标题标准化**（manage-refs 规范）：小写、去标点、去多余空白、统一常见缩写
+   （如 "&" → "and"）、去除尾随句点；DOI 标准化（小写、去前缀 https://doi.org/）。
+   标准化函数必须是纯函数、带单测。
+
+【建议文件范围】
+- app/modules/literature_search/dedup.py（去重核心：标准化 + 匹配 + 分组）
+- model.py（duplicate_group / duplicate_resolution 表）
+- repository.py（去重组 CRUD）
+- service.py（去重编排：自动明确组 → 模糊组待人工）
+- router.py（去重端点）
+- schema.py（去重请求/响应模型）
+- alembic/versions/<revision>.py（去重表迁移）
+- frontend/src/components/DuplicateReview/（人工确认组件）
+- tests/modules/literature_search/test_dedup.py
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- POST /literature-search/{id}/deduplicate（对指定任务的结果执行去重）
+- GET /duplicate-groups（列出去重组，含人工待确认）
+- POST /duplicate-groups/{id}/resolve（人工确认：保留某条 / 全部保留 / 全部合并）
+
+【数据与状态要求】
+- duplicate_group：id / match_method / confidence / created_at / status（pending_resolution/auto_merged）
+- 组内记录：record_id / canonical_record_id（合并后指向保留记录）/ source_search_ids
+- resolution：resolved_at / resolved_action / resolved_by（人工确认信息）
+
+【实施步骤】
+1. 实现 PMID 精确匹配（最高优先级）；
+2. DOI 标准化匹配（大小写/前缀统一）；
+3. 标题标准化候选（纯函数 + 单测）；
+4. 作者年份辅助（作者第一作者 + 年份相同 = 模糊候选）；
+5. 不确定组人工确认（confidence=fuzzy 的不自动合并）；
+6. 合并保留来源（canonical + source_search_ids）；
+7. 支持撤销（删除合并决策即回归）。
+
+【必须处理的异常】
+- 误合并（模糊组必须人工确认，不自动删）；
+- 标题翻译版本（不同语言标题 = 模糊候选，不自动合并）；
+- 早期在线与正式版（same DOI/PMID = 明确重复；仅标题相似 = 模糊）；
+- DOI 缺失（退化为标题/作者年份匹配）。
+
+【测试要求】
+- PMID 重复（明确）；
+- DOI 大小写（标准化后匹配）；
+- 标题标点（标准化后匹配）；
+- 相似但不同论文（不误合并）；
+- 撤销（resolve 后 undo 恢复）；
+- 跨检索来源（source_search_ids 正确保留）。
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记（RUN_PUBMED_LIVE_TEST=1 门控）；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移（实际执行 alembic upgrade head 验证）；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 正式候选研究方向模块
+- 完整写作系统
+- LangGraph Agent
+- 自动Meta分析
+- 绕过付费墙
+- 多用户和机构部署
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 准备重复夹具（同一 PMID 出现在两个任务）；
+2. 运行自动去重；
+3. 人工处理模糊组；
+4. 撤销；
+5. 检查来源保留。
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过（真实运行，输出记录）。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级（实际运行 alembic upgrade head），重要变更可回滚。
+5. 更新 `docs/R2_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r2): implement reversible literature deduplication`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状（含 WP05 已有能力清单）
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明（含 skills 融合点如何体现）
+# 数据库迁移（实际执行结果）
+# 实际执行命令
+# 测试结果（真实输出）
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）

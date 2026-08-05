@@ -1,0 +1,167 @@
+【环境】PYTHONPATH 已全局设为 Hermes venv，所有 python 命令前需加 `env PYTHONPATH=""`。
+【后端 Python】/f/software/programme/Anaconda/envs/med-research-ai/python.exe（Python 3.12）。
+【前端】frontend/，包管理器 npm。
+
+【最高规范——必须先读并全程遵守】
+- 代码生成强制规范 V2.0：`docs/CODE_STANDARDS.md`（42 条，最高规范）。核心：文件单一职责；分层（入口/业务/工具/配置分离）；中文注释讲设计意图不复述行为；类型注解齐全；命名语义化；抽取常量消魔法数字；禁空 except/裸捕获；密钥零泄漏；未实际运行的命令不得声称通过，无法实测标注【未实测】；严禁虚构运行日志与结果；多文件交付先给目录树并标注文件路径；核心逻辑必配测试。
+- 融合蓝图：`docs/SKILLS_FUSION_MAP.md`；本次 WP07 融合 fulltext-retrieval（OA 全文状态判定/版权边界/不越权下载）与 manage-refs（收藏与去重衔接）的能力设计。
+
+本次只执行：R2-WP07《保存论文与知识库衔接》。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+2. 读取当前阶段任务文档与 `docs/R2_IMPLEMENTATION_STATUS.md`。
+3. 检查前置条件：R2-WP06 完成（已实测验证：266 passed + mypy 17 文件 + 前端 27 tests/build，提交 99133dc）；R1 知识源与文档模块稳定。
+4. **重点审查已有能力**，WP07 必须在其之上扩展：
+   - `literature_search_item_state`（saved/read_status/tags——"收藏"的现有落点）；
+   - `literature_search_results` + CitationItem（pmid/doi/title/journal/year/verified）；
+   - `app/modules/knowledge_source/` 与 `app/modules/document/`（R1 知识源/文档模块，WP07 需衔接）；
+   - WP06 的 duplicate_group（保存论文与去重的关联点）。
+5. 在写代码前，先报告：当前已有能力、准备创建/修改哪些文件、每个文件职责、本轮不修改的模块、测试与验收方法。
+6. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R2-WP07：保存论文与知识库衔接——把检索结果收藏进本地知识库，支持绑定本地 PDF，全程遵守版权边界。
+
+【来源需求】
+### 功能
+- 收藏元数据；
+- 加入本地知识库；
+- 关联已有 PDF；
+- 手动选择全文；
+- 记录全文状态；
+- 不绕过付费墙；
+- 不自动下载无权限内容。
+
+### 全文状态（enum）
+```text
+metadata_only
+local_pdf_available
+open_access_available
+unavailable
+```
+
+### 验收
+- 元数据可以先保存；
+- 后续可绑定本地 PDF；
+- 已有文档可匹配 DOI 或 PMID。
+
+【与 skills 的融合点（必须体现）】
+1. **fulltext-retrieval 版权边界**（核心融合点）：保存论文时**只记录全文状态，不自动下载**。
+   - `open_access_available` 表示该 DOI/PMID 有已知 OA 来源（如 PMC），但**是否下载由用户显式触发**，本 WP 不做自动抓取；
+   - 状态判定基于已有数据（PMC id 存在性等可验证信号），禁止伪造"可获取"；
+   - 明确"不绕过付费墙"：付费内容一律 `unavailable` 或 `metadata_only`，绝不尝试破解。
+2. **manage-refs 收藏衔接**：`literature_search_item_state.saved` 是"临时收藏"，
+   本 WP 的"保存到知识库"是**正式收藏**（library_item），两者语义不同——文档注释必须说清区别；
+   WP06 去重后的 canonical 记录可作为保存入口之一（保留 source_search_id 溯源）。
+3. **状态可解释（反幻觉延伸）**：library_item 响应携带 `fulltext_status_reason`（如
+   "PMC ID available" / "no open access source"），前端展示，禁止凭空声称有全文。
+
+【建议文件范围】
+- app/modules/library_item/model.py（library_item 表：pmid/doi/document_id/source_search_id/fulltext_status）
+- schema.py（LibraryItemCreate/Read/FulltextStatus）
+- service.py（保存/匹配/绑定/解绑编排）
+- router.py（保存/绑定/列表端点）
+- app/modules/document/matcher.py（按 PMID/DOI 匹配本地已有文档）
+- alembic/versions/<revision>.py（library_item 表迁移）
+- frontend/src/components/SaveToLibrary/（保存到知识库组件）
+- tests/modules/library/test_library_item.py
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- POST /literature-results/{id}/save（从检索结果保存为 library_item）
+- POST /library-items/{id}/link-local-pdf（绑定本地 PDF，含解绑）
+- GET /library-items（列表，分页 + 按状态筛选）
+
+【数据与状态要求】
+- fulltext_status：metadata_only / local_pdf_available / open_access_available / unavailable
+- fulltext_status_reason：状态判定的人类可读理由
+- pmid / doi / document_id / source_search_id
+- 防重复收藏：同一 (pmid 或 doi) 已存在则返回已存在记录（幂等），不新建
+
+【实施步骤】
+1. 保存元数据记录（pmid/doi/title/journal/year + source_search_id 溯源）；
+2. 按 PMID/DOI 匹配本地文档（document/matcher.py，纯函数，误匹配防护）；
+3. 允许用户手动绑定 PDF（link-local-pdf，记录 document_id + local_pdf_available）；
+4. 记录全文状态（基于可验证信号 + reason，不自动下载）；
+5. 不自动越权下载（无任何自动抓取逻辑）；
+6. 防止重复收藏（幂等：同 pmid/doi 返回已有记录）。
+
+【必须处理的异常】
+- 同一论文多个 PDF（绑定新 PDF 时记录变更而非静默覆盖，或明确最后绑定生效并记录）；
+- 误匹配（matcher 只做精确 PMID/DOI 匹配，不做模糊匹配）；
+- 开放全文链接失效（状态判定不依赖实时链接可用性，标注 reason）；
+- 版权边界（付费内容 = metadata_only/unavailable，绝不下载）。
+
+【测试要求】
+- 保存元数据；
+- 重复保存（幂等）；
+- 自动匹配（PMID/DOI → 本地文档）；
+- 手动绑定；
+- 解绑；
+- 无全文（unavailable + reason）；
+- 错误 DOI（不误匹配）。
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记（RUN_PUBMED_LIVE_TEST=1 门控）；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移（实际执行 alembic upgrade head 验证）；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 正式候选研究方向模块
+- 完整写作系统
+- LangGraph Agent
+- 自动Meta分析
+- 绕过付费墙（**任何形式的自动抓取付费内容都属禁止**）
+- 多用户和机构部署
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 保存 5 篇论文（含重复保存验证幂等）；
+2. 绑定本地 PDF（手动）；
+3. 检查文档与元数据关联（matcher 匹配）；
+4. 验证不自动下载（无越权抓取逻辑，状态仅记录）。
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过（真实运行，输出记录）。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级（实际运行 alembic upgrade head），重要变更可回滚。
+5. 更新 `docs/R2_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r2): connect pubmed records to local library`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状（含 WP06 已有能力清单）
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明（含 skills 融合点如何体现）
+# 数据库迁移（实际执行结果）
+# 实际执行命令
+# 测试结果（真实输出）
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）

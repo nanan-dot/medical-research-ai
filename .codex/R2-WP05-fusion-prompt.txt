@@ -1,0 +1,172 @@
+【环境】PYTHONPATH 已全局设为 Hermes venv，所有 python 命令前需加 `env PYTHONPATH=""`。
+【后端 Python】/f/software/programme/Anaconda/envs/med-research-ai/python.exe（Python 3.12）。
+【前端】frontend/，包管理器 npm。
+
+【最高规范——必须先读并全程遵守】
+- 代码生成强制规范 V2.0：`docs/CODE_STANDARDS.md`（42 条，最高规范）。核心：文件单一职责；分层（入口/业务/工具/配置分离）；中文注释讲设计意图不复述行为；类型注解齐全；命名语义化；抽取常量消魔法数字；禁空 except/裸捕获；密钥零泄漏；未实际运行的命令不得声称通过，无法实测标注【未实测】；严禁虚构运行日志与结果；多文件交付先给目录树并标注文件路径；核心逻辑必配测试。
+- 融合蓝图：`docs/SKILLS_FUSION_MAP.md`；本次 WP05 融合 search-lit（代表性文献/相关性排序）与 manage-refs（已保存/已读/标签 引用管理）的能力设计。
+
+本次只执行：R2-WP05《筛选、排序与分页》。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+2. 读取当前阶段任务文档与 `docs/R2_IMPLEMENTATION_STATUS.md`。
+3. 检查前置条件：R2-WP04 完成（已实测验证：240 passed + live 8 passed + 前端全过，提交 4bb7cc7）。
+4. **重点审查 WP03.5/WP04 已有能力**，WP05 必须在其之上扩展：
+   - `literature_search_results` 表（items_json 存 CitationItem 列表，含 pmid/doi/title/authors/journal/year/verified）；
+   - `literature_search_tasks` 表（任务 + result_versions 版本关联）；
+   - 现有 `GET /literature-search/{id}/results`（返回整份 items_json）。
+5. 在写代码前，先报告：当前已有能力、准备创建/修改哪些文件、每个文件职责、本轮不修改的模块、测试与验收方法。
+6. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R2-WP05：筛选、排序与分页。
+
+【来源需求】
+### 筛选
+- 年份；
+- 文献类型；
+- 期刊；
+- 作者；
+- 是否有摘要；
+- 是否已保存；
+- 是否已读；
+- 标签。
+
+### 排序
+- 相关性；
+- 最新；
+- 经典代表性；
+- 用户自定义。
+
+### 验收
+- 大结果集可分页；
+- 筛选不会丢失状态；
+- 排序理由可解释。
+
+【与 skills 的融合点（必须体现）】
+1. **"经典代表性"排序**（search-lit 融合）：代表性 = 被引量/权威性信号。因当前数据源
+   （PubMed ESearch）不返回被引量，采用**可解释的替代信号**并在响应中说明：
+   期刊权威性（如 Nature/JAMA/NEJM 等 top 期刊加权）、年份权重、verified 标记。
+   设计决策必须写入中文注释并输出"排序理由"字段（见下），禁止编造被引量数字。
+2. **"排序理由可解释"**（search-lit 反幻觉协议延伸）：每个排序结果返回
+   `sort_reason` 字段（如 "top journal + recent year" / "verified by pubmed"），
+   前端可展示，绝不输出虚构的被引次数或影响因子。
+3. **"已保存/已读/标签"**（manage-refs 融合）：这三项属于用户态数据，当前
+   `items_json` 是快照（不可写回）。设计方案二选一并说明理由：
+   a) 在 `literature_search_results` 旁新增用户态表（result_id + saved/read_status/tags），
+      通过 GET 时 join 返回；或
+   b) 独立模块 `app/modules/literature_search/user_state.py` 管理（推荐，避免污染快照表）。
+   标签、已读、已保存的读写端点保持最小暴露。
+
+【建议文件范围】
+- app/modules/literature_search/filtering.py（白名单筛选参数 + 过滤逻辑）
+- ranking.py（相关性/最新/经典代表性/自定义排序 + sort_reason）
+- repository.py（分页查询扩展）
+- router.py（GET /literature-search/{id}/results 扩展筛选/排序/分页参数）
+- schema.py（筛选排序请求/响应模型）
+- 用户态（saved/read_status/tags）：按你的方案新建文件
+- alembic/versions/<revision>.py（如新增用户态表）
+- frontend/src/components/LiteratureFilters/（筛选组件）
+- frontend/src/components/PaperResults/（结果分页组件）
+- tests/modules/literature_search/test_filters.py
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- GET /literature-search/{id}/results?year=&publication_type=&journal=&author=&has_abstract=&saved=&read_status=&tags=&sort=&page=&page_size=
+- （按你的方案）用户态读写：PUT/DELETE saved、read_status、tags 的最小端点。
+
+【数据与状态要求】
+- 筛选白名单：year / publication_type / journal / author / has_abstract / saved / read_status / tags
+- 排序枚举：relevance / newest / classic / custom
+- 分页：page（1-based）/ page_size（默认 20，上限 100）
+- 响应含：items、total、page、page_size、sort、sort_reasons（列表，逐条解释排序理由）
+- 筛选状态保留到 URL（前端 query 同步，刷新不丢失）
+
+【实施步骤】
+1. 定义白名单筛选参数（拒绝未知参数，非法值返回 422 而非静默忽略）；
+2. 数据库侧分页（避免前端一次加载全部；items_json 快照在服务端分页切片，不整份下发）；
+3. 相关性与时间排序（相关性 = PubMed 返回顺序即天然相关性；最新 = year 降序；
+   经典 = 期刊权威性 + verified；自定义 = 用户态排序字段）；
+4. 保留筛选状态到 URL（前端 router query 双向同步）；
+5. 解释排序规则（sort_reason 逐条输出）；
+6. 避免前端一次加载全部（分页加载 + 前端组件分页）。
+
+【必须处理的异常】
+- 相关性分数不可跨检索比较（sort_reason 说明"相关性为本次检索内排序"）；
+- 期刊名称不统一（标准化小写比较 + 权威期刊白名单常量）；
+- 年份缺失（year=None 排到最后，sort_reason 标注 "year unknown"）；
+- 大结果性能（服务端分页切片，避免整份 items_json 下发）。
+
+【测试要求】
+- 组合筛选；
+- 空结果；
+- 页码边界（超尾页返回空 items 而非 500）；
+- 排序稳定（同分稳定排序：加 id 次级键）；
+- 刷新保留（前端测试 URL 同步）；
+- 非法筛选（422 或明确拒绝）。
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记（RUN_PUBMED_LIVE_TEST=1 门控）；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移（实际执行 alembic upgrade head 验证）；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 正式候选研究方向模块
+- 完整写作系统
+- LangGraph Agent
+- 自动Meta分析
+- 绕过付费墙
+- 多用户和机构部署
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果（**尤其禁止编造被引量/影响因子**）；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 搜索大结果集（用 WP04 的检索任务）；
+2. 组合筛选（年份+期刊+有摘要）；
+3. 翻页；
+4. 刷新（URL 保留筛选状态）；
+5. 比较排序（relevance vs newest vs classic，查看 sort_reason）。
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过（真实运行，输出记录）。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级（实际运行 alembic upgrade head），重要变更可回滚。
+5. 更新 `docs/R2_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r2): add literature filtering ranking and pagination`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状（含 WP04 已有能力清单）
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明（含 skills 融合点如何体现）
+# 数据库迁移（实际执行结果）
+# 实际执行命令
+# 测试结果（真实输出）
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）

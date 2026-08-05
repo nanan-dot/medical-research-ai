@@ -1,0 +1,73 @@
+# 前端高级重设计任务：核心 3 页样板（执行指令）
+
+> 前置：先读取 `.codex/前端总提示词_V1.0.md`（总纲，814 行），以下要求全部服从总纲，冲突时以总纲为准。
+
+## 一、总纲执行方式
+
+1. 完整读取 `.codex/前端总提示词_V1.0.md`，将其中"可直接复制给 Codex 的完整提示词"作为本次前端开发的最高设计规范。
+2. 所有页面设计、组件设计、代码规范、中文注释、状态处理、输出流程均按总纲执行。
+3. 开始编码前，必须先输出总纲第十三节要求的 13 项规划（页面目标/信息架构/布局/文件清单/组件树/数据流/API依赖/响应式/动效/可访问性/验收标准），经确认后再编码。
+
+## 二、技术栈准备（本任务第一步）
+
+1. 在 `frontend/` 安装 Tailwind CSS（Vue 3 + Vite 7 正确配置：`tailwindcss` + `@tailwindcss/vite` 插件或 PostCSS 方案，选项目可行的最新稳定版）。
+2. 配置 `frontend/tailwind.config.*`（或 v4 的 CSS 优先配置），把总纲第四节的 Design Token 映射进 Tailwind 主题：
+   - 颜色：Scientific White / Paper Gray / Deep Research Navy / Ink Black / Medical Blue / Evidence Cyan / Research Green / Warning Amber / Error Red
+   - 间距：4/8/12/16/24/32/48/64/96
+   - 圆角：小控件 6-10px / 面板 12-16px / 大型展示区 16-24px
+   - 字体：编辑感衬线（标题）+ 清晰无衬线（正文/界面）
+3. 建立统一 `src/styles/` 设计系统入口（tokens.css + tailwind 集成），删除或重构现有 5 行 styles.css。
+4. 保持现有 API 层 `src/api/` 不变，复用现有 composables 与路由结构；仅当页面重构必须时才微调，且须说明。
+
+## 三、样板页面 1：首页（Home）
+
+业务目标：研一新生入口，展示"论文 → 证据 → 研究方向 → 写作"完整科研路径。
+
+要求（总纲第七节 1）：
+- 编辑式 Hero：大标题 + 副标题 + 主操作 + 高质量医学科研视觉 + 轻微动态背景；
+- 能力通过大图文分区展示（纵向叙事），禁止四个普通功能 Card；
+- 展示产品核心路径：文献检索 → 论文分析 → 证据问答 → 写作辅助；
+- 可信数据/能力说明（真实数据，禁止编造）。
+
+## 四、样板页面 2：文献检索（LiteratureSearch）
+
+业务目标：输入检索主题 → 结构化检索需求（QueryBuilder）→ 查看结果 → 保存论文。
+
+要求（总纲第七节 3）：
+- 结合 PubMed 的信息严谨 + Google Scholar 的检索效率 + 作品集留白节奏；
+- 论文结果突出：标题/作者/期刊/年份/摘要/文献类型/PMID/DOI/保存状态/阅读优先级；
+- 复用并升级现有 `views/LiteratureSearch/`（含 QueryBuilder.vue、SearchTermsEditor），禁止重建重复组件；
+- 检索条件区与结果区分栏，右侧或独立证据/详情面板；
+- 保留现有 API 对接（`src/api/literatureSearch*` 或等价），状态：搜索中/空结果/错误/重试。
+
+## 五、样板页面 3：医学问答（Chat）
+
+业务目标：基于知识库论文的证据驱动问答。
+
+要求（总纲第七节 2）：
+- 布局：左侧会话 / 中间回答 / 右侧证据；
+- AI 回答禁止纯聊天气泡，采用论文式正文：章节标题、引用序号、证据展开、不确定性提示、人工确认提示；
+- 引用必须可追溯到来源论文（标题/页码/原文片段/证据类型/相关度）；
+- 保留现有 `src/api/conversations.ts` 等 API 对接，复用现有 store/composable。
+
+## 六、工程要求（每个页面完成后）
+
+- `npm run typecheck` 通过；
+- `npm test`（Vitest）通过，新组件补测试；
+- `npm run build` 通过；
+- 组件按总纲第六节拆分（一个组件一个职责），中文注释按总纲第十一节；
+- 页面状态齐全：初始/Loading/Skeleton/空/成功/部分成功/失败/重试/禁用；
+- 响应式：1440+ / 1024-1439 / 768-1023 / 375-767；
+- 可访问性：键盘、焦点、prefers-reduced-motion。
+
+## 七、完成标准与汇报
+
+1. 三个样板页面完成，全部工程检查通过。
+2. 在 docs/ 下新增 `docs/FRONTEND_DESIGN_STATUS.md`，记录：
+   - 设计系统/Tailwind 配置说明；
+   - 三个页面实际文件变更；
+   - 测试/Lint/Build 结果；
+   - 已知限制；
+   - 剩余 5 个页面（知识源/文档/论文分析/模型设置/反馈）的推广计划。
+3. 建议 Git 提交：`feat(r1-frontend): advanced redesign of home, literature search and chat pages`。
+4. 提交后停止，汇报总结，不自动执行剩余页面。

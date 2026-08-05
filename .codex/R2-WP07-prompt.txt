@@ -1,0 +1,161 @@
+【环境】PYTHONPATH 已全局设为 Hermes venv，所有 python 命令前需加 `env PYTHONPATH=""`。
+
+本次只执行：R2-WP07《保存论文与知识库衔接》。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+2. 读取当前阶段任务文档与 `docs/R2_IMPLEMENTATION_STATUS.md`；如果状态文件不存在，先创建。
+3. 检查前置条件：R2-WP06完成；R1知识源和文档稳定。
+4. 在写代码前，先报告：
+   - 当前仓库已有能力；
+   - 准备创建哪些文件；
+   - 准备修改哪些文件；
+   - 每个文件的职责；
+   - 本轮明确不修改的模块；
+   - 本轮测试与验收方法。
+5. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R2-WP07：保存论文与知识库衔接
+
+负责模块：保存论文与知识库衔接
+
+【来源需求】
+### 功能
+
+- 收藏元数据；
+- 加入本地知识库；
+- 关联已有 PDF；
+- 手动选择全文；
+- 记录全文状态；
+- 不绕过付费墙；
+- 不自动下载无权限内容。
+
+### 全文状态
+
+```text
+metadata_only
+local_pdf_available
+open_access_available
+unavailable
+```
+
+### 验收
+
+- 元数据可以先保存；
+- 后续可绑定本地 PDF；
+- 已有文档可匹配 DOI 或 PMID。
+
+---
+
+【建议文件范围】
+- app/modules/library_item/model.py
+- schema.py
+- service.py
+- router.py
+- app/modules/document/matcher.py
+- alembic/versions/<revision>.py
+- frontend/src/components/SaveToLibrary/
+- tests/modules/library/
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- POST /literature-results/{id}/save
+- POST /library-items/{id}/link-local-pdf
+- GET /library-items
+
+【数据与状态要求】
+- metadata_only/local_pdf_available/open_access_available/unavailable
+- pmid
+- doi
+- document_id
+- source_search_id
+
+【实施步骤】
+1. 保存元数据记录
+2. 按PMID/DOI匹配本地文档
+3. 允许用户手动绑定PDF
+4. 记录全文状态
+5. 不自动越权下载
+6. 防止重复收藏
+
+【必须处理的异常】
+- 同一论文多个PDF
+- 误匹配
+- 开放全文链接失效
+- 版权边界
+
+【测试要求】
+- 保存元数据
+- 重复保存
+- 自动匹配
+- 手动绑定
+- 解绑
+- 无全文
+- 错误DOI
+
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 正式候选研究方向模块
+- 完整写作系统
+- LangGraph Agent
+- 自动Meta分析
+- 绕过付费墙
+- 多用户和机构部署
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 保存5篇论文
+2. 绑定本地PDF
+3. 检查文档与元数据关联
+4. 验证不自动下载
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级，重要变更可回滚。
+5. 更新 `docs/R2_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r2): connect pubmed records to local library`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明
+# 数据库迁移
+# 实际执行命令
+# 测试结果
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）
+```

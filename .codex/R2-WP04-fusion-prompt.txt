@@ -1,0 +1,169 @@
+【环境】PYTHONPATH 已全局设为 Hermes venv，所有 python 命令前需加 `env PYTHONPATH=""`。
+【后端 Python】/f/software/programme/Anaconda/envs/med-research-ai/python.exe（Python 3.12）。
+【前端】frontend/，包管理器 npm。
+
+【最高规范——必须先读并全程遵守】
+- 代码生成强制规范 V2.0：`docs/CODE_STANDARDS.md`（42 条，最高规范）。核心：文件单一职责；分层（入口/业务/工具/配置分离）；中文注释讲设计意图不复述行为；类型注解齐全；命名语义化；抽取常量消魔法数字；禁空 except/裸捕获；密钥零泄漏；未实际运行的命令不得声称通过，无法实测标注【未实测】；严禁虚构运行日志与结果；多文件交付先给目录树并标注文件路径；核心逻辑必配测试。
+- 融合蓝图：`docs/SKILLS_FUSION_MAP.md`；本次 WP04 是 search-lit skill 中"记录检索策略（PRISMA-compliant：数据库、检索日期、查询串、结果数）"的产品化。
+
+本次只执行：R2-WP04《检索任务与历史》。
+
+【必须先做】
+1. 读取当前仓库目录、Git 状态、README、pyproject.toml、.env.example。
+2. 读取当前阶段任务文档与 `docs/R2_IMPLEMENTATION_STATUS.md`。
+3. 检查前置条件：R2-WP03 完成（已实测验证：233 passed + live 4/4）；R2-WP03.5 skills 融合完成（提交 824d367）。
+4. **重点审查 WP03.5 新增的能力**，WP04 必须在其之上扩展而非重建：
+   - `app/modules/literature_search/model.py` 已有 `LiteratureSearchResult` 表（query/total_count/items_json/created_at，含 verified 反幻觉字段）；
+   - `app/modules/literature_search/service.py` 已有 `execute_search` / `get_result` / `bibtex`；
+   - `pubmed_executor.py`（真实 EFetch 打标）、`bibtex.py`（BibTeX 导出）。
+5. 在写代码前，先报告：当前已有能力、准备创建/修改哪些文件、每个文件职责、本轮不修改的模块、测试与验收方法。
+6. 不得在未审查仓库前假设目录或外部库 API。
+
+【本任务目标】
+R2-WP04：检索任务与历史——保存可复现的检索过程。
+
+【来源需求】
+### 目标
+保存可复现的检索过程。
+
+### 记录（每项都要持久化）
+- 原始自然语言主题（original_query）；
+- 结构化条件（structured_query）；
+- 检索式（search_string）；
+- 检索日期（searched_at）；
+- 数据库（database）；
+- 结果数（result_count）；
+- 筛选条件（filters）；
+- 模型（model_version）；
+- 用户修改（user_edits）。
+
+### 验收
+- 用户可重新运行；
+- 检索式和日期可导出；
+- 相同任务可复现；
+- 结果变化有提示。
+
+【与 WP03.5 的衔接（必须遵守）】
+- WP03.5 已有 `LiteratureSearchResult`（检索执行结果落库，含 items_json + verified 标记）与
+  `execute` / `{id}/results` / `{id}/bibtex` 端点。WP04 的"任务"层应**包装/关联**这些已有成果：
+  - 新增"检索任务"（literature search task）实体：原始主题、结构化条件、数据库、模型、
+    筛选、用户修改、状态机（pending/running/succeeded/failed）；
+  - 任务与 `LiteratureSearchResult` 关联（任务保存的是**结果引用**而非无限复制 items_json）；
+  - 重跑（rerun）复用 `pubmed_executor` / `execute_search` 逻辑，创建**新版本**结果，不覆盖旧结果；
+  - 结果变化提示：重跑后对比新旧 result_count / items，输出变化摘要（新增/减少条目数）。
+- 禁止：重建一套平行的"检索执行"逻辑；禁止复制 items_json 到任务表造成数据膨胀（
+  处理"历史记录过大"异常）。
+
+【建议文件范围】
+- app/modules/literature_search/model.py（新增任务模型或扩展）
+- schema.py（任务相关 request/response）
+- repository.py（任务 CRUD + 版本查询）
+- service.py（任务状态机 + 重跑编排）
+- router.py（任务端点）
+- alembic/versions/<revision>.py（任务表迁移）
+- frontend/src/views/LiteratureSearch/History.vue（检索历史页）
+- tests/modules/literature_search/test_history.py
+
+文件路径是建议范围。若仓库实际结构不同，必须复用现有结构并说明映射，禁止创建第二套重复架构。
+
+【接口要求】
+- POST /literature-search（创建检索任务）
+- GET /literature-search（历史列表，分页）
+- GET /literature-search/{id}（任务详情，含关联结果）
+- POST /literature-search/{id}/rerun（重跑，创建新版本）
+
+【数据与状态要求】
+- original_query
+- structured_query
+- search_string
+- searched_at
+- result_count
+- filters
+- model_version
+- status（任务状态机：pending → running → succeeded / failed）
+- 版本关联：task 关联多个 result 版本，rerun 产生新版本
+
+【实施步骤】
+1. 持久化完整检索输入（任务实体）；
+2. 执行任务状态机；
+3. 保存结果引用而非无限复制（关联 LiteratureSearchResult，不复制 items_json）；
+4. 支持重跑并创建新版本；
+5. 显示结果变化（新旧版本对比摘要）；
+6. 导出策略（复用 WP03.5 的 bibtex 导出 + 检索策略导出：查询串、日期、数据库、结果数）。
+
+【必须处理的异常】
+- 历史记录过大（引用而非复制；分页加载）；
+- 重跑覆盖旧结果（新版本，不覆盖）；
+- 时间区间变化（记录每次 searched_at，导出含日期）；
+- 模型版本不可追踪（记录 model_version，来源真实配置）。
+
+【测试要求】
+- 创建任务；
+- 失败任务（状态机转 failed）；
+- 重跑版本（新版本不覆盖旧版本）；
+- 历史分页；
+- 检索式保存；
+- 结果数量变化（对比摘要）。
+测试规则：
+- 普通单元测试不得依赖真实云端费用；
+- 外部服务使用 Mock；
+- 真实集成测试单独标记（RUN_PUBMED_LIVE_TEST=1 门控）；
+- 实际运行测试，禁止声称未运行的测试通过；
+- 数据库模型变化必须生成并审查 Alembic 迁移（实际执行 alembic upgrade head 验证）；
+- 前端任务必须运行类型检查、测试和生产构建；
+- 不得在测试、日志和响应中泄露 API Key、未发表材料或完整敏感内容。
+
+【阶段禁止范围】
+- 正式候选研究方向模块
+- 完整写作系统
+- LangGraph Agent
+- 自动Meta分析
+- 绕过付费墙
+- 多用户和机构部署
+
+【通用禁止】
+- 不进行与本任务无关的重构；
+- 不把所有逻辑写进 main.py；
+- Router 不直接写 SQL 或调用外部 RAG；
+- Repository 不调用大模型；
+- Agent 不直接操作数据库；
+- 不修改或删除用户原始论文；
+- 不硬编码密钥；
+- 不伪造论文、DOI、PMID、页码、引用、医学结论或测试结果；
+- 本地模型失败不得自动切换云端；
+- 不一次执行下一个工作包。
+
+【手工验证】
+1. 创建检索并刷新页面；
+2. 重跑；
+3. 比较版本（结果变化提示）；
+4. 导出检索策略。
+
+【完成标准】
+1. 来源需求中的验收项全部满足，或明确说明无法满足的证据与原因。
+2. 自动化测试实际通过（真实运行，输出记录）。
+3. 手工验证步骤可复制执行。
+4. 数据库迁移可升级（实际运行 alembic upgrade head），重要变更可回滚。
+5. 更新 `docs/R2_IMPLEMENTATION_STATUS.md`，记录已完成、测试结果、已知限制和下一任务。
+6. 给出建议 Git 提交：`feat(r2): persist reproducible literature searches`。
+7. 完成本任务后立即停止，只说明下一任务，不执行。
+
+【最终输出格式】
+# 当前任务
+# 前置条件检查
+# 仓库现状（含 WP03.5 已有能力清单）
+# 文件变更计划
+## 创建文件
+## 修改文件
+## 明确不修改范围
+# 实现说明（含与 WP03.5 的衔接方式）
+# 数据库迁移（实际执行结果）
+# 实际执行命令
+# 测试结果（真实输出）
+# 未执行项目及原因
+# 手工验证步骤
+# 已知限制
+# 安全与隐私检查
+# 状态文档更新
+# Git建议
+# 下一任务（只说明，不执行）
