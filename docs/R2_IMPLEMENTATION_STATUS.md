@@ -101,14 +101,33 @@ the query builder emits PubMed boolean strings; WP03 itself adds the execution l
   integration tests `tests/integrations/test_pubmed_live.py` (`RUN_PUBMED_LIVE_TEST=1`).
 - `.env.example` PubMed section clarified (key optional, email required).
 
-### Verification status — PENDING
+### Verification status — VERIFIED（2026-08-05 Hermes 实测）
 
-- pytest for the new files could not be executed in this session: every external program
-  invocation (`python`, `pytest`, `bash`, `cmd`, project venv python) was blocked by the
-  session permission system ("requires approval") before it could run.
-- This document is updated WITHOUT claiming test results. Tests must be run and the
-  results recorded here before the work package is considered accepted.
-- Static review of the new code was performed; no claims of runtime verification are made.
+- `pytest tests/ -q` → **233 passed, 13 skipped**（完整后端套件，含 WP03 的
+  `tests/unit/test_pubmed_client.py`）。
+- 真实联网：`RUN_PUBMED_LIVE_TEST=1 pytest tests/integrations/test_pubmed_live.py`
+  → **4/4 PASSED**（ESearch / ESummary / EFetch 真实调用 NCBI）。
+- `mypy app/integrations/pubmed/` → Success（0 错误；已补 `asyncio` 导入、清理
+  多余 `type: ignore`）。
+- `ruff check app/ tests/` → All checks passed。
+
+### WP03.5 — 医学 skills 融合（2026-08-05 完成）
+
+两个融合动作已实现并提交（`824d367`），对应 `docs/SKILLS_FUSION_MAP.md`：
+
+1. **文献检索反幻觉 + BibTeX 导出**（search-lit skill 融合）：
+   - `literature_search` 新增结果持久化表（`literature_search_results`）、
+     `pubmed_executor.py`（真实 EFetch 打标）、`bibtex.py`（BibTeX 序列化，
+     key 规范 `FirstAuthor_Year_Word` + verified 字段）。
+   - 新增 `POST /api/v1/literature-search/execute`、`GET /{id}/results`、
+     `GET /{id}/bibtex`。
+2. **引用核验子功能激活**（verify-refs skill 融合）：
+   - 新增 `app/modules/citation_check/`（extractor → verifier → audit），
+     前端 `CitationCheckView.vue` + `citationCheck.ts`，导航 `citation-check`
+     设为可见（科研产出分组内）。
+   - 验证：`RUN_CITATION_CHECK_LIVE_TEST=1` live 测试 **4/4 PASSED**
+     （真实 PMID/DOI 标 true、伪造标 false）。
+   - 前端 `npm run typecheck` / `npm run test`（19 passed）/ `npm run build` 全过。
 
 ### Known limitations / R2 backlog
 
@@ -119,4 +138,4 @@ the query builder emits PubMed boolean strings; WP03 itself adds the execution l
 
 ### Next boundary
 
-Stop after R2-WP03. The next task is R2-WP04; do not start it here.
+Stop after R2-WP03.5. The next task is R2-WP04（检索任务与历史）; do not start it here.
