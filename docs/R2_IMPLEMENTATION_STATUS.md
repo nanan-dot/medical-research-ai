@@ -297,3 +297,32 @@ Stop after R2-WP07. The next task is R2-WP08; do not start it here.
 ### Next boundary
 
 Stop after R2-WP08. The next task is R2-WP09; do not start it here.
+
+## R2-WP09 — notes mini-rag baseline（Mini-RAG 基线，2026-08-05 完成）
+
+### Delivered
+
+- `app/rag/`：notes_pipeline（NotesRAG 门面：index/search/save/load）、splitter（标题切片 +
+  固定长度回退，滑动窗口 step=size-overlap）、embeddings（EmbeddingClient 抽象 +
+  OllamaEmbeddingClient 本地优先 + DummyEmbeddingClient【开发用，确定性哈希向量】+
+  create_embedding_client 工厂）、faiss_store（FAISS 存向量+vector_id，元数据独立
+  metadata.json 双向映射，维度/损坏校验）、schemas（Chunk/RetrievalResult 含 source_path/heading）。
+- **本地 embedding 优先（零成本+隐私）**：ollama 失败降级 dummy 而非云端（融合点）。
+- **可解释引用**：检索结果携带 source_path + heading（反幻觉延伸）。
+- **元数据边界**：FAISS 不存元数据，独立 JSON 回查（异常处理显式设计）。
+- tests/rag/（40 个测试）+ experiments/minirag/（README + demo.py + 2 个中文样例笔记）。
+- 环境：安装 faiss-cpu 1.15.0 + numpy 2.5.1（清华镜像，绕过代理）。
+
+### Verification status — VERIFIED（2026-08-05 Hermes 独立复测）
+
+- `pytest tests/ -q` → **329 passed, 13 skipped**（含 tests/rag 40 个新测试）。
+- `mypy app/rag/` → Success（7 源文件；修复 _require_embedding/_require_store None 收窄）。
+- `ruff check app/rag/ tests/rag/` → All checks passed（修复 7 个 F401）。
+- 手工验证（真实运行）：索引 2 篇中文笔记 → 11 chunks；"EGFR 耐药机制"检索命中正确
+  章节（带来源+heading+score）；保存索引 → 新实例加载 → 检索成功（round-trip）。
+- 修复：runtime_checkable 未导入、load_index 未恢复 embedding、测试 mock json 解析、
+  overlap 语义断言、loopback 消息断言。
+
+### Next boundary
+
+Stop after R2-WP09. The next task is R2-WP10; do not start it here.
