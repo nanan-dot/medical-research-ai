@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     SEARCH_TOP_K: int = 5
     RERANK_TOP_K: int = 5
 
+    # Mini-RAG 笔记检索（R2-WP09）：本地优先，ollama 失败时用 dummy 兜底而非云端
+    EMBEDDING_PROVIDER: Literal["ollama", "dummy"] = "dummy"
+    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
+    # 索引向量维度（nomic-embed-text 为 384；dummy 开发用默认 16）
+    EMBEDDING_DIMENSION: int = 384
+
     PUBMED_API_KEY: str = ""
     PUBMED_EMAIL: str = ""
 
