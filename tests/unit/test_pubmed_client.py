@@ -506,3 +506,71 @@ def test_cache_eviction_keeps_bounded_size():
     for i in range(5):
         cache.set(f"k{i}", i)
     assert len(cache) <= 3
+
+
+# ---------------------------------------------------------------------------
+# 回归测试：prism-scan 修复
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_esummary_cache_immune_to_caller_mutation():
+    """回归：调用方修改 fetch_summary 返回值不得污染缓存。
+
+    修复前 result 直接入缓存，调用方原地修改（如补字段）会让后续
+    所有缓存命中返回被篡改数据；修复后存取两端均深拷贝。
+    """
+    client = make_client(
+        {"esummary.fcgi": esummary_payload({
+            "123": {"title": "Original Title", "fulljournalname": "J Med",
+                    "pubdate": "2024", "authors": [], "pubtype": [],
+                    "articleids": []},
+        })}
+    )
+    first = await client.fetch_summary(["123"])
+    # 调用方恶意/无意修改返回的 dict
+    first["123"]["title"] = "TAMPERED"
+    # 第二次调用应命中缓存，但返回的是独立副本，未被污染
+    second = await client.fetch_summary(["123"])
+    assert second["123"]["title"] == "Original Title"
+    # 同一 key 的两次命中也不共享引用
+    third = await client.fetch_summary(["123"])
+    third["123"]["journal"] = "MUTATED"
+    fourth = await client.fetch_summary(["123"])
+    assert fourth["123"]["journal"] == "J Med"
+
+
+@pytest.mark.asyncio
+async def test_retry_after_capped_at_30_seconds():
+    """回归：429 的 Retry-After 头有 30s 上限，避免单请求挂起过久。
+
+    修复前直接 sleep(float(retry_after))，NCBI 若返回 3600 会让请求
+    挂起一小时；修复后 min(..., 30.0)。
+    """
+    sleeps: list[float] = []
+
+    class RetryAfterHTTP:
+        def __init__(self) -> None:
+            self.count = 0
+
+        async def get(self, url: str, params: dict[str, str]) -> httpx.Response:
+            self.count += 1
+            if self.count == 1:
+                return httpx.Response(429, headers={"Retry-After": "3600"},
+                                      text="rate limited")
+            return httpx.Response(
+                200, text='{"esearchresult":{"count":"1","idlist":["777"]}}')
+
+    async def _capture_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    client = PubMedClient(
+        http_client=RetryAfterHTTP(),  # type: ignore[arg-type]
+        rate_limiter=InstantRateLimiter(),  # type: ignore[arg-type]
+        cache=TTLCache(),
+    )
+    client._sleep_limited = _capture_sleep  # type: ignore[method-assign]
+
+    result = await client.search("cancer")
+    assert result.pmids == ["777"]
+    assert sleeps == [30.0], f"期望 Retry-After 被截断为 30s，实际 {sleeps}"

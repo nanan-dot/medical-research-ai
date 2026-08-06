@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import logging
@@ -185,12 +186,17 @@ class PubMedClient:
             cached = self._cache.get(cache_key)
             if cached is not None:
                 logger.debug("PubMed ESummary cache hit ids=%d", len(ids))
-                return cached
+                # 读端同样深拷贝：同 key 多次命中共享同一份引用，
+                # 调用方修改会污染缓存中的后续命中。
+                return copy.deepcopy(cached)
 
         payload = await self._get_json("esummary.fcgi", params)
         result = self._parse_esummary(payload)
         if use_cache:
-            self._cache.set(cache_key, result)
+            # 深拷贝后再入缓存：result 是嵌套 dict，直接缓存会与调用方共享
+            # 可变引用，调用方原地修改会污染后续所有缓存命中（跨用户数据篡改）。
+            # 与 _fetch_records_chunk 的 list(cached) 防御保持同一策略。
+            self._cache.set(cache_key, copy.deepcopy(result))
         logger.info("PubMed ESummary done ids=%d returned=%d", len(ids), len(result))
         return result
 
@@ -335,9 +341,12 @@ class PubMedClient:
                 )
                 if attempt < retry_count:
                     # 429 时尊重 NCBI 的 Retry-After 头，否则指数退避。
+                    # 上限 30s：NCBI 的 Retry-After 理论上可返回任意值
+                    # （如 3600），直接照单全收会让单请求挂起一小时、
+                    # 拖死整个协程；超过上限则按指数退避的节奏重试。
                     retry_after = response.headers.get("Retry-After")
                     delay = (
-                        float(retry_after)
+                        min(float(retry_after), 30.0)
                         if retry_after and retry_after.isdigit()
                         else 2**attempt
                     )
