@@ -30,6 +30,8 @@ EXPECTED_TABLES = {
     "literature_duplicate_resolutions",
     "literature_reading_orders",
     "library_items",
+    "comparison_tasks",
+    "comparison_cells",
     "model_configs",
     "paper_analysiss",
     "research_directions",

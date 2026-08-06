@@ -382,3 +382,30 @@ Stop after R2-WP09. The next task is R2-WP10; do not start it here.
 ### Next boundary
 
 Stop after R2-WP10. The next task is R2-WP11; do not start it here.
+
+## R2-WP11 — 多论文比较（2026-08-06 完成）
+
+### Delivered
+
+- 完成真实比较矩阵前端：按字段行、按论文列展示 `cell_value`、可追溯 `sources`、生成/人工修订/缺失状态；研究类型行以视觉标识突出，单元格提供人工修订入口。
+- 比较页从原型切换为 LIVE，使用已有 `/comparisons` 路由与 feature 预留位；用户输入 3 至 10 个已保存文档 ID 创建任务，任务 ID 保留在 URL query 中。
+- 新增 `GET /comparisons/{id}/export?format=csv|markdown`。导出来自服务端持久化比较矩阵，CSV 和 Markdown 均不杜撰缺失值。
+- 添加 TestClient 全链路集成测试：创建、读取、编辑、重新生成（人工值保留）和 CSV/Markdown 导出。
+
+### Verification
+
+- 定向后端：`pytest tests/modules/comparison/test_comparison_api.py tests/unit/test_comparison_service.py -q` — `6 passed`（1 个现有 FastAPI/httpx 弃用警告）。
+- 定向 Ruff：`ruff check app/modules/comparison tests/modules/comparison tests/unit/test_comparison_service.py` — `All checks passed!`。
+- 前端：`npm run typecheck` 通过；`npm run test` — `20 passed / 31 passed`；`npm run build` 通过。
+
+### Independent verification（2026-08-06 Hermes 复测）
+
+- `pytest tests/ -q` → **354 passed, 13 skipped**（全量，含 comparison 新测试）。
+- `mypy app/modules/comparison/` → Success（6 源文件）；`ruff check app/modules/comparison/` → All checks passed。
+- `alembic check` → No new upgrade operations（模型-迁移一致）。
+- 代码审查：review-paper 反幻觉落地——无 source_indices 锚点的字段返回缺失（不编造）；
+  user_value 优先；研究类型行标注；FIELD_MAPPING 语义化；无紧凑风格残留。
+
+### Next boundary
+
+Stop after R2-WP11. The next task is R2-WP12; do not start it here.
