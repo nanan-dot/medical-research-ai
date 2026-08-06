@@ -326,3 +326,59 @@ Stop after R2-WP08. The next task is R2-WP09; do not start it here.
 ### Next boundary
 
 Stop after R2-WP09. The next task is R2-WP10; do not start it here.
+
+## R2-WP10 — BM25 and hybrid retrieval baseline (completed 2026-08-06)
+
+### Delivered
+
+- Added `BM25Store`, which reuses WP09 `Chunk` metadata and applies deterministic medical tokenization: complete Latin/numeric tokens are case-folded (`EGFR`, `NCT04209660`), while Chinese runs use character bigrams for out-of-vocabulary medical terms such as 奥希替尼. No jieba dependency was added.
+- Added `VectorRetriever` adapter over the existing `FaissIndexStore`; it and `BM25Store` expose the same text-search shape and accept injected query embedding/index dependencies.
+- Added rank-only Reciprocal Rank Fusion (`1 / (60 + rank)`), with `chunk_id` de-duplication. Raw FAISS distances and BM25 scores are never added directly.
+- Extended retrieval records with `chunk_id`, retriever name, rank, raw score, fused score, and per-route contributions. `HybridRetriever` can append one JSONL record per query with both Top-K lists and fused results.
+- Added `experiments/retrieval_baseline/`: fixed, auditable questions over the existing WP09 local sample notes; the runner saves per-strategy results plus Recall@K and MRR.
+
+### Verification
+
+- TDD RED: before implementation, `pytest tests/rag/test_rrf.py tests/rag/test_bm25.py tests/rag/test_hybrid.py -q` failed collection because the three target modules did not exist.
+- TDD GREEN: after implementation, the initial targeted suite passed (`15 passed`); the final targeted suite passed (`17 passed`) and the RAG suite passed (`57 passed`).
+- Full backend suite: `348 passed, 13 skipped` (`pytest -q`; one pre-existing FastAPI/httpx deprecation warning).
+- Ruff: `ruff check app/rag tests/rag experiments/retrieval_baseline` passed.
+- Baseline runner was executed and saved results to ignored `data/retrieval_baseline.json` and JSONL trace. With Dummy embedding its vector/hybrid scores are not semantic-quality evidence; BM25 exact-term behavior is covered by unit tests.
+- No persistence model changed, so no Alembic revision was created. `alembic check` remains non-green because it detects pre-existing `library_items` DOI/PMID index uniqueness drift; this WP does not touch those models or migrations.
+
+### Known limitations / next boundary
+
+- `rank_bm25` is declared as an optional dependency but was not importable in the specified Python environment; BM25 is therefore implemented with the standard-library formula rather than adding an unverified installation step.
+- The baseline uses WP09 Dummy embeddings for offline reproducibility. A valid semantic vector/hybrid quality comparison requires the same manually labelled question set with a verified local Ollama embedding; it must not be replaced with a cloud fallback.
+- Stop after R2-WP10. The next task is R2-WP11; do not start it here.
+
+## R2-WP10 — bm25 and hybrid retrieval baseline（BM25 与混合检索，2026-08-06 完成）
+
+### Delivered
+
+- `app/rag/bm25_store.py`：BM25 索引（build/add，追加后重算全局统计量防 IDF 失真）；
+  医学分词——英文/数字 token 保留原样（egfr/nct04209660）+ 中文确定性 2-gram（不新增 jieba 依赖）。
+- `app/rag/rrf.py`：RRF 纯函数融合（k=60，按排名融合，FAISS 距离与 BM25 分数不直接相加）。
+- `app/rag/hybrid_retriever.py`：FAISS + BM25 双路 + RRF + chunk_id 去重 + JSONL 检索日志。
+- `app/rag/vector_retriever.py`：WP09 FAISS 适配为与 BM25 同接口（可切换对比）。
+- `schemas.py` 扩展：RetrievalResult 加 retriever_name/rank/raw_score/fused_score + RetrievalContribution。
+- `experiments/retrieval_baseline/`：固定问题集（3 题，含 EGFR/NCT 编号）+ 对比脚本 +
+  README；结果落盘 data/retrieval_baseline.json + .retrieval.jsonl。
+- **Skills 融合**：pytest-skill（fixture/parametrize）、TDD（RED→GREEN 记录）、
+  systematic-debugging（根因修复）、coding-agent-cli-execution（方法名不遮蔽内置/
+  无 E701-E702/无探针残留）、simplify-code（复用 WP09 faiss_store/embeddings）。
+
+### Verification status — VERIFIED（2026-08-06 Hermes 独立复测）
+
+- `pytest tests/ -q` → **348 passed, 13 skipped**（含新 19 个测试：bm25/rrf/hybrid）。
+- `mypy app/rag/` → Success（11 源文件）；`ruff` → All checks passed。
+- 基线实验真实运行：vector recall@3=0.167/MRR=0.111（dummy 非语义，README 已标注）、
+  **bm25 recall@3=1.000/MRR=1.000**（精确医学词完美命中）、hybrid recall@3=0.833/MRR=0.611。
+- **修复 alembic 漂移（WP07 遗留）**：library_items 的 doi/pmid 索引 model 声明 unique=True
+  但迁移只建普通索引 → 新迁移 ee5f23856af4 重建 unique 索引；`alembic check` 通过
+  （No new upgrade operations）；upgrade 实测成功。
+- 未执行：前端（纯后端）、Ollama 真实 embedding 集成（RUN_OLLAMA_EMBEDDING_TEST 门控）。
+
+### Next boundary
+
+Stop after R2-WP10. The next task is R2-WP11; do not start it here.

@@ -1,0 +1,14 @@
+[
+  {
+    "query": "EGFR 耐药机制",
+    "relevant_chunk_ids": ["EGFR 耐药机制研究:0", "EGFR 耐药机制研究:1"]
+  },
+  {
+    "query": "奥希替尼耐药",
+    "relevant_chunk_ids": ["EGFR 耐药机制研究:2", "EGFR 耐药机制研究:3"]
+  },
+  {
+    "query": "系统评价 异质性",
+    "relevant_chunk_ids": ["系统评价与Meta分析:3"]
+  }
+]

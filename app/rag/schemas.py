@@ -83,4 +83,19 @@ class RetrievalResult(BaseModel):
     text: str
     source_path: str
     heading: str
-    score: float
+    # ``score`` 保留给 WP09 调用方兼容；新代码应读取可追溯的 raw/fused 字段。
+    score: float | None = None
+    chunk_id: str = ""
+    retriever_name: Literal["vector", "bm25", "hybrid"] = "vector"
+    rank: int = Field(default=1, ge=1)
+    raw_score: float | None = None
+    fused_score: float | None = None
+    contributions: list["RetrievalContribution"] = Field(default_factory=list)
+
+
+class RetrievalContribution(BaseModel):
+    """单一路检索对融合结果的可追溯贡献。"""
+
+    retriever_name: Literal["vector", "bm25"]
+    rank: int = Field(ge=1)
+    raw_score: float

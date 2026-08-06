@@ -190,13 +190,21 @@ class FaissIndexStore:
                 )
             results.append(
                 RetrievalResult(
+                    chunk_id=record.chunk_id,
                     text=record.text,
                     source_path=record.source_path,
                     heading=record.heading,
                     score=float(distance),
+                    retriever_name="vector",
+                    rank=len(results) + 1,
+                    raw_score=float(distance),
                 )
             )
         return results
+
+    def list_records(self) -> list[VectorChunkRecord]:
+        """返回元数据副本，供同一索引的词法检索或离线评测复用。"""
+        return list(self._metadata.values())
 
     def save(self, index_dir: Path | None = None) -> Path:
         """把索引与元数据持久化到目录。
