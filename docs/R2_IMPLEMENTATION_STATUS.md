@@ -409,3 +409,39 @@ Stop after R2-WP10. The next task is R2-WP11; do not start it here.
 ### Next boundary
 
 Stop after R2-WP11. The next task is R2-WP12; do not start it here.
+
+## R2-WP12 — editable evidence matrix（证据矩阵，2026-08-06 完成，后端）
+
+### Delivered
+
+- `app/modules/evidence_matrix/`：EvidenceMatrix/MatrixDocument/MatrixField/MatrixCell
+  4 表规范化存储（避免 JSON 大字段后期难迁移）；CRUD + 增删论文 + 字段管理 +
+  单元格编辑 + 版本化 + 导出 CSV/Markdown。
+- **manage-refs 融合**：user_notes 独立存储、topic_relevance/reading_status/document_status
+  独立枚举字段（unread/reading/read、included/pending、low/medium/high）。
+- **verify-refs 融合**：sources 绑定真实 PMID/DOI；无来源值标 missing 而非"已验证"；
+  provenance=model/manual 区分。
+- **review-paper 融合**：缺失显式标注（MISSING_VALUE），不编造数据；字段软删除
+  （active=False，单元格保留供版本回溯）；regenerate 只更新 generated 格，
+  user_edited 保留，version 递增。
+- `app/modules/comparison/shared.py`：从 comparison 抽取共享常量（MISSING_VALUE/
+  DEFAULT_FIELDS/FIELD_MAPPING/ComparisonField/SourceRef），WP11+WP12 复用。
+- Alembic 迁移 c7d8e9f0a1b2（evidence matrix 4 表）。
+- 前端：**跳过**（用户决策：全部前端推倒重做，WP12+ 前端不着急做）。
+
+### Verification status — VERIFIED（2026-08-06 Hermes 独立复测）
+
+- `pytest tests/ -q` → **363 passed, 13 skipped**（含 test_evidence_matrix_service.py 9 个新测试：
+  CRUD/字段增删不丢数据/论文 3-10 边界/备注隔离/版本递增/CSV 转义/人工值保留）。
+- `mypy app/modules/evidence_matrix/ app/modules/comparison/` → Success（14 源文件）。
+- `ruff` → All checks passed。
+- `alembic upgrade head` 实测（b6f9a1c3d7e2 → c7d8e9f0a1b2）；`alembic check` → No new ops。
+- 修复（Hermes 验证发现）：service `def list` 遮蔽内置（改 list_matrices）、
+  `_active_field_keys` 忘 await、repository.list_fields 未过滤软删除字段、
+  MISSING_VALUE 错误 import 路径（comparison.service + evidence_matrix.service +
+  WP11 测试）、StrEnum 未收窄（4 处）、缺 import（MatrixDocumentUpdate 等）、
+  ruff F401/F841（12 处）。
+
+### Next boundary
+
+Stop after R2-WP12. The next task is R2-WP13; do not start it here.

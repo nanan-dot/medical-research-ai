@@ -13,14 +13,17 @@ from app.modules.comparison.model import ComparisonCell, ComparisonTask
 from app.modules.comparison.repository import ComparisonRepository
 from app.modules.comparison.schema import (
     COMPARISON_FIELDS,
-    MISSING_VALUE,
     CellStatus,
     ComparisonCellEdit,
-    ComparisonCellGenerated,
     ComparisonCellRead,
     ComparisonCreate,
     ComparisonField,
     ComparisonTaskRead,
+)
+from app.modules.comparison.shared import (
+    FIELD_MAPPING,
+    MISSING_VALUE,
+    ComparisonCellGenerated,
     SourceRef,
 )
 from app.modules.library_item.repository import LibraryItemRepository
@@ -28,20 +31,6 @@ from app.modules.paper_analysis.repository import PaperAnalysisRepository
 from app.modules.paper_analysis.schema import ClaimKind
 
 ComparisonExportFormat = Literal["csv", "markdown"]
-
-FIELD_MAPPING = {
-    ComparisonField.STUDY_TYPE: "study_type",
-    ComparisonField.STUDY_POPULATION: "population",
-    ComparisonField.SAMPLE_SIZE: "sample_size",
-    ComparisonField.INTERVENTION: "intervention_or_exposure",
-    ComparisonField.COMPARATOR: "comparator",
-    ComparisonField.OUTCOME: "primary_outcome",
-    ComparisonField.METHODS: "research_question",
-    ComparisonField.STATISTICS: "statistical_methods",
-    ComparisonField.RESULTS: "main_results",
-    ComparisonField.NOVELTY: "innovations",
-    ComparisonField.LIMITATIONS: "limitations",
-}
 
 
 class ComparisonService:

@@ -3,7 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.modules.comparison.schema import ComparisonCreate, ComparisonCellGenerated, SourceRef
+from app.modules.comparison.schema import ComparisonCreate
+from app.modules.comparison.shared import ComparisonCellGenerated, SourceRef
 
 
 @pytest.mark.parametrize(("document_count", "is_valid"), [(2, False), (10, True), (11, False)])

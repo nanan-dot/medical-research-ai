@@ -26,6 +26,12 @@ from app.modules.literature_search.model import (
 from app.modules.model_config.model import ModelConfig
 from app.modules.paper_analysis.model import PaperAnalysis
 from app.modules.comparison.model import ComparisonCell, ComparisonTask  # noqa: F401
+from app.modules.evidence_matrix.model import (  # noqa: F401
+    EvidenceMatrix,
+    MatrixCell,
+    MatrixDocument,
+    MatrixField,
+)
 from app.modules.research_direction.model import ResearchDirection
 from app.modules.writing.model import Writing
 
