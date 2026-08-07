@@ -103,7 +103,7 @@ onMounted(load);
         <div class="item-head">
           <span class="status-badge" :class="`status-${task.status}`">{{ statusLabels[task.status] }}</span>
           <h2 class="item-title">{{ task.original_query }}</h2>
-          <RouterLink v-if="task.latest_result_id" class="view-results" :to="`/literature-search/results/${task.latest_result_id}`">查看结果</RouterLink>
+          <RouterLink v-if="task.latest_result_id" class="view-results" :to="`/literature-search/results/${task.latest_result_id}?task=${task.id}`">查看结果</RouterLink>
           <button class="rerun" :disabled="rerunning === task.id || task.status === 'running'" @click="rerun(task)">
             {{ rerunning === task.id ? "重跑中…" : "重跑" }}
           </button>

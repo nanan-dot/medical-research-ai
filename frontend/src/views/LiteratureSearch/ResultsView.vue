@@ -11,6 +11,11 @@ import PaperResults from "../../components/PaperResults/PaperResults.vue";
 
 const route = useRoute();
 const resultId = Number(route.params.id);
+// 去重接口期望的是任务 id（task），而结果页 id 来自 latest_result_id（result）。
+// History 跳转时带 ?task= 参数，优先用它调去重；缺失时退回 resultId（兼容直接访问）。
+const taskId = route.query.task !== undefined && !Array.isArray(route.query.task)
+  ? Number(route.query.task)
+  : resultId;
 const duplicateGroups = shallowRef<DuplicateGroup[]>([]);
 const deduplicating = shallowRef(false);
 const deduplicationError = shallowRef("");
@@ -50,7 +55,7 @@ async function saveReadingOrder(manualOrder: string[]): Promise<void> {
 async function runDeduplication(): Promise<void> {
   deduplicating.value = true;
   deduplicationError.value = "";
-  try { duplicateGroups.value = (await literatureSearchApi.deduplicateTask(resultId)).items; }
+  try { duplicateGroups.value = (await literatureSearchApi.deduplicateTask(taskId)).items; }
   catch (error) { deduplicationError.value = error instanceof Error ? error.message : "去重请求失败"; }
   finally { deduplicating.value = false; }
 }

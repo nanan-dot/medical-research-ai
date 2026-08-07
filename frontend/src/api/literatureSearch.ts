@@ -181,6 +181,18 @@ export const literatureSearchApi = {
   expandTerms: (candidate: SearchIntentCandidate, userEdits: Record<string, string[]>) => apiRequest<ExpandedTerms>("/literature-search/expand-terms", { method: "POST", ...json, body: JSON.stringify({ candidate, user_edits: userEdits }) }),
   buildQuery: (termGroups: SearchTermGroup[], userEdits: Record<string, string[]>) => apiRequest<BuiltQuery>("/literature-search/build-query", { method: "POST", ...json, body: JSON.stringify({ term_groups: termGroups, user_edits: userEdits }) }),
   // 检索任务与历史（R2-WP04）
+  // 创建并立即执行检索任务：search_string 必须是 build-query 输出的布尔检索式
+  //（用户可编辑），其余字段为输入快照，供重跑复现完整检索过程。
+  createTask: (request: {
+    original_query: string;
+    structured_query: string;
+    search_string: string;
+    database: string;
+    filters: string;
+    model_version: string;
+    user_edits: string;
+    retmax: number;
+  }) => apiRequest<LiteratureSearchTask>("/literature-search", { method: "POST", ...json, body: JSON.stringify(request) }),
   listTasks: (offset: number, limit: number) => apiRequest<LiteratureSearchTaskPage>(`/literature-search?offset=${offset}&limit=${limit}`),
   rerunTask: (id: number) => apiRequest<LiteratureSearchTaskRerun>(`/literature-search/${id}/rerun`, { method: "POST" }),
   // 检索结果分页（R2-WP05）：白名单参数拼入 query，page_size 恒 ≤100。

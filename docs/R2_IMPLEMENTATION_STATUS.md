@@ -445,3 +445,50 @@ Stop after R2-WP11. The next task is R2-WP12; do not start it here.
 ### Next boundary
 
 Stop after R2-WP12. The next task is R2-WP13; do not start it here.
+
+## R2-WP13 — 真实用户检索验收（2026-08-07 文档产出；真实试用待执行）
+
+### 交付
+
+- `docs/R2_USER_TEST_SCRIPT.md`：9 步固定任务（输入方向 → 生成检索式 → 检索 PubMed →
+  筛选 → 去重 → 保存 5 篇 → 阅读顺序 → 比较 3 篇 → 导出证据矩阵），每步含可执行操作、
+  预期结果、API 入口、记录字段与耗时栏；附 PICO 示例方向与参考检索式、错误处理指引、
+  完成率定义。
+- `docs/R2_USER_TEST_REPORT.md`：报告模板，含执行记录表、每步记录表、验收判定、缺陷分类
+  （阻塞/严重/一般）、完成条件；明确当前「待执行」，不填写虚构完成率。
+- `docs/R2_ACCEPTANCE.md`：验收标准逐条（结果相关性 / 检索式可理解 / 去重准确 /
+  矩阵可用于实际工作），每条含判定标准、证据要求、结论栏与签署栏；附附加核验项
+  （5 篇 PMID/DOI 真实可解析，verify-refs 融合）。
+- `docs/R3_BACKLOG.md`：基于代码审查与现有状态文档的增强点/越界需求清单（不虚构），
+  分三类：R2 明确缺陷（2 项）、R2 已知限制/增强点（9 项）、越界需求（6 项登记不实施）。
+
+### 前端执行检索功能修复（含测试）
+
+执行检索功能此前缺前端驱动，用户在 `/literature-search` 无法把构建的检索式真正提交为
+PubMed 检索任务。本轮完成修复：
+
+- `frontend/src/composables/useSearchTerms.ts`：新增 `createTask`（封装
+  `POST /literature-search`，错误返回 `null` 并暴露 `taskLoading/taskError`；空检索式不发起请求）。
+- `frontend/src/views/LiteratureSearch/LiteratureSearchView.vue`：新增「执行 PubMed 检索」区块
+  （保存本地草稿 / 复制检索式 / 执行检索），`runSearch` 以原始主题为 `original_query`、
+  检索式为 `search_string` 提交任务，成功后跳转结果页。
+- `frontend/src/views/LiteratureSearch/History.vue`：「查看结果」链接带 `?task=任务ID`，
+  供结果页区分任务 ID 与结果 ID。
+- `frontend/src/views/LiteratureSearch/ResultsView.vue`：去重调用优先使用 `?task=` 参数，
+  缺失时回退 `resultId`（已知边界，见 `docs/R3_BACKLOG.md` 缺陷 1）。
+- `frontend/src/views/LiteratureSearch/LiteratureSearchView.test.ts`：新增「执行检索」全链路
+  组件测试（解析 → 扩展 → 构建 → 执行 → 跳转结果页），断言 `POST /literature-search`
+  被调用且路由跳转至 `/literature-search/results/{latest_result_id}`。
+
+### 状态
+
+- **文档与前端修复已落地；未运行任何命令。**
+- 前端 typecheck / Vitest / build、后端回归、真实用户 9 步试用均**待执行**【未实测】；
+  按规范不声称通过。
+- 真实试用执行并记录脱敏证据后，将 `docs/R2_USER_TEST_REPORT.md` 状态改为「完成」并
+  签署 `docs/R2_ACCEPTANCE.md`。
+
+### Next boundary
+
+Stop after R2-WP13 文档与前端修复。下一步：执行真实用户 9 步试用并填写
+`docs/R2_USER_TEST_REPORT.md`，完成 WP13 验收与签署；不得开始 R3。
