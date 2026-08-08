@@ -72,3 +72,24 @@
 - Alembic upgrade/check：通过；
 - 本 WP 无数据库迁移、无真实云端调用。
 
+## R4-WP04 — 推荐 API 与路由接入
+
+状态：已完成（后端 MVP API）。
+
+### 已交付
+
+- 新增 `POST /api/v1/recommendations`；
+- 请求契约：自然语言 `query`（1–1000字符）和 `candidate_count`（1–10）；
+- 响应契约：`completed` / `completed_with_warnings` / `unavailable`、真实文献条目、理由和警告；
+- 路由通过依赖注入使用 PubMedExecutor 和本地/云端已配置客户端；
+- 本地模型不可用时不隐式切换云端，保留真实检索条目并降级理由；
+- PubMed异常对外统一为503，不泄露供应商内部错误。
+
+### 实际验证
+
+- 推荐模块测试：10 passed；
+- 全量 `pytest`：433 passed，13 skipped，1 warning；
+- Ruff/mypy：通过；
+- Alembic upgrade/check：通过；
+- 本 WP 无数据库迁移。
+

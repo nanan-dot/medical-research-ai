@@ -34,6 +34,7 @@ from app.modules.outline.router import router as outline_router
 from app.modules.writing_project.router import router as writing_project_router
 from app.modules.evidence_writing.router import router as evidence_writing_router
 from app.modules.ai_disclosure.router import router as ai_disclosure_router
+from app.modules.recommendation.router import router as recommendation_router
 
 api_router = APIRouter()
 api_router.include_router(library_save_router)
@@ -61,6 +62,7 @@ api_router.include_router(outline_router)
 api_router.include_router(writing_project_router)
 api_router.include_router(evidence_writing_router)
 api_router.include_router(ai_disclosure_router)
+api_router.include_router(recommendation_router)
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])
 api_router.include_router(evaluation_router, tags=["评测"])
