@@ -37,6 +37,11 @@ from app.modules.feasibility.model import FeasibilityScore  # noqa: F401
 from app.modules.advisor_workflow.model import AdvisorReview, DirectionRevision  # noqa: F401
 from app.modules.presentation.model import Presentation  # noqa: F401
 from app.modules.outline.model import Outline  # noqa: F401
+from app.modules.writing_project.model import (  # noqa: F401
+    WritingProject,
+    WritingUserMaterial,
+    WritingVersion,
+)
 from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
 from app.modules.topic_structuring.model import TopicStructuring, TopicStructuringVersion
 from app.modules.writing.model import Writing
