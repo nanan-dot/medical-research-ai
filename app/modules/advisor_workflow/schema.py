@@ -9,6 +9,7 @@ Decision = Literal["accept", "revise", "reject"]
 ReviewerType = Literal["real", "mock"]
 Severity = Literal["blocker", "major", "minor"]
 ItemStatus = Literal["pending", "done"]
+Provider = Literal["ollama", "openai", "openrouter"]
 
 
 class ReviewPoint(BaseModel):
@@ -37,6 +38,13 @@ class AdvisorNoteCreate(BaseModel):
     points: list[ReviewPoint] = Field(min_length=1, max_length=30)
     literature_gaps: list[LiteratureGap] = Field(default_factory=list, max_length=30)
     experiment_conditions: list[ExperimentCondition] = Field(default_factory=list, max_length=30)
+
+
+class MockReviewRequest(BaseModel):
+    """云端模型必须同时显式指定 provider 与配置，避免隐私内容静默外发。"""
+
+    provider: Provider | None = None
+    model_config_id: int | None = Field(default=None, gt=0)
 
 
 class AdvisorReviewRead(AdvisorNoteCreate):

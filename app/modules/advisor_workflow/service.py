@@ -1,4 +1,4 @@
-"""Advisor review orchestration without external model calls."""
+"""Advisor review orchestration with explicit private-data model routing."""
 
 import json
 from datetime import UTC, datetime
@@ -6,24 +6,23 @@ from typing import cast
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.advisor_workflow.model import AdvisorReview, DirectionRevision
+from app.modules.advisor_workflow.mock_reviewer import MockReviewGenerator
 from app.modules.advisor_workflow.repository import AdvisorWorkflowRepository
 from app.modules.advisor_workflow.schema import (
     AdvisorNoteCreate,
     AdvisorReviewRead,
     DirectionVersionRead,
-    ReviewPoint,
     Decision,
     ReviewerType,
+    MockReviewRequest,
 )
 from app.modules.advisor_workflow.state_machine import status_for_decision
 from app.modules.research_direction.model import ResearchDirection
 
-MOCK_WARNING = "AI simulated review; it is not a real advisor judgment."
-
-
 class AdvisorWorkflowService:
-    def __init__(self, session) -> None:
+    def __init__(self, session, mock_generator: MockReviewGenerator | None = None) -> None:
         self._repository = AdvisorWorkflowRepository(session)
+        self._mock_generator = mock_generator or MockReviewGenerator(session)
 
     async def record_note(
         self, direction_id: int, payload: AdvisorNoteCreate, reviewer_type: str = "real"
@@ -46,26 +45,15 @@ class AdvisorWorkflowService:
         await self._repository.save_direction(direction)
         return self._to_review(await self._repository.create_review(review))
 
-    async def mock_review(self, direction_id: int) -> AdvisorReviewRead:
+    async def mock_review(
+        self, direction_id: int, request: MockReviewRequest
+    ) -> AdvisorReviewRead:
         direction = await self._direction(direction_id)
-        points = [
-            ReviewPoint(
-                field_name="gap",
-                topic="Evidence gap",
-                content="Confirm the stated gap with a targeted literature search before final topic selection.",
-                severity="major",
-            )
-        ]
-        if direction.ethics_risk:
-            points.append(
-                ReviewPoint(
-                    field_name="ethics_risk",
-                    topic="Ethics",
-                    content="Verify approval and de-identification requirements before implementation.",
-                    severity="major",
-                )
-            )
-        payload = AdvisorNoteCreate(decision="revise", summary=MOCK_WARNING, points=points)
+        payload = await self._mock_generator.generate(
+            direction,
+            provider=request.provider,
+            model_config_id=request.model_config_id,
+        )
         return await self.record_note(direction_id, payload, reviewer_type="mock")
 
     async def list_notes(self, direction_id: int) -> list[AdvisorReviewRead]:

@@ -9,6 +9,7 @@ from app.modules.advisor_workflow.schema import (
     AdvisorNoteCreate,
     AdvisorReviewRead,
     DirectionVersionRead,
+    MockReviewRequest,
 )
 from app.modules.advisor_workflow.service import AdvisorWorkflowService
 
@@ -31,9 +32,11 @@ async def list_advisor_notes(
 
 @router.post("/{direction_id}/mock-review", response_model=AdvisorReviewRead)
 async def create_mock_review(
-    direction_id: int, session: AsyncSession = Depends(get_session)
+    direction_id: int,
+    payload: MockReviewRequest,
+    session: AsyncSession = Depends(get_session),
 ) -> AdvisorReviewRead:
-    return await AdvisorWorkflowService(session).mock_review(direction_id)
+    return await AdvisorWorkflowService(session).mock_review(direction_id, payload)
 
 
 @router.post("/{direction_id}/revise", response_model=DirectionVersionRead)
