@@ -18,6 +18,8 @@ _METADATA_FALLBACK = "LLM理由包含论文元数据，未采用模型输出。"
 class ReasonLLM(Protocol):
     async def chat(self, messages: list[ChatMessage]): ...
 
+    async def aclose(self) -> None: ...
+
 
 @dataclass(frozen=True)
 class RecommendationReasonItem:
