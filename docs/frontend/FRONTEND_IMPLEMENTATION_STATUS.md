@@ -175,3 +175,20 @@ FE-01 through FE-08 front-end scope is complete. No additional front-end or back
 ### Verification
 
 - `npm run typecheck` / `npm test` / `npm run build` 均未在本轮执行：当前会话沙盒对 node/npm 执行返回权限阻止（命令含外部程序调用，需手动批准），按要求如实报告，不声称通过。代码已完成静态自查，待权限开放后补跑三项验证。
+
+## R4-WP05 — Recommendation Workbench
+
+**Status:** complete
+
+- Added the LIVE `/recommendations` page and typed `recommendationApi` adapter for `POST /api/v1/recommendations`.
+- The page only renders server-returned PubMed citations and recommendation reasons; it contains no demo medical records or client-generated paper metadata.
+- Added explicit loading, request error, empty-result, warning, and verified-source states. The page labels the boundary as `LIVE · PubMed`.
+- Added the route and navigation feature definition under the existing Light Research Workspace shell.
+
+### Verification
+
+- `npm run typecheck` passed.
+- `npm test -- --run` passed (33 tests).
+- `npm run build` passed.
+- Vite `/recommendations` returned HTTP 200.
+- Browser rendering and console check completed; no JavaScript errors were observed.

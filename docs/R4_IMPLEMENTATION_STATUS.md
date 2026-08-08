@@ -103,3 +103,21 @@
 - 全量 `pytest`：435 passed，13 skipped，1 warning；
 - Ruff/mypy、Alembic check、`git diff --check`：通过。
 
+## R4-WP05 — 推荐工作台前端
+
+状态：已完成（LIVE 前端接入）。
+
+- 新增 `/recommendations` 页面和 `recommendationApi`；
+- 只调用 `/api/v1/recommendations`，不包含演示论文或前端生成医学结果；
+- 展示检索中、错误、空结果、带警告结果和真实文献来源状态；
+- 推荐理由与论文元数据分栏展示，并明确 LIVE · PubMed 边界；
+- 加入知识资产导航和路由元数据，保留现有响应式/键盘焦点设计。
+
+### 实际验证
+
+- `npm run typecheck`：通过；
+- `npm test -- --run`：33 passed；
+- `npm run build`：通过；
+- Vite `/recommendations`：HTTP 200；
+- 浏览器渲染检查：通过，控制台无错误。
+

@@ -7,6 +7,7 @@ export const features: FeatureDefinition[] = [
   { id: "sources", label: "知识库", path: "/sources", icon: "◫", group: "知识资产", phase: "FE-02", status: "LIVE", showInNavigation: true, requiresContextRail: true, mobileSupport: true },
   { id: "documents", label: "文档库", path: "/documents", icon: "▤", group: "知识资产", phase: "FE-02", status: "LIVE", showInNavigation: true, requiresContextRail: true, mobileSupport: true },
   { id: "literature", label: "文献检索", path: "/literature-search", icon: "⌕", group: "知识资产", phase: "FE-04", status: "LIVE", showInNavigation: true, requiresContextRail: true, mobileSupport: true },
+  { id: "recommendations", label: "文献推荐", path: "/recommendations", icon: "✦", group: "知识资产", phase: "R4-WP05", status: "LIVE", showInNavigation: true, requiresContextRail: true, mobileSupport: true },
   { id: "comparison", label: "多论文比较", path: "/comparisons", icon: "≋", group: "知识资产", phase: "FE-05", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "matrix", label: "证据矩阵", path: "/evidence-matrix", icon: "⊞", group: "知识资产", phase: "FE-05", status: "MOCK", showInNavigation: false, requiresContextRail: false, mobileSupport: false },
   { id: "reading-plan", label: "收藏与阅读计划", path: "/reading-plan", icon: "◇", group: "知识资产", phase: "FE-05", status: "UNAVAILABLE", showInNavigation: false, requiresContextRail: false, mobileSupport: false },
