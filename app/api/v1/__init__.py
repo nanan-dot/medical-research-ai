@@ -24,6 +24,7 @@ from app.modules.evidence_matrix.router import router as evidence_matrix_router
 from app.modules.research_conditions.router import router as research_conditions_router
 from app.modules.topic_structuring.router import router as topic_structuring_router
 from app.modules.evidence_analysis.router import router as evidence_analysis_router
+from app.modules.feasibility.router import router as feasibility_router
 
 api_router = APIRouter()
 api_router.include_router(library_save_router)
@@ -44,6 +45,7 @@ api_router.include_router(paper_analysis_router, tags=["论文分析"])
 api_router.include_router(literature_search_router, tags=["文献检索"])
 api_router.include_router(duplicate_group_router, tags=["文献去重"])
 api_router.include_router(research_direction_router, tags=["研究方向"])
+api_router.include_router(feasibility_router)
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])
 api_router.include_router(evaluation_router, tags=["评测"])

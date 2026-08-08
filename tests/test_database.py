@@ -39,6 +39,7 @@ EXPECTED_TABLES = {
     "model_configs",
     "paper_analysiss",
     "research_directions",
+    "feasibility_scores",
     "research_conditions",
     "research_conditions_versions",
     "topic_structurings",
