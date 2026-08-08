@@ -19,6 +19,10 @@ WritingType = Literal[
     "reviewer_response",
 ]
 
+WorkflowState = Literal[
+    "drafting", "outline_pending", "outline_confirmed", "user_editing", "polishing", "done"
+]
+
 
 class WritingSection(BaseModel):
     id: str = Field(min_length=1)
@@ -42,11 +46,22 @@ class ModelEvent(BaseModel):
     is_cloud: bool
 
 
+class ContentSegment(BaseModel):
+    text: str = Field(min_length=1)
+    origin: Literal[
+        "user_provided", "paper_evidence", "model_summary", "model_inference", "pending"
+    ]
+    citation_ids: list[str] = Field(default_factory=list)
+    pending_item_id: str | None = None
+
+
 class GeneratedContent(BaseModel):
     sections: list[WritingSection] = Field(default_factory=list)
     citations: list[SourceRef] = Field(default_factory=list)
     pending_items: list[PendingItem] = Field(default_factory=list)
     model_events: list[ModelEvent] = Field(default_factory=list)
+    segments: list[ContentSegment] = Field(default_factory=list)
+    workflow_state: WorkflowState = "drafting"
 
 
 class WritingProjectSnapshot(BaseModel):
