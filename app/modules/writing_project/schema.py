@@ -73,11 +73,13 @@ class WritingProjectSnapshot(BaseModel):
 class WritingProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     writing_type: WritingType
+    confidential: bool = False
     generated_content: GeneratedContent = Field(default_factory=GeneratedContent)
 
 
 class WritingProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
+    confidential: bool | None = None
     generated_content: GeneratedContent | None = None
     expected_version: int = Field(gt=0)
 
@@ -96,6 +98,7 @@ class WritingProjectRead(BaseModel):
     id: int
     name: str
     writing_type: WritingType
+    confidential: bool
     generated_content: GeneratedContent
     version: int
     user_materials: list[UserMaterialRead] = Field(default_factory=list)

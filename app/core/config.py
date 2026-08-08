@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "医学科研智能助手平台"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = True
+    DISCLOSURE_NOTICE_ENABLED: bool = True
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/app.db"
     DB_ECHO: bool = False

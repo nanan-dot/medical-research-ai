@@ -79,3 +79,12 @@
 - 新增陈述级核验，覆盖无引用、基础主题不匹配和通过状态；无效引用始终 `replacement_suggested=false`，不自动创造替代文献。
 - 新增 `/citation-check/verify` 与 `/citation-check/reports/{id}`；报告当前为进程内短期存储，持久化报告留待后续需求明确后实现。
 - 本 WP 无数据库结构变化；前端核验报告界面留待前端工作包。【待前端工作包】
+
+## R3-WP12 — 学术诚信与 AI 使用记录
+
+- 新增 AI 使用事件记录：模型、版本、目的、输入范围摘要、输出版本、人工修改和是否云端调用；不保存输入全文。
+- confidential 项目通过正式项目标记控制导出，披露内容中的输入范围统一替换为 `[confidential]`。
+- 新增可编辑、递增版本的披露草稿与导出接口；模板包含责任提示和“各期刊要求不同”的免责声明，不声称可直接投稿或适用于所有期刊。
+- 新增 `DISCLOSURE_NOTICE_ENABLED` 应用配置，默认开启；本 WP 不修改系统级配置。
+- 新增 `ai_usage_events`、`ai_disclosure_drafts` 表及 `writing_projects.confidential` 字段，迁移 `b3c4d5e6f7a8` 已升级并通过 Alembic check。
+- WP09/WP10 当前均为确定性离线流程，未调用真实模型，因此没有伪造自动事件；后续接入模型时应在模型调用服务层埋点。

@@ -43,6 +43,7 @@ from app.modules.writing_project.model import (  # noqa: F401
     WritingUserMaterial,
     WritingVersion,
 )
+from app.modules.ai_disclosure.model import AIUsageEvent, DisclosureDraft  # noqa: F401
 from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
 from app.modules.topic_structuring.model import TopicStructuring, TopicStructuringVersion
 from app.modules.writing.model import Writing

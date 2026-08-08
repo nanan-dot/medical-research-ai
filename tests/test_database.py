@@ -49,6 +49,8 @@ EXPECTED_TABLES = {
     "writing_generated_contents",
     "writing_user_materials",
     "writing_versions",
+    "ai_usage_events",
+    "ai_disclosure_drafts",
     "research_conditions",
     "research_conditions_versions",
     "topic_structurings",

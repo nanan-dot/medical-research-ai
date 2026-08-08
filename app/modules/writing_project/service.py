@@ -39,6 +39,7 @@ class WritingProjectService:
         entity = WritingProject(
             name=payload.name,
             writing_type=payload.writing_type,
+            confidential=payload.confidential,
             generated_content=WritingGeneratedContent(
                 content_json=self._dump(payload.generated_content)
             ),
@@ -63,6 +64,8 @@ class WritingProjectService:
         }
         if payload.name is not None:
             values["name"] = payload.name
+        if payload.confidential is not None:
+            values["confidential"] = payload.confidential
         if payload.generated_content is not None:
             entity.generated_content.content_json = self._dump(payload.generated_content)
         if not await self.repository.update_if_version(project_id, payload.expected_version, values):
@@ -170,6 +173,7 @@ class WritingProjectService:
             id=entity.id,
             name=entity.name,
             writing_type=cast(WritingType, entity.writing_type),
+            confidential=entity.confidential,
             generated_content=cls._content(entity),
             version=entity.version,
             user_materials=[UserMaterialRead.model_validate(item) for item in entity.materials],
