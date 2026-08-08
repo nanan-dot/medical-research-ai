@@ -1,14 +1,54 @@
+"""Pure feasibility scoring tests."""
+
 import pytest
+
 from app.modules.feasibility.schema import DimensionScore
 from app.modules.feasibility.scoring import calculate_score, ranking_changed
 
-def _item(name, score, weight=1, source="system"):
- return DimensionScore(dimension=name,score=score,weight=weight,basis="依据",score_source=source)
-def test_weighted_score_and_unknown_confidence():
- total, confidence, missing=calculate_score([_item("literature_base",80,2),_item("sample_availability",None,1,"unknown"),_item("data_availability",None,1,"unknown"),_item("timeline",None,1,"unknown")])
- assert total==80 and confidence=="low" and len(missing)==3
-def test_zero_weights_are_excluded_and_empty_is_rejected():
- total,_,_=calculate_score([_item("literature_base",80,0),_item("technical_feasibility",60,1)])
- assert total==60
- with pytest.raises(ValueError): calculate_score([_item("literature_base",80,0)])
-def test_weight_change_is_sensitive(): assert ranking_changed(60,61) and not ranking_changed(60,60)
+
+def _score(
+    dimension: str,
+    value: float | None,
+    weight: float = 1,
+    source: str = "system",
+) -> DimensionScore:
+    return DimensionScore(
+        dimension=dimension,
+        score=value,
+        weight=weight,
+        basis="Test basis",
+        score_source=source,
+    )
+
+
+def test_weighted_score_and_missing_confidence() -> None:
+    total, confidence, missing = calculate_score(
+        [
+            _score("literature_base", 80, 2),
+            _score("sample_availability", None, source="unknown"),
+            _score("data_availability", None, source="unknown"),
+            _score("timeline", None, source="unknown"),
+        ]
+    )
+
+    assert total == 80
+    assert confidence == "low"
+    assert len(missing) == 3
+
+
+def test_zero_weights_are_excluded() -> None:
+    total, _, _ = calculate_score(
+        [
+            _score("literature_base", 80, 0),
+            _score("technical_feasibility", 60),
+        ]
+    )
+
+    assert total == 60
+    with pytest.raises(ValueError):
+        calculate_score([_score("literature_base", 80, 0)])
+
+
+def test_cross_candidate_rank_change_is_detected() -> None:
+    assert ranking_changed({1: 60, 2: 70}, {1: 80, 2: 70}, 1)
+    assert not ranking_changed({1: 60, 2: 70}, {1: 60, 2: 70}, 1)

@@ -40,6 +40,7 @@ EXPECTED_TABLES = {
     "paper_analysiss",
     "research_directions",
     "feasibility_scores",
+    "feasibility_weight_profiles",
     "research_conditions",
     "research_conditions_versions",
     "topic_structurings",

@@ -1,18 +1,53 @@
-"""无 I/O 的评分计算，禁止模型主观打分。"""
-from app.modules.feasibility.schema import Confidence, DimensionName, DimensionScore, USER_DIMENSIONS
+"""Pure feasibility scoring and cross-candidate ranking sensitivity."""
 
-DEFAULT_WEIGHTS: dict[DimensionName, float] = {"literature_base": 1, "novelty_uncertainty": 1, "technical_feasibility": 1, "sample_availability": 1, "data_availability": 1, "timeline": 1, "budget": 1, "ethics": 1, "analysis_difficulty": 1, "advisor_alignment": 1}
+from app.modules.feasibility.schema import (
+    Confidence,
+    DimensionName,
+    DimensionScore,
+    USER_DIMENSIONS,
+)
 
-def calculate_score(dimensions: list[DimensionScore]) -> tuple[float, Confidence, list[DimensionName]]:
-    """按有效权重求相对分，并将用户未知信息反映为置信度而非猜测分数。"""
-    missing = [item.dimension for item in dimensions if item.dimension in USER_DIMENSIONS and item.score is None]
-    weighted = [item for item in dimensions if item.score is not None and item.weight > 0]
-    if not weighted: raise ValueError("No scored dimensions with positive weights")
-    denominator = sum(item.weight for item in weighted)
-    total = round(sum(item.weight * item.score for item in weighted if item.score is not None) / denominator, 1)
-    confidence: Confidence = "low" if len(missing) > 2 else "medium" if missing else "high"
-    return total, confidence, missing
 
-def ranking_changed(previous_score: float | None, current_score: float) -> bool:
-    """单方向版本以总分变化提示权重敏感；跨候选排名由前端比较版本。"""
-    return previous_score is not None and previous_score != current_score
+def calculate_score(
+    dimensions: list[DimensionScore],
+) -> tuple[float, Confidence, list[DimensionName]]:
+    """Calculate one-decimal weighted comparison score without inventing unknown inputs."""
+    missing_inputs = [
+        item.dimension
+        for item in dimensions
+        if item.dimension in USER_DIMENSIONS and item.score is None
+    ]
+    included = [item for item in dimensions if item.score is not None and item.weight > 0]
+    if not included:
+        raise ValueError("At least one positively weighted score is required")
+    denominator = sum(item.weight for item in included)
+    total_score = round(
+        sum(item.weight * item.score for item in included if item.score is not None) / denominator,
+        1,
+    )
+    confidence: Confidence = (
+        "low" if len(missing_inputs) > 2 else "medium" if missing_inputs else "high"
+    )
+    return total_score, confidence, missing_inputs
+
+
+def ranking_changed(before: dict[int, float], after: dict[int, float], direction_id: int) -> bool:
+    """Return whether a direction's rank changes within the same comparable candidate set."""
+    if set(before) != set(after) or direction_id not in before:
+        return False
+    rank_before = sorted(before, key=lambda item: (-before[item], item)).index(direction_id)
+    rank_after = sorted(after, key=lambda item: (-after[item], item)).index(direction_id)
+    return rank_before != rank_after
+
+
+def rescore_dimensions(
+    dimensions: list[DimensionScore],
+    weights: dict[DimensionName, float],
+) -> float:
+    """Apply a common weight set to an existing dimension snapshot."""
+    recalculated = [
+        dimension.model_copy(update={"weight": weights[dimension.dimension]})
+        for dimension in dimensions
+    ]
+    total_score, _, _ = calculate_score(recalculated)
+    return total_score
