@@ -34,6 +34,7 @@ from app.modules.evidence_matrix.model import (  # noqa: F401
 )
 from app.modules.research_direction.model import ResearchDirection
 from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
+from app.modules.topic_structuring.model import TopicStructuring, TopicStructuringVersion
 from app.modules.writing.model import Writing
 
 __all__ = [
@@ -59,5 +60,7 @@ __all__ = [
     "ResearchDirection",
     "ResearchConditions",
     "ResearchConditionsVersion",
+    "TopicStructuring",
+    "TopicStructuringVersion",
     "Writing",
 ]

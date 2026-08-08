@@ -41,6 +41,8 @@ EXPECTED_TABLES = {
     "research_directions",
     "research_conditions",
     "research_conditions_versions",
+    "topic_structurings",
+    "topic_structuring_versions",
     "writings",
 }
 

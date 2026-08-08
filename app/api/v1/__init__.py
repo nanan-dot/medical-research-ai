@@ -22,6 +22,7 @@ from app.modules.library_item.router import router as library_item_router, save_
 from app.modules.comparison.router import router as comparison_router
 from app.modules.evidence_matrix.router import router as evidence_matrix_router
 from app.modules.research_conditions.router import router as research_conditions_router
+from app.modules.topic_structuring.router import router as topic_structuring_router
 
 api_router = APIRouter()
 api_router.include_router(library_save_router)
@@ -29,6 +30,7 @@ api_router.include_router(library_item_router)
 api_router.include_router(comparison_router, tags=["comparison"])
 api_router.include_router(evidence_matrix_router, tags=["证据矩阵"])
 api_router.include_router(research_conditions_router)
+api_router.include_router(topic_structuring_router)
 api_router.include_router(export_router, tags=["导出"])
 
 api_router.include_router(health_router, tags=["健康检查"])
