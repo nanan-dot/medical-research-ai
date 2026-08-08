@@ -18,13 +18,17 @@ from app.modules.feedback.router import router as feedback_router
 from app.modules.evaluation.router import router as evaluation_router
 from app.modules.export.router import router as export_router
 from app.modules.citation_check.router import router as citation_check_router
-from app.modules.library_item.router import router as library_item_router, save_router as library_save_router
+from app.modules.library_item.router import (
+    router as library_item_router,
+    save_router as library_save_router,
+)
 from app.modules.comparison.router import router as comparison_router
 from app.modules.evidence_matrix.router import router as evidence_matrix_router
 from app.modules.research_conditions.router import router as research_conditions_router
 from app.modules.topic_structuring.router import router as topic_structuring_router
 from app.modules.evidence_analysis.router import router as evidence_analysis_router
 from app.modules.feasibility.router import router as feasibility_router
+from app.modules.advisor_workflow.router import router as advisor_workflow_router
 
 api_router = APIRouter()
 api_router.include_router(library_save_router)
@@ -46,6 +50,7 @@ api_router.include_router(literature_search_router, tags=["文献检索"])
 api_router.include_router(duplicate_group_router, tags=["文献去重"])
 api_router.include_router(research_direction_router, tags=["研究方向"])
 api_router.include_router(feasibility_router)
+api_router.include_router(advisor_workflow_router)
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])
 api_router.include_router(evaluation_router, tags=["评测"])

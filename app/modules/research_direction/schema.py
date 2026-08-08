@@ -10,8 +10,14 @@ from app.modules.comparison.shared import SourceRef
 GenerationStrategy = Literal["gap-based", "cross-topic"]
 Priority = Literal["high", "medium", "low"]
 DETAIL_FIELDS = (
-    "methods", "requirements", "difficulty", "time_risk", "resource_risk", "ethics_risk",
-    "search_terms", "advisor_questions",
+    "methods",
+    "requirements",
+    "difficulty",
+    "time_risk",
+    "resource_risk",
+    "ethics_risk",
+    "search_terms",
+    "advisor_questions",
 )
 FORBIDDEN_CLAIMS = ("保证发表", "一定能", "最前沿", "首次", "首创", "空白领域", "没人做过")
 
@@ -44,7 +50,9 @@ class CandidateCore(BaseModel):
 
     @model_validator(mode="after")
     def prevent_overclaiming(self) -> "CandidateCore":
-        content = " ".join((self.name, self.question, self.current_evidence.text, self.controversy.text, self.gap))
+        content = " ".join(
+            (self.name, self.question, self.current_evidence.text, self.controversy.text, self.gap)
+        )
         if any(word in content for word in FORBIDDEN_CLAIMS):
             raise ValueError("Candidate contains prohibited overclaiming language")
         if "当前检索结果中较少见" not in self.gap:
@@ -112,7 +120,7 @@ class ResearchDirectionRead(CandidateCore):
     search_terms: str | None = None
     advisor_questions: str | None = None
     merged_from_ids: list[int] = Field(default_factory=list)
-    status: Literal["active", "merged"]
+    status: Literal["active", "merged", "accepted", "rejected"]
     merged_into_id: int | None = None
     version: int
     created_at: datetime
