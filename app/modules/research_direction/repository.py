@@ -1,32 +1,44 @@
-"""research_direction — 数据库访问"""
+"""候选研究方向的数据访问层。"""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.research_direction.model import ResearchDirection
 
 
 class ResearchDirectionRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+    """只负责候选方向实体的持久化，不调用模型。"""
 
-    async def get(self, id: int) -> ResearchDirection | None:
-        result = await self.session.execute(
-            select(ResearchDirection).where(ResearchDirection.id == id)
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create_many(self, entities: list[ResearchDirection]) -> list[ResearchDirection]:
+        self._session.add_all(entities)
+        await self._session.flush()
+        for entity in entities:
+            await self._session.refresh(entity)
+        return entities
+
+    async def get(self, direction_id: int) -> ResearchDirection | None:
+        return await self._session.get(ResearchDirection, direction_id)
+
+    async def list_for_matrix(self, matrix_id: int) -> list[ResearchDirection]:
+        result = await self._session.execute(
+            select(ResearchDirection).where(ResearchDirection.evidence_matrix_id == matrix_id)
         )
-        return result.scalar_one_or_none()
+        return list(result.scalars())
 
-    async def list(self, offset: int = 0, limit: int = 20) -> list[ResearchDirection]:
-        result = await self.session.execute(
-            select(ResearchDirection).offset(offset).limit(limit)
+    async def list_by_ids(self, direction_ids: list[int]) -> list[ResearchDirection]:
+        result = await self._session.execute(
+            select(ResearchDirection).where(ResearchDirection.id.in_(direction_ids))
         )
-        return list(result.scalars().all())
+        return list(result.scalars())
 
-    async def create(self, entity: ResearchDirection) -> ResearchDirection:
-        self.session.add(entity)
-        await self.session.flush()
-        await self.session.refresh(entity)
+    async def save(self, entity: ResearchDirection) -> ResearchDirection:
+        await self._session.flush()
+        await self._session.refresh(entity)
         return entity
 
     async def delete(self, entity: ResearchDirection) -> None:
-        await self.session.delete(entity)
-        await self.session.flush()
+        await self._session.delete(entity)
+        await self._session.flush()
