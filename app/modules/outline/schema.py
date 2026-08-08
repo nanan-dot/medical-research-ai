@@ -13,17 +13,29 @@ class OutlineClaim(BaseModel):
     status: Literal["fact", "candidate"] = "fact"
 
 
+class OutlineSection(BaseModel):
+    title: str
+    claims: list[OutlineClaim]
+
+
 class OutlineCreate(BaseModel):
     matrix_id: int = Field(gt=0)
     kind: OutlineKind
+
+
+class OutlineUpdate(BaseModel):
+    sections: list[OutlineSection] = Field(min_length=1)
 
 
 class OutlineRead(BaseModel):
     id: int
     matrix_id: int
     kind: OutlineKind
-    claims: list[OutlineClaim]
+    sections: list[OutlineSection]
     version: int
+    based_on_matrix_version: int
+    retrieval_date: datetime
+    document_count: int
     confirmed_by_user: bool
     confirmed_at: datetime | None
     created_at: datetime

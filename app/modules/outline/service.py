@@ -8,7 +8,7 @@ from app.modules.research_direction.repository import ResearchDirectionRepositor
 from app.modules.outline.model import Outline
 from app.modules.outline.outline_builder import build_outline
 from app.modules.outline.repository import OutlineRepository
-from app.modules.outline.schema import OutlineCreate, OutlineKind, OutlineRead
+from app.modules.outline.schema import OutlineCreate, OutlineKind, OutlineRead, OutlineUpdate
 
 
 class OutlineService:
@@ -25,12 +25,15 @@ class OutlineService:
         if not cells:
             raise ConflictError("Evidence matrix is empty")
         directions = await self.d.list_for_matrix(p.matrix_id)
+        documents = await self.m.list_documents(p.matrix_id)
+        sections = build_outline(p.kind, cells, [x.name for x in directions])
         e = Outline(
             matrix_id=p.matrix_id,
             kind=p.kind,
-            claims_json=json.dumps(
-                [x.model_dump() for x in build_outline(p.kind, cells, [x.name for x in directions])]
-            ),
+            claims_json=json.dumps([x.model_dump() for x in sections]),
+            based_on_matrix_version=matrix.version,
+            retrieval_date=matrix.updated_at,
+            document_count=len(documents),
         )
         return self.read(await self.r.create(e))
 
@@ -48,14 +51,32 @@ class OutlineService:
         e.confirmed_at = datetime.now(UTC)
         return self.read(await self.r.save(e))
 
+    async def update(self, id: int, p: OutlineUpdate) -> OutlineRead:
+        e = await self.r.get(id)
+        if e is None:
+            raise NotFoundError("Outline not found")
+        matrix = await self.m.get_matrix(e.matrix_id)
+        if matrix is None:
+            raise NotFoundError("Evidence matrix not found")
+        if matrix.version != e.based_on_matrix_version:
+            raise ConflictError("Evidence matrix version changed; regenerate the outline")
+        e.claims_json = json.dumps([section.model_dump() for section in p.sections])
+        e.version += 1
+        e.confirmed_by_user = False
+        e.confirmed_at = None
+        return self.read(await self.r.save(e))
+
     @staticmethod
     def read(e: Outline) -> OutlineRead:
         return OutlineRead(
             id=e.id,
             matrix_id=e.matrix_id,
             kind=cast(OutlineKind, e.kind),
-            claims=json.loads(e.claims_json),
+            sections=json.loads(e.claims_json),
             version=e.version,
+            based_on_matrix_version=e.based_on_matrix_version,
+            retrieval_date=e.retrieval_date,
+            document_count=e.document_count,
             confirmed_by_user=e.confirmed_by_user,
             confirmed_at=e.confirmed_at,
             created_at=e.created_at,
