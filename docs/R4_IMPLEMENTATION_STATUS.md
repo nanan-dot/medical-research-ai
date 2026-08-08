@@ -99,8 +99,8 @@
 
 - 增加编排层回归测试，验证LLM不得改变服务器持有的PMID等元数据；
 - 增加空证据集状态和警告回归测试；
-- 推荐模块测试：12 passed；
-- 全量 `pytest`：435 passed，13 skipped，1 warning；
+- 推荐模块测试：13 passed；
+- 全量 `pytest`：436 passed，13 skipped，1 warning；
 - Ruff/mypy、Alembic check、`git diff --check`：通过。
 
 ## R4-WP05 — 推荐工作台前端
