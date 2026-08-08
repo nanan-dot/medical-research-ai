@@ -33,6 +33,7 @@ from app.modules.evidence_matrix.model import (  # noqa: F401
     MatrixField,
 )
 from app.modules.research_direction.model import ResearchDirection
+from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
 from app.modules.writing.model import Writing
 
 __all__ = [
@@ -56,5 +57,7 @@ __all__ = [
     "ModelConfig",
     "PaperAnalysis",
     "ResearchDirection",
+    "ResearchConditions",
+    "ResearchConditionsVersion",
     "Writing",
 ]
