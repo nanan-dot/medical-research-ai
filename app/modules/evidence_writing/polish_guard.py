@@ -3,13 +3,14 @@
 import re
 
 _TOKEN_PATTERN = re.compile(
-    r"(?:\b(?:PMID|DOI)\s*[:：]?\s*[A-Za-z0-9./_-]+\b)|"
-    r"(?:\b\d+(?:\.\d+)?%?\b)|(?:\b(?:[A-Z][A-Za-z0-9-]{2,}|[A-Z]{2,})\b)"
+    r"(?i)(?:\b(?:PMID|DOI)\s*[:：]?\s*[A-Za-z0-9./_-]+)|"
+    r"(?:\d+(?:\.\d+)?%?)|(?:\b(?:[A-Z][A-Za-z0-9-]{2,}|[A-Z]{2,})\b)"
 )
 
 
 def extract_protected_tokens(text: str) -> list[str]:
-    return sorted(_TOKEN_PATTERN.findall(text))
+    """按原文顺序提取 token，避免数字交换后仍被排序掩盖。"""
+    return _TOKEN_PATTERN.findall(text)
 
 
 def validate_polish(original: str, polished: str) -> list[str]:

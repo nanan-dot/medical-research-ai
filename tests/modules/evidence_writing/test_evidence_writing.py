@@ -30,3 +30,7 @@ def test_polish_guard_rejects_changed_numbers_and_citations() -> None:
     assert extract_protected_tokens(original)
     with pytest.raises(ValueError, match="protected"):
         validate_polish(original, "样本量为 43，引用 PMID:999。")
+    with pytest.raises(ValueError, match="protected"):
+        validate_polish("2023年纳入42例", "2022年纳入42例")
+    with pytest.raises(ValueError, match="protected"):
+        validate_polish("纳入42例，对照10例", "纳入10例，对照42例")
