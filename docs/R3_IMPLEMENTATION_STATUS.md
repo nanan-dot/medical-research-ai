@@ -87,4 +87,10 @@
 - 新增可编辑、递增版本的披露草稿与导出接口；模板包含责任提示和“各期刊要求不同”的免责声明，不声称可直接投稿或适用于所有期刊。
 - 新增 `DISCLOSURE_NOTICE_ENABLED` 应用配置，默认开启；本 WP 不修改系统级配置。
 - 新增 `ai_usage_events`、`ai_disclosure_drafts` 表及 `writing_projects.confidential` 字段，迁移 `b3c4d5e6f7a8` 已升级并通过 Alembic check。
-- WP09/WP10 当前均为确定性离线流程，未调用真实模型，因此没有伪造自动事件；后续接入模型时应在模型调用服务层埋点。
+- WP09/WP10 当前为确定性离线流程，未调用真实模型，因此没有伪造自动事件；后续接入模型时应在模型调用服务层埋点。
+
+## R3-WP13 — 真实用户与导师场景验收
+
+- 新增 `docs/R3_USER_TEST_SCRIPT.md`、`docs/R3_ADVISOR_REVIEW_SCRIPT.md`、`docs/R3_USER_TEST_REPORT.md`、`docs/R3_ACCEPTANCE.md` 和 `docs/R4_BACKLOG.md`。
+- 验收脚本覆盖真实主题、证据矩阵、3个候选方向、导师报告/反馈、组会或开题提纲、写作项目、Markdown导出和版本恢复。
+- 当前仅完成自动化代码质量门；真实用户输入和真实导师反馈尚未执行，因此状态为“代码验收通过，真人场景验收待执行”，不伪造 R3 最终验收结论。
