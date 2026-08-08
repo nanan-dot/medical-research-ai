@@ -59,4 +59,5 @@ class PubMedExecutor:
             verified_on=verified_on,
             has_abstract=bool(record.abstract),
             publication_types=record.publication_types,
+            withdrawn=record.withdrawn,
         )

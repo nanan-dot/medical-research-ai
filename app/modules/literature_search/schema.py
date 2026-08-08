@@ -218,6 +218,7 @@ class CitationItem(BaseModel):
     verified_on: str | None = Field(default=None, max_length=40)
     has_abstract: bool = False
     publication_types: list[str] = Field(default_factory=list)
+    withdrawn: bool = False
 
 
 class LiteratureSearchResultRead(BaseModel):
