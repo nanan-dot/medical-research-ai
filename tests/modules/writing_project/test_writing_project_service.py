@@ -65,6 +65,16 @@ async def test_snapshot_is_immutable_and_restore_creates_new_version(
 
 
 @pytest.mark.asyncio
+async def test_repeated_save_creates_distinct_snapshot_versions(
+    service: WritingProjectService,
+) -> None:
+    project = await service.create(WritingProjectCreate(name="Review", writing_type="review"))
+    first = await service.save_version(project.id, expected_version=1)
+    second = await service.save_version(project.id, expected_version=1)
+    assert (first.version, second.version) == (1, 2)
+
+
+@pytest.mark.asyncio
 async def test_concurrent_update_is_rejected(service: WritingProjectService) -> None:
     project = await service.create(WritingProjectCreate(name="Review", writing_type="review"))
     await service.update(project.id, WritingProjectUpdate(name="A", expected_version=1))

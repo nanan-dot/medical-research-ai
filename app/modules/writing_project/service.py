@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.writing_project.model import (
+    WritingGeneratedContent,
     WritingProject,
     WritingUserMaterial,
     WritingVersion,
@@ -38,7 +39,9 @@ class WritingProjectService:
         entity = WritingProject(
             name=payload.name,
             writing_type=payload.writing_type,
-            generated_content_json=self._dump(payload.generated_content),
+            generated_content=WritingGeneratedContent(
+                content_json=self._dump(payload.generated_content)
+            ),
         )
         return self._read(await self.repository.create(entity))
 
@@ -54,14 +57,18 @@ class WritingProjectService:
         payload: WritingProjectUpdate,
     ) -> WritingProjectRead:
         entity = await self._require(project_id)
-        self._check_version(entity, payload.expected_version)
+        values: dict[str, object] = {
+            "version": payload.expected_version + 1,
+            "updated_at": datetime.now(UTC),
+        }
         if payload.name is not None:
-            entity.name = payload.name
+            values["name"] = payload.name
         if payload.generated_content is not None:
-            entity.generated_content_json = self._dump(payload.generated_content)
-        entity.version += 1
-        entity.updated_at = datetime.now(UTC)
-        return self._read(await self.repository.save(entity))
+            entity.generated_content.content_json = self._dump(payload.generated_content)
+        if not await self.repository.update_if_version(project_id, payload.expected_version, values):
+            raise ConflictError("Writing project version conflict; reload and retry")
+        await self.session.refresh(entity)
+        return self._read(entity)
 
     async def add_material(
         self,
@@ -78,10 +85,12 @@ class WritingProjectService:
     async def save_version(self, project_id: int, *, expected_version: int) -> WritingVersionRead:
         entity = await self._require(project_id)
         self._check_version(entity, expected_version)
+        prior_versions = await self.repository.list_versions(project_id)
+        next_snapshot_version = max((item.version for item in prior_versions), default=0) + 1
         snapshot = snapshot_content(
             self._content(entity),
-            version=entity.version,
-            parent_version=entity.version - 1 or None,
+            version=next_snapshot_version,
+            parent_version=prior_versions[-1].version if prior_versions else None,
         )
         stored = await self.repository.add_version(
             WritingVersion(
@@ -115,9 +124,13 @@ class WritingProjectService:
             content=GeneratedContent.model_validate_json(stored.content_json),
         )
         restored = restore_snapshot(source, next_version=entity.version + 1)
-        entity.generated_content_json = self._dump(restored.content)
-        entity.version = restored.version
-        entity.updated_at = datetime.now(UTC)
+        entity.generated_content.content_json = self._dump(restored.content)
+        if not await self.repository.update_if_version(
+            project_id,
+            expected_version,
+            {"version": restored.version, "updated_at": datetime.now(UTC)},
+        ):
+            raise ConflictError("Writing project version conflict; reload and retry")
         await self.repository.add_version(
             WritingVersion(
                 project_id=project_id,
@@ -126,7 +139,8 @@ class WritingProjectService:
                 content_json=self._dump(restored.content),
             )
         )
-        return self._read(await self.repository.save(entity))
+        await self.session.refresh(entity)
+        return self._read(entity)
 
     async def delete(self, project_id: int) -> None:
         await self.repository.delete(await self._require(project_id))
@@ -148,7 +162,7 @@ class WritingProjectService:
 
     @staticmethod
     def _content(entity: WritingProject) -> GeneratedContent:
-        return GeneratedContent.model_validate_json(entity.generated_content_json)
+        return GeneratedContent.model_validate_json(entity.generated_content.content_json)
 
     @classmethod
     def _read(cls, entity: WritingProject) -> WritingProjectRead:

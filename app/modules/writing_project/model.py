@@ -1,4 +1,4 @@
-"""写作项目、用户材料与不可变版本快照模型。"""
+"""写作项目、生成内容、用户材料与不可变版本快照模型。"""
 
 from datetime import datetime
 
@@ -14,7 +14,6 @@ class WritingProject(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     writing_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    generated_content_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
@@ -24,6 +23,9 @@ class WritingProject(Base):
     )
     materials: Mapped[list["WritingUserMaterial"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin"
+    )
+    generated_content: Mapped["WritingGeneratedContent"] = relationship(
+        cascade="all, delete-orphan", uselist=False, lazy="selectin"
     )
     snapshots: Mapped[list["WritingVersion"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin"
@@ -40,6 +42,16 @@ class WritingUserMaterial(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     # 仅保存外部资产标识，不建立级联外键；删除项目绝不能删除知识库来源。
     source_document_id: Mapped[int | None] = mapped_column(Integer)
+
+
+class WritingGeneratedContent(Base):
+    __tablename__ = "writing_generated_contents"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("writing_projects.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    content_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class WritingVersion(Base):

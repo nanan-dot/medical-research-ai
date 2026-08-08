@@ -38,6 +38,7 @@ from app.modules.advisor_workflow.model import AdvisorReview, DirectionRevision 
 from app.modules.presentation.model import Presentation  # noqa: F401
 from app.modules.outline.model import Outline  # noqa: F401
 from app.modules.writing_project.model import (  # noqa: F401
+    WritingGeneratedContent,
     WritingProject,
     WritingUserMaterial,
     WritingVersion,

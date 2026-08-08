@@ -46,6 +46,7 @@ EXPECTED_TABLES = {
     "presentations",
     "outlines",
     "writing_projects",
+    "writing_generated_contents",
     "writing_user_materials",
     "writing_versions",
     "research_conditions",

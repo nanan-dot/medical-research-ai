@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.writing_project.model import (
@@ -33,6 +33,20 @@ class WritingProjectRepository:
         await self.session.flush()
         await self.session.refresh(entity)
         return entity
+
+    async def update_if_version(
+        self, project_id: int, expected_version: int, values: dict[str, object]
+    ) -> bool:
+        result = await self.session.execute(
+            update(WritingProject)
+            .where(
+                WritingProject.id == project_id,
+                WritingProject.version == expected_version,
+            )
+            .values(**values)
+        )
+        await self.session.flush()
+        return bool(getattr(result, "rowcount", 0) == 1)
 
     async def delete(self, entity: WritingProject) -> None:
         await self.session.delete(entity)
