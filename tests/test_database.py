@@ -44,6 +44,7 @@ EXPECTED_TABLES = {
     "advisor_reviews",
     "direction_revisions",
     "presentations",
+    "outlines",
     "research_conditions",
     "research_conditions_versions",
     "topic_structurings",

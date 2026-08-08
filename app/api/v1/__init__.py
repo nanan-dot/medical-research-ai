@@ -30,6 +30,7 @@ from app.modules.evidence_analysis.router import router as evidence_analysis_rou
 from app.modules.feasibility.router import router as feasibility_router
 from app.modules.advisor_workflow.router import router as advisor_workflow_router
 from app.modules.presentation.router import router as presentation_router
+from app.modules.outline.router import router as outline_router
 
 api_router = APIRouter()
 api_router.include_router(library_save_router)
@@ -53,6 +54,7 @@ api_router.include_router(research_direction_router, tags=["研究方向"])
 api_router.include_router(feasibility_router)
 api_router.include_router(advisor_workflow_router)
 api_router.include_router(presentation_router)
+api_router.include_router(outline_router)
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])
 api_router.include_router(evaluation_router, tags=["评测"])
