@@ -50,3 +50,25 @@
 - Ruff/mypy：通过；
 - Alembic upgrade/check：通过；
 - 本 WP 无数据库迁移、无真实外部网络调用。
+
+## R4-WP03 — LLM理由融合
+
+状态：已完成（后端安全融合能力）。
+
+### 已交付
+
+- 新增 `RecommendationReasonService`；
+- LLM输入仅包含真实摘要和固定安全指令，不提供题名、作者、PMID、DOI等元数据；
+- 服务器端保留 `CitationItem` 全部真实字段，LLM只能填写 `recommendation_reason`；
+- 模型输出包含论文元数据时整条理由拒绝并使用确定性降级；
+- 无摘要或LLM失败时保留真实条目，不编造理由；
+- `CitationItem`补充真实摘要字段，旧快照缺失时兼容 `None`。
+
+### 实际验证
+
+- WP03理由融合测试：3 passed；
+- 全量 `pytest`：432 passed，13 skipped，1 warning；
+- Ruff/mypy：通过；
+- Alembic upgrade/check：通过；
+- 本 WP 无数据库迁移、无真实云端调用。
+
