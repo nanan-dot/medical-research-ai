@@ -43,6 +43,7 @@ EXPECTED_TABLES = {
     "feasibility_weight_profiles",
     "advisor_reviews",
     "direction_revisions",
+    "presentations",
     "research_conditions",
     "research_conditions_versions",
     "topic_structurings",
