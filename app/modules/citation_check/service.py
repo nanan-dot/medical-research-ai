@@ -14,6 +14,7 @@ from app.modules.citation_check.schema import (
     CitationCheckResult,
 )
 from app.modules.citation_check.verifier import CitationVerifier
+from app.modules.citation_check.statement_checker import check_statement
 
 
 class CitationCheckService:
@@ -29,7 +30,11 @@ class CitationCheckService:
         for item in items:
             verified_items.append(await self.verifier.verify_item(item))
         summary = self._summarize(verified_items)
-        return CitationCheckResult(items=verified_items, summary=summary)
+        statement_results = [
+            check_statement(item.text, item.citation_ids, topic=item.topic).__dict__
+            for item in getattr(request, "statements", [])
+        ]
+        return CitationCheckResult(items=verified_items, summary=summary, statement_results=statement_results)
 
     @staticmethod
     def _summarize(items: list[CitationAuditItem]) -> CitationAuditSummary:

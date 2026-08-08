@@ -5,12 +5,25 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 CitationKind = Literal["pmid", "doi"]
+CitationStatus = Literal[
+    "unverified", "invalid_format", "format_valid", "not_found", "mismatch", "ok"
+]
 
 
 class CitationCheckRequest(BaseModel):
     """引用核验请求：用户提交手稿文本或引用列表。"""
 
     text: str = Field(min_length=1, max_length=50_000)
+
+
+class StatementInput(BaseModel):
+    text: str = Field(min_length=1, max_length=10_000)
+    citation_ids: list[str] = Field(default_factory=list)
+    topic: str = ""
+
+
+class CitationVerificationRequest(CitationCheckRequest):
+    statements: list[StatementInput] = Field(default_factory=list)
 
 
 class CitationAuditItem(BaseModel):
@@ -24,6 +37,8 @@ class CitationAuditItem(BaseModel):
     kind: CitationKind
     identifier: str = Field(max_length=200, description="规范化后的 PMID 或 DOI")
     verified: bool
+    status: CitationStatus = "unverified"
+    replacement_suggested: bool = False
     verified_by: str | None = Field(default=None, max_length=40)
     verified_on: str | None = Field(default=None, max_length=40)
     matched: str | None = Field(default=None, max_length=200, description="匹配到的 PMID/DOI")
@@ -43,3 +58,5 @@ class CitationCheckResult(BaseModel):
 
     items: list[CitationAuditItem] = Field(default_factory=list)
     summary: CitationAuditSummary
+    report_id: str | None = None
+    statement_results: list[dict[str, object]] = Field(default_factory=list)

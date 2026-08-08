@@ -71,3 +71,11 @@
 - 通过 WP09 写作项目快照保存草稿、引用、待确认项、模型事件和工作流状态；本 WP 不调用真实 LLM，不编造医学内容或引用。
 - 新增 `/writing-projects/{id}/outline`、`/draft`、`/polish` 接口；前端编辑器留待前端工作包。【待前端工作包】
 - 本 WP 无数据库结构变化；扩展内容位于已有版本化 JSON 快照中。
+
+## R3-WP11 — 引用提示与基础核验
+
+- 在既有 citation_check/PubMed/CrossRef 客户端上补齐三级核验：L1 本地格式、L2 存在性与按日缓存、L3 标题/作者/年份一致性。
+- 非法 PMID/DOI 在本地立即标记 `invalid_format`，不发起网络请求；网络失败标记 `unverified`，不存在标记 `not_found`，不把失败误判为不存在。
+- 新增陈述级核验，覆盖无引用、基础主题不匹配和通过状态；无效引用始终 `replacement_suggested=false`，不自动创造替代文献。
+- 新增 `/citation-check/verify` 与 `/citation-check/reports/{id}`；报告当前为进程内短期存储，持久化报告留待后续需求明确后实现。
+- 本 WP 无数据库结构变化；前端核验报告界面留待前端工作包。【待前端工作包】

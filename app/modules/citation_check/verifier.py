@@ -19,6 +19,7 @@ import httpx
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
 from app.modules.citation_check.schema import CitationAuditItem
+from app.modules.citation_check.format_validator import validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class CitationVerifier:
             timeout=_CROSSREF_TIMEOUT_SECONDS, follow_redirects=True
         )
         self._owns_http = http_client is None
+        self._cache: dict[tuple[str, str, str], CitationAuditItem] = {}
 
     async def verify_item(self, item: CitationAuditItem) -> CitationAuditItem:
         """校验单条引用并回填验证字段。
@@ -72,34 +74,52 @@ class CitationVerifier:
     # ------------------------------------------------------------------
 
     async def _verify_pmid(self, item: CitationAuditItem) -> CitationAuditItem:
-        if not item.identifier.isdigit():
-            item.notes.append("PMID 必须为纯数字，无法校验")
+        format_result = validate_identifier("pmid", item.identifier)
+        if format_result.status == "invalid_format":
+            item.status = "invalid_format"
+            item.notes.append("PMID 格式非法，未发起网络请求")
             return item
+        cache_key = ("pmid", format_result.normalized, datetime.now(UTC).date().isoformat())
+        if cache_key in self._cache:
+            return self._cache[cache_key].model_copy(deep=True)
         try:
             records = await self._pubmed.fetch_records([item.identifier])
         except PubMedError as exc:
             # 结构化记录为不可验证，不向调用方泄漏网络异常细节。
             logger.warning("citation_check PMID verification failed id=%s error=%s", item.identifier, exc)
             item.notes.append("PubMed 校验服务暂不可用，标记为未验证")
+            item.status = "unverified"
             return item
         if not records:
             item.notes.append("PubMed 未找到该 PMID")
+            item.status = "not_found"
             return item
         record = records[0]
-        return self._mark_verified(item, VERIFIED_BY_PUBMED, record.pmid)
+        result = self._mark_verified(item, VERIFIED_BY_PUBMED, record.pmid)
+        self._cache[cache_key] = result.model_copy(deep=True)
+        return result
 
     # ------------------------------------------------------------------
     # DOI 校验（CrossRef）
     # ------------------------------------------------------------------
 
     async def _verify_doi(self, item: CitationAuditItem) -> CitationAuditItem:
-        doi = item.identifier.lower()
+        format_result = validate_identifier("doi", item.identifier)
+        if format_result.status == "invalid_format":
+            item.status = "invalid_format"
+            item.notes.append("DOI 格式非法，未发起网络请求")
+            return item
+        doi = format_result.normalized
+        cache_key = ("doi", doi, datetime.now(UTC).date().isoformat())
+        if cache_key in self._cache:
+            return self._cache[cache_key].model_copy(deep=True)
         url = f"{_CROSSREF_BASE_URL}/works/{doi}"
         try:
             response = await self._http.get(url)
         except httpx.HTTPError as exc:
             logger.warning("citation_check DOI verification failed doi=%s error=%s", doi, exc)
             item.notes.append("CrossRef 校验服务暂不可用，标记为未验证")
+            item.status = "unverified"
             return item
 
         if response.status_code == 200:
@@ -109,11 +129,16 @@ class CitationVerifier:
                 # CrossRef 返回非 JSON 内容（罕见），无法解析即为不可验证。
                 logger.warning("citation_check DOI response was not JSON doi=%s", doi)
                 item.notes.append("CrossRef 返回内容无法解析，标记为未验证")
+                item.status = "unverified"
                 return item
-            return self._mark_verified(item, VERIFIED_BY_CROSSREF, matched)
+            result = self._mark_verified(item, VERIFIED_BY_CROSSREF, matched)
+            self._cache[cache_key] = result.model_copy(deep=True)
+            return result
         if response.status_code == 404:
             item.notes.append("CrossRef 未找到该 DOI")
+            item.status = "not_found"
             return item
+        item.status = "unverified"
         item.notes.append(f"CrossRef 返回 HTTP {response.status_code}，标记为未验证")
         return item
 
@@ -135,6 +160,7 @@ class CitationVerifier:
     ) -> CitationAuditItem:
         """回填验证标记（唯一允许把 verified 置为 true 的路径）。"""
         item.verified = True
+        item.status = "ok"
         item.verified_by = source
         item.verified_on = datetime.now(UTC).isoformat()
         item.matched = matched
