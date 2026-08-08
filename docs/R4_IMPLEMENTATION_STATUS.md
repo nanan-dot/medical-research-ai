@@ -93,3 +93,13 @@
 - Alembic upgrade/check：通过；
 - 本 WP 无数据库迁移。
 
+## R4-WP06 — 推荐质量门
+
+状态：已完成。
+
+- 增加编排层回归测试，验证LLM不得改变服务器持有的PMID等元数据；
+- 增加空证据集状态和警告回归测试；
+- 推荐模块测试：12 passed；
+- 全量 `pytest`：435 passed，13 skipped，1 warning；
+- Ruff/mypy、Alembic check、`git diff --check`：通过。
+
