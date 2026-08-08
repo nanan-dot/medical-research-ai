@@ -25,16 +25,21 @@ class CitationCheckService:
 
     async def check(self, request: CitationCheckRequest) -> CitationCheckResult:
         """执行完整审计并返回报告。"""
-        items = extract_references(request.text)
-        verified_items: list[CitationAuditItem] = []
-        for item in items:
-            verified_items.append(await self.verifier.verify_item(item))
-        summary = self._summarize(verified_items)
-        statement_results = [
-            check_statement(item.text, item.citation_ids, topic=item.topic).__dict__
-            for item in getattr(request, "statements", [])
-        ]
-        return CitationCheckResult(items=verified_items, summary=summary, statement_results=statement_results)
+        try:
+            items = extract_references(request.text)
+            verified_items: list[CitationAuditItem] = []
+            for item in items:
+                verified_items.append(await self.verifier.verify_item(item))
+            summary = self._summarize(verified_items)
+            statement_results = [
+                check_statement(item.text, item.citation_ids, topic=item.topic).__dict__
+                for item in getattr(request, "statements", [])
+            ]
+            return CitationCheckResult(items=verified_items, summary=summary, statement_results=statement_results)
+        finally:
+            close = getattr(self.verifier, "aclose", None)
+            if callable(close):
+                await close()
 
     @staticmethod
     def _summarize(items: list[CitationAuditItem]) -> CitationAuditSummary:

@@ -13,13 +13,13 @@ import re
 from app.modules.citation_check.schema import CitationAuditItem, CitationKind
 
 # PMID 长度 1-8 位数字，通常跟随 "PMID" / "PubMed ID" / "pubmed" 标签。
-_PMID_PATTERN = re.compile(
-    r"(?:PMID|PubMed\s+ID|pubmed)[:\s#]*(\d{1,8})\b", re.IGNORECASE
-)
+_PMID_PATTERN = re.compile(r"(?:PMID|PubMed\s+ID|pubmed)[:\s#]*(\d+)", re.IGNORECASE)
 # DOI 必须形如 10.<注册机构>/<后缀>，避免匹配普通数字或版本号。
 # 后缀排除空白与常见句读标点（含 CJK 句号），防止把句子结尾标点吞入 DOI；
 # 末尾不用 \b（词边界会因句子结尾的句点导致整条漏检），改由 strip 剥离尾部标点。
-_DOI_PATTERN = re.compile(r"\b(10\.\d{4,9}/[^\s,;:!?。，；：！？\"'<>]+)")
+_DOI_PATTERN = re.compile(
+    r"\b(10\.(?:\d{4,9}/[^\s,;:!?。，；：！？\"'<>]*|\d{0,3}(?!\d)))"
+)
 
 _MAX_RAW_PREFIX = 40
 
