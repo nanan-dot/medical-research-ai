@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import NotFoundError
+from app.core.config import settings
 from app.modules.ai_disclosure.disclosure_draft import build_disclosure_draft
 from app.modules.ai_disclosure.model import AIUsageEvent, DisclosureDraft
 from app.modules.ai_disclosure.schema import (
@@ -43,15 +44,16 @@ class AIDisclosureService:
             select(DisclosureDraft).where(DisclosureDraft.project_id == project_id)
         )
         entity = result.scalar_one_or_none()
-        confidential = "confidential" in project.name.lower()
-        content = build_disclosure_draft(events, confidential=confidential)
+        if entity is not None:
+            return DisclosureDraftRead.model_validate(entity)
+        content = build_disclosure_draft(
+            events,
+            confidential=project.confidential,
+            include_notice=settings.DISCLOSURE_NOTICE_ENABLED,
+        )
         now = datetime.now(UTC)
-        if entity is None:
-            entity = DisclosureDraft(project_id=project_id, content=content, created_at=now, updated_at=now)
-            self.session.add(entity)
-        else:
-            entity.content = content
-            entity.updated_at = now
+        entity = DisclosureDraft(project_id=project_id, content=content, created_at=now, updated_at=now)
+        self.session.add(entity)
         await self.session.flush()
         await self.session.refresh(entity)
         return DisclosureDraftRead.model_validate(entity)
@@ -72,6 +74,18 @@ class AIDisclosureService:
         if entity is None:
             raise NotFoundError("AI disclosure draft not found")
         return DisclosureDraftRead.model_validate(entity)
+
+    async def export_draft(self, draft_id: int) -> str:
+        entity = await self.session.get(DisclosureDraft, draft_id)
+        if entity is None:
+            raise NotFoundError("AI disclosure draft not found")
+        project = await self._require_project(entity.project_id)
+        if not project.confidential:
+            return entity.content
+        # 导出边界只允许暴露范围占位，保留用户编辑的其他披露措辞。
+        import re
+
+        return re.sub(r"输入范围：[^；。\n]*(?:；|。|$)", "输入范围：[confidential]；", entity.content)
 
     async def _require_project(self, project_id: int) -> WritingProject:
         project = await self.session.get(WritingProject, project_id)

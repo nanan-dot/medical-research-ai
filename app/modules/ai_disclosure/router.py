@@ -41,5 +41,4 @@ async def update_draft(
 
 @router.get("/drafts/{draft_id}/export", response_class=PlainTextResponse)
 async def export_draft(draft_id: int, session: AsyncSession = Depends(get_session)) -> str:
-    draft = await AIDisclosureService(session).get_draft(draft_id)
-    return draft.content
+    return await AIDisclosureService(session).export_draft(draft_id)
