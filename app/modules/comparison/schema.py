@@ -18,7 +18,9 @@ COMPARISON_FIELDS = DEFAULT_FIELDS
 
 
 class ComparisonCreate(BaseModel):
-    selected_document_ids: list[int] = Field(min_length=MIN_DOCUMENTS, max_length=MAX_DOCUMENTS)
+    selected_document_ids: list[int] = Field(
+        min_length=MIN_DOCUMENTS, max_length=MAX_DOCUMENTS
+    )
 
     @model_validator(mode="after")
     def unique_documents(self) -> "ComparisonCreate":

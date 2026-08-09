@@ -17,7 +17,9 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     with op.batch_alter_table("conversations") as batch:
-        batch.add_column(sa.Column("document_ids", sa.Text(), nullable=False, server_default="[]"))
+        batch.add_column(
+            sa.Column("document_ids", sa.Text(), nullable=False, server_default="[]")
+        )
         batch.add_column(sa.Column("title", sa.String(200)))
         batch.add_column(
             sa.Column(

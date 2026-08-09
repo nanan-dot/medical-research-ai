@@ -15,7 +15,12 @@ class FakeLLM:
         self.messages.append(messages[-1].content)
         if self.error:
             raise self.error
-        return LLMResponse(text=self.text or "摘要支持该干预的研究价值。", provider="test", model="test", elapsed_seconds=0)
+        return LLMResponse(
+            text=self.text or "摘要支持该干预的研究价值。",
+            provider="test",
+            model="test",
+            elapsed_seconds=0,
+        )
 
 
 def _item(**overrides) -> CitationItem:
@@ -58,7 +63,9 @@ async def test_metadata_leak_is_replaced_with_safe_fallback() -> None:
 @pytest.mark.asyncio
 async def test_empty_abstract_uses_deterministic_reason_without_llm() -> None:
     llm = FakeLLM()
-    result = await RecommendationReasonService(llm=llm).fuse([_item(has_abstract=False)])
+    result = await RecommendationReasonService(llm=llm).fuse(
+        [_item(has_abstract=False)]
+    )
 
     assert "无摘要" in result[0].recommendation_reason
     assert llm.messages == []

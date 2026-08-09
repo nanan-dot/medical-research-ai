@@ -17,10 +17,14 @@ class TopicStructuring(Base):
     original_topic: Mapped[str] = mapped_column(Text, nullable=False)
     current_version: Mapped[int] = mapped_column(nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
 
@@ -29,7 +33,9 @@ class TopicStructuringVersion(Base):
 
     __tablename__ = "topic_structuring_versions"
     __table_args__ = (
-        UniqueConstraint("topic_structuring_id", "version", name="uq_topic_structuring_versions"),
+        UniqueConstraint(
+            "topic_structuring_id", "version", name="uq_topic_structuring_versions"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -39,5 +45,7 @@ class TopicStructuringVersion(Base):
     version: Mapped[int] = mapped_column(nullable=False)
     structured_json: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )

@@ -3,7 +3,11 @@
 from app.integrations.pubmed.cache import TTLCache
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.rate_limit import RateLimiter
-from app.integrations.pubmed.schemas import PubMedConfig, PubMedRecord, PubMedSearchResult
+from app.integrations.pubmed.schemas import (
+    PubMedConfig,
+    PubMedRecord,
+    PubMedSearchResult,
+)
 
 __all__ = [
     "PubMedClient",

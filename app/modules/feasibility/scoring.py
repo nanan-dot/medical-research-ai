@@ -17,12 +17,15 @@ def calculate_score(
         for item in dimensions
         if item.dimension in USER_DIMENSIONS and item.score is None
     ]
-    included = [item for item in dimensions if item.score is not None and item.weight > 0]
+    included = [
+        item for item in dimensions if item.score is not None and item.weight > 0
+    ]
     if not included:
         raise ValueError("At least one positively weighted score is required")
     denominator = sum(item.weight for item in included)
     total_score = round(
-        sum(item.weight * item.score for item in included if item.score is not None) / denominator,
+        sum(item.weight * item.score for item in included if item.score is not None)
+        / denominator,
         1,
     )
     confidence: Confidence = (
@@ -31,12 +34,18 @@ def calculate_score(
     return total_score, confidence, missing_inputs
 
 
-def ranking_changed(before: dict[int, float], after: dict[int, float], direction_id: int) -> bool:
+def ranking_changed(
+    before: dict[int, float], after: dict[int, float], direction_id: int
+) -> bool:
     """Return whether a direction's rank changes within the same comparable candidate set."""
     if set(before) != set(after) or direction_id not in before:
         return False
-    rank_before = sorted(before, key=lambda item: (-before[item], item)).index(direction_id)
-    rank_after = sorted(after, key=lambda item: (-after[item], item)).index(direction_id)
+    rank_before = sorted(before, key=lambda item: (-before[item], item)).index(
+        direction_id
+    )
+    rank_after = sorted(after, key=lambda item: (-after[item], item)).index(
+        direction_id
+    )
     return rank_before != rank_after
 
 

@@ -33,7 +33,9 @@ from app.modules.literature_search.schema import (
 from app.modules.literature_search.service import LiteratureSearchService
 
 router = APIRouter(prefix="/literature-search", tags=["Literature search"])
-duplicate_group_router = APIRouter(prefix="/duplicate-groups", tags=["Literature deduplication"])
+duplicate_group_router = APIRouter(
+    prefix="/duplicate-groups", tags=["Literature deduplication"]
+)
 
 
 # ----------------------------------------------------------------------
@@ -105,7 +107,9 @@ async def expand_terms(
     request: ExpandTermsRequest,
     session: AsyncSession = Depends(get_session),
 ) -> ExpandTermsResponse:
-    return await LiteratureSearchService(session).expand_terms(request.candidate, request.user_edits)
+    return await LiteratureSearchService(session).expand_terms(
+        request.candidate, request.user_edits
+    )
 
 
 @router.post("/build-query", response_model=BuildQueryResponse)

@@ -8,7 +8,9 @@ router = APIRouter(prefix="/feedback", tags=["反馈"])
 
 
 @router.post("", response_model=FeedbackRead)
-async def create_feedback(request: FeedbackCreate, session: AsyncSession = Depends(get_session)):
+async def create_feedback(
+    request: FeedbackCreate, session: AsyncSession = Depends(get_session)
+):
     return await FeedbackService(session).create(request)
 
 

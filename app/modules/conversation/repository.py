@@ -30,13 +30,17 @@ class ConversationRepository:
 
     async def citations(self, message_id: int):
         result = await self.session.execute(
-            select(Citation).where(Citation.message_id == message_id).order_by(Citation.id)
+            select(Citation)
+            .where(Citation.message_id == message_id)
+            .order_by(Citation.id)
         )
         return list(result.scalars())
 
     async def next_sequence(self, conversation_id: int):
         value = await self.session.scalar(
-            select(func.max(Message.sequence)).where(Message.conversation_id == conversation_id)
+            select(func.max(Message.sequence)).where(
+                Message.conversation_id == conversation_id
+            )
         )
         return int(value or 0) + 1
 

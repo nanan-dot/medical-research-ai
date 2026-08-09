@@ -17,7 +17,9 @@ from app.modules.literature_search.schema import CitationItem
 
 @pytest.fixture
 async def client(tmp_path):
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'library.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'library.db').as_posix()}"
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -34,8 +36,20 @@ async def client(tmp_path):
     app.dependency_overrides[get_session] = override_session
     try:
         async with factory() as session:
-            citation = CitationItem(pmid="123", doi="10.1234/ABC", title="Test", journal="Journal", year=2026)
-            session.add(LiteratureSearchResult(query="test", total_count=1, items_json=json.dumps([citation.model_dump()])))
+            citation = CitationItem(
+                pmid="123",
+                doi="10.1234/ABC",
+                title="Test",
+                journal="Journal",
+                year=2026,
+            )
+            session.add(
+                LiteratureSearchResult(
+                    query="test",
+                    total_count=1,
+                    items_json=json.dumps([citation.model_dump()]),
+                )
+            )
             await session.commit()
         with TestClient(app) as test_client:
             yield test_client, factory
@@ -58,12 +72,26 @@ def test_save_metadata_is_idempotent_and_explains_no_fulltext(client):
 async def test_exact_doi_match_then_manual_link_and_unlink(client):
     api, factory = client
     async with factory() as session:
-        session.add(Document(knowledge_source_id=1, file_path="paper.pdf", normalized_file_path="paper.pdf", file_hash="a" * 64, file_size=1, modified_time=datetime.now(UTC), modified_time_ns=1, parsed_content="DOI: 10.1234/abc"))
+        session.add(
+            Document(
+                knowledge_source_id=1,
+                file_path="paper.pdf",
+                normalized_file_path="paper.pdf",
+                file_hash="a" * 64,
+                file_size=1,
+                modified_time=datetime.now(UTC),
+                modified_time_ns=1,
+                parsed_content="DOI: 10.1234/abc",
+            )
+        )
         await session.commit()
     saved = api.post("/api/v1/literature-results/1/save", json={"pmid": "123"}).json()
     assert saved["document_id"] == 1
     assert saved["fulltext_status"] == "local_pdf_available"
-    unlinked = api.post(f"/api/v1/library-items/{saved['id']}/link-local-pdf", json={"document_id": None})
+    unlinked = api.post(
+        f"/api/v1/library-items/{saved['id']}/link-local-pdf",
+        json={"document_id": None},
+    )
     assert unlinked.status_code == 200
     assert unlinked.json()["document_id"] is None
     assert unlinked.json()["fulltext_status"] == "metadata_only"

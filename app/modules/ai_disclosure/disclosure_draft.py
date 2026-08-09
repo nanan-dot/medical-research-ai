@@ -12,12 +12,19 @@ _DISCLAIMER = "各期刊要求不同，请按目标期刊要求调整，不代�
 
 
 def build_disclosure_draft(
-    events: Iterable[AIUsageEventRead], *, confidential: bool, include_notice: bool = True
+    events: Iterable[AIUsageEventRead],
+    *,
+    confidential: bool,
+    include_notice: bool = True,
 ) -> str:
     lines = ([_NOTICE] if include_notice else []) + [_DISCLAIMER, "", "AI 使用说明："]
     event_list = list(events)
     if not event_list:
-        lines.append("该项目无 AI 使用记录。输入范围：[confidential]" if confidential else "该项目无 AI 使用记录。")
+        lines.append(
+            "该项目无 AI 使用记录。输入范围：[confidential]"
+            if confidential
+            else "该项目无 AI 使用记录。"
+        )
     for event in event_list:
         scope = "[confidential]" if confidential else event.input_scope
         lines.append(

@@ -12,7 +12,12 @@ depends_on = None
 def upgrade() -> None:
     with op.batch_alter_table("outlines") as batch_op:
         batch_op.add_column(
-            sa.Column("based_on_matrix_version", sa.Integer(), nullable=False, server_default="1")
+            sa.Column(
+                "based_on_matrix_version",
+                sa.Integer(),
+                nullable=False,
+                server_default="1",
+            )
         )
         batch_op.add_column(
             sa.Column(
@@ -23,7 +28,9 @@ def upgrade() -> None:
             )
         )
         batch_op.add_column(
-            sa.Column("document_count", sa.Integer(), nullable=False, server_default="0")
+            sa.Column(
+                "document_count", sa.Integer(), nullable=False, server_default="0"
+            )
         )
 
 

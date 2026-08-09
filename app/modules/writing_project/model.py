@@ -2,7 +2,16 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -17,10 +26,14 @@ class WritingProject(Base):
     confidential: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     materials: Mapped[list["WritingUserMaterial"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin"
@@ -38,7 +51,9 @@ class WritingUserMaterial(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("writing_projects.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("writing_projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
     # 仅保存外部资产标识，不建立级联外键；删除项目绝不能删除知识库来源。
@@ -50,7 +65,9 @@ class WritingGeneratedContent(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("writing_projects.id", ondelete="CASCADE"), nullable=False, unique=True
+        ForeignKey("writing_projects.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
     content_json: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -58,16 +75,22 @@ class WritingGeneratedContent(Base):
 class WritingVersion(Base):
     __tablename__ = "writing_versions"
     __table_args__ = (
-        UniqueConstraint("project_id", "version", name="uq_writing_versions_project_version"),
+        UniqueConstraint(
+            "project_id", "version", name="uq_writing_versions_project_version"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("writing_projects.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("writing_projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     parent_version: Mapped[int | None] = mapped_column(Integer)
     content_json: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )

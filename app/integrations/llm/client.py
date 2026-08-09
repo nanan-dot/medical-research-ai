@@ -29,7 +29,9 @@ class LLMClient:
     def __init__(self, config: LLMConfig, http_client: httpx.AsyncClient | None = None):
         self.config = config
         self._owns_http_client = http_client is None
-        self._http_client = http_client or httpx.AsyncClient(timeout=config.timeout_seconds)
+        self._http_client = http_client or httpx.AsyncClient(
+            timeout=config.timeout_seconds
+        )
 
     @classmethod
     def from_settings(
@@ -58,9 +60,13 @@ class LLMClient:
 
         model, api_base, api_key = provider_config
         if not api_key:
-            raise LLMConfigurationError(f"API key is not configured for provider '{provider}'")
+            raise LLMConfigurationError(
+                f"API key is not configured for provider '{provider}'"
+            )
         if not model:
-            raise LLMConfigurationError(f"Model is not configured for provider '{provider}'")
+            raise LLMConfigurationError(
+                f"Model is not configured for provider '{provider}'"
+            )
 
         try:
             config = LLMConfig(
@@ -105,7 +111,9 @@ class LLMClient:
             raise LLMTimeoutError("LLM request timed out") from error
         except httpx.TransportError as error:
             logger.warning("LLM connection failed provider=%s", self.config.provider)
-            raise LLMConnectionError("Could not connect to the configured LLM provider") from error
+            raise LLMConnectionError(
+                "Could not connect to the configured LLM provider"
+            ) from error
 
         self._raise_for_status(response)
         text, response_model = self._parse_response(response)
@@ -170,5 +178,7 @@ class LLMClient:
         if not isinstance(text, str) or not text.strip():
             raise LLMResponseFormatError("LLM provider returned empty text")
         if not isinstance(response_model, str):
-            raise LLMResponseFormatError("LLM provider returned an invalid model identifier")
+            raise LLMResponseFormatError(
+                "LLM provider returned an invalid model identifier"
+            )
         return text.strip(), response_model

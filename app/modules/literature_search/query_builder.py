@@ -13,7 +13,9 @@ _PUBMED_TERM = re.compile(r"^[\x20-\x7e]+$")
 def validate_term(value: str) -> str:
     cleaned = " ".join(value.split())
     if not cleaned or _ILLEGAL.search(cleaned) or not _PUBMED_TERM.fullmatch(cleaned):
-        raise ValueError("terms must be non-empty ASCII PubMed terms without braces, semicolons, or newlines")
+        raise ValueError(
+            "terms must be non-empty ASCII PubMed terms without braces, semicolons, or newlines"
+        )
     return cleaned
 
 
@@ -29,11 +31,14 @@ def build_boolean_query(groups: list[SearchTermGroup]) -> BooleanQueryResult:
         field_tags[group.name] = tag
         terms_clause = " OR ".join(f'"{term}"[{tag}]' for term in dict.fromkeys(terms))
         clauses.append(f"({terms_clause})")
-        explanations.append(f"{group.name}: OR keeps equivalent terms within one concept group.")
+        explanations.append(
+            f"{group.name}: OR keeps equivalent terms within one concept group."
+        )
     if not clauses:
         raise ValueError("at least one non-empty term group is required")
     return BooleanQueryResult(
         boolean_query=" AND ".join(clauses),
         field_tags=field_tags,
-        explanations=explanations + ["AND connects different concepts so all selected concepts are required."],
+        explanations=explanations
+        + ["AND connects different concepts so all selected concepts are required."],
     )

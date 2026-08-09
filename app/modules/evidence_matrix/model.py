@@ -42,10 +42,14 @@ class EvidenceMatrix(Base):
         Integer, ForeignKey("comparison_tasks.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
 
@@ -66,19 +70,30 @@ class MatrixDocument(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     matrix_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("evidence_matrices.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("evidence_matrices.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     document_id: Mapped[int] = mapped_column(Integer, nullable=False)
     # 用户备注：独立存储，绝不写入单元格的生成值字段。
     user_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # 课题相关度：低/中/高；仅记录用户选择的等级，不推断。
-    topic_relevance: Mapped[str] = mapped_column(String(16), nullable=False, default="medium")
+    topic_relevance: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="medium"
+    )
     # 阅读状态：unread / reading / read。
-    reading_status: Mapped[str] = mapped_column(String(16), nullable=False, default="unread")
+    reading_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unread"
+    )
     # 文献状态：included（已收录）/ pending（待核验）。
-    document_status: Mapped[str] = mapped_column(String(16), nullable=False, default="included")
+    document_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="included"
+    )
     added_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
 
@@ -97,7 +112,10 @@ class MatrixField(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     matrix_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("evidence_matrices.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("evidence_matrices.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     field_key: Mapped[str] = mapped_column(String(64), nullable=False)
     field_label: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -117,12 +135,17 @@ class MatrixCell(Base):
 
     __tablename__ = "matrix_cells"
     __table_args__ = (
-        UniqueConstraint("matrix_id", "document_id", "field_key", name="uq_matrix_cells"),
+        UniqueConstraint(
+            "matrix_id", "document_id", "field_key", name="uq_matrix_cells"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     matrix_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("evidence_matrices.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("evidence_matrices.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     document_id: Mapped[int] = mapped_column(Integer, nullable=False)
     field_key: Mapped[str] = mapped_column(String(64), nullable=False)

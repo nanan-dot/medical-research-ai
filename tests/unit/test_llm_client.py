@@ -74,7 +74,9 @@ async def test_chat_returns_non_empty_text_and_elapsed_time(caplog):
             200,
             json={
                 "model": "mock-model-2026",
-                "choices": [{"message": {"role": "assistant", "content": " cloud-llm-ok "}}],
+                "choices": [
+                    {"message": {"role": "assistant", "content": " cloud-llm-ok "}}
+                ],
             },
         )
 
@@ -99,7 +101,9 @@ async def test_chat_returns_non_empty_text_and_elapsed_time(caplog):
         (429, LLMRateLimitError),
     ],
 )
-async def test_http_errors_are_converted_without_leaking_key(status_code, exception_type, caplog):
+async def test_http_errors_are_converted_without_leaking_key(
+    status_code, exception_type, caplog
+):
     client = make_client(lambda _: httpx.Response(status_code, json={"error": API_KEY}))
 
     with caplog.at_level(logging.WARNING), pytest.raises(exception_type) as captured:
@@ -112,7 +116,9 @@ async def test_http_errors_are_converted_without_leaking_key(status_code, except
 
 @pytest.mark.asyncio
 async def test_other_provider_error_is_safe():
-    client = make_client(lambda _: httpx.Response(500, text=f"provider echoed {API_KEY}"))
+    client = make_client(
+        lambda _: httpx.Response(500, text=f"provider echoed {API_KEY}")
+    )
 
     with pytest.raises(LLMProviderError, match="HTTP 500") as captured:
         await client.chat([ChatMessage(role="user", content="fixed test")])

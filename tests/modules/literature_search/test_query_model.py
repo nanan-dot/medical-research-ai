@@ -57,7 +57,9 @@ async def test_disease_only_does_not_force_pico():
 
 @pytest.mark.asyncio
 async def test_relative_date_expression_is_resolved_visibly():
-    service = LiteratureSearchService(None, candidate_extractor=await extractor({"topic": "近三年肺癌"}))  # type: ignore[arg-type]
+    service = LiteratureSearchService(
+        None, candidate_extractor=await extractor({"topic": "近三年肺癌"})
+    )  # type: ignore[arg-type]
 
     result = await service.parse_query("近三年肺癌")
 
@@ -69,7 +71,9 @@ async def test_relative_date_expression_is_resolved_visibly():
 async def test_unknown_fields_are_ignored_and_user_edits_are_preserved():
     service = LiteratureSearchService(
         None,  # type: ignore[arg-type]
-        candidate_extractor=await extractor({"topic": "胃癌", "disease": "胃癌", "hidden_query": "never use"}),
+        candidate_extractor=await extractor(
+            {"topic": "胃癌", "disease": "胃癌", "hidden_query": "never use"}
+        ),
     )
 
     result = await service.parse_query("胃癌")
@@ -85,7 +89,9 @@ async def test_invalid_model_json_falls_back_without_inventing_entities():
     async def invalid(_: str) -> str:
         return "not-json"
 
-    result = await LiteratureSearchService(None, candidate_extractor=invalid).parse_query("近三年胃癌")  # type: ignore[arg-type]
+    result = await LiteratureSearchService(
+        None, candidate_extractor=invalid
+    ).parse_query("近三年胃癌")  # type: ignore[arg-type]
 
     assert result.candidate_source == "rule_fallback"
     assert result.candidate.topic == "近三年胃癌"

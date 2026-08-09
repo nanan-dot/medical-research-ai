@@ -53,9 +53,13 @@ class HybridRetriever:
         payload = {
             "timestamp": datetime.now(UTC).isoformat(),
             "query": query,
-            "vector_top_k": [result.model_dump(mode="json") for result in vector_results],
+            "vector_top_k": [
+                result.model_dump(mode="json") for result in vector_results
+            ],
             "bm25_top_k": [result.model_dump(mode="json") for result in bm25_results],
-            "hybrid_results": [result.model_dump(mode="json") for result in fused_results],
+            "hybrid_results": [
+                result.model_dump(mode="json") for result in fused_results
+            ],
         }
         self._log_path.parent.mkdir(parents=True, exist_ok=True)
         with self._log_path.open("a", encoding="utf-8") as log_file:

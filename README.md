@@ -239,7 +239,7 @@ POST /api/v1/knowledge-sources/{id}/sync
 GET  /api/v1/knowledge-sources/{id}/sync-status
 ```
 
-扫描支持 `.pdf`、`.md`、`.docx`、`.txt`，自动忽略 `.obsidian`、`.git`、`.trash`。文件使用流式 SHA-256；摘要持久化新增、修改、删除、跳过和失败数量。内容变化将 Document 标记为 `outdated`，后续索引工作包可据此重建；本工作包不读取文件正文、不创建向量索引，也不修改原文件。
+扫描支持 `.pdf`、`.md`、`.doc`、`.docx`、`.pptx`、`.txt`，自动忽略 `.obsidian`、`.git`、`.trash`。解析器可提取 PDF、Markdown、DOCX 和 PPTX 的文本；旧 `.doc` 仅在本机安装 LibreOffice、antiword 或 catdoc 时转换，绝不上传原文件。文件使用流式 SHA-256；摘要持久化新增、修改、删除、跳过和失败数量。内容变化将 Document 标记为 `outdated`，后续索引工作包可据此重建；本工作包不修改原文件。
 
 ### 文档状态与任务
 

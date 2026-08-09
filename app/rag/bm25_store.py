@@ -19,7 +19,9 @@ def tokenize_medical_text(text: str) -> list[str]:
         if len(chinese_run) == 1:
             tokens.append(chinese_run)
             continue
-        tokens.extend(chinese_run[index : index + 2] for index in range(len(chinese_run) - 1))
+        tokens.extend(
+            chinese_run[index : index + 2] for index in range(len(chinese_run) - 1)
+        )
     return tokens
 
 
@@ -77,14 +79,20 @@ class BM25Store:
         return results
 
     def _recalculate_statistics(self) -> None:
-        self._document_tokens = [tokenize_medical_text(chunk.text) for chunk in self._chunks]
+        self._document_tokens = [
+            tokenize_medical_text(chunk.text) for chunk in self._chunks
+        ]
         self._document_frequencies = {}
         for tokens in self._document_tokens:
             for token in set(tokens):
-                self._document_frequencies[token] = self._document_frequencies.get(token, 0) + 1
+                self._document_frequencies[token] = (
+                    self._document_frequencies.get(token, 0) + 1
+                )
         total_token_count = sum(len(tokens) for tokens in self._document_tokens)
         self._average_document_length = (
-            total_token_count / len(self._document_tokens) if self._document_tokens else 0.0
+            total_token_count / len(self._document_tokens)
+            if self._document_tokens
+            else 0.0
         )
 
     def _score_document(self, index: int, query_tokens: list[str]) -> float:
@@ -103,10 +111,14 @@ class BM25Store:
                 continue
             document_frequency = self._document_frequencies.get(token, 0)
             inverse_document_frequency = math.log(
-                1 + (total_documents - document_frequency + 0.5) / (document_frequency + 0.5)
+                1
+                + (total_documents - document_frequency + 0.5)
+                / (document_frequency + 0.5)
             )
             denominator = frequency + BM25_K1 * (
                 1 - BM25_B + BM25_B * document_length / self._average_document_length
             )
-            score += inverse_document_frequency * frequency * (BM25_K1 + 1) / denominator
+            score += (
+                inverse_document_frequency * frequency * (BM25_K1 + 1) / denominator
+            )
         return score

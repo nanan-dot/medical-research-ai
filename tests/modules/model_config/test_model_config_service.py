@@ -43,7 +43,10 @@ async def test_cloud_key_is_encrypted_masked_and_never_returned(session):
     result = await service.create(cloud())
     entity = await service.get(result.id)
     assert "secret-value" not in entity.encrypted_api_key
-    assert result.api_key_masked == "••••••••" and "secret-value" not in result.model_dump_json()
+    assert (
+        result.api_key_masked == "••••••••"
+        and "secret-value" not in result.model_dump_json()
+    )
 
 
 @pytest.mark.asyncio
@@ -52,7 +55,9 @@ async def test_local_config_and_default_are_supported(session):
     first = await service.create(local(is_default=True))
     second = await service.create(local(model_name="other", is_default=True))
     listed = await service.list()
-    assert first.id != second.id and [item.id for item in listed if item.is_default] == [second.id]
+    assert first.id != second.id and [
+        item.id for item in listed if item.is_default
+    ] == [second.id]
 
 
 @pytest.mark.asyncio
@@ -60,7 +65,10 @@ async def test_cloud_authorization_and_local_ssrf_are_rejected(session):
     with pytest.raises(ValueError):
         cloud(allow_cloud_content=False)
     request = ModelConfigCreate(
-        deployment_mode="local", provider="ollama", api_base="http://10.0.0.2:11434", model_name="x"
+        deployment_mode="local",
+        provider="ollama",
+        api_base="http://10.0.0.2:11434",
+        model_name="x",
     )
     with pytest.raises(Exception):
         await ModelConfigService(session, cipher=cipher()).create(request)
@@ -87,7 +95,9 @@ async def test_connection_success_failure_and_cost_acknowledgement(session):
     config = await service.create(cloud())
     with pytest.raises(ConflictError, match="cost"):
         await service.test(config.id, False)
-    assert (await service.test(config.id, True)).success and calls[0][1] == "secret-value"
+    assert (await service.test(config.id, True)).success and calls[0][
+        1
+    ] == "secret-value"
 
     async def fail(entity, key):
         raise ValueError("bad endpoint secret-value")

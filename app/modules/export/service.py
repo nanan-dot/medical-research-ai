@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import settings
 from app.modules.conversation.service import ConversationService
-from app.modules.export.markdown_renderer import MAX_EVIDENCE_EXPORT, escape_markdown, safe_filename
+from app.modules.export.markdown_renderer import (
+    MAX_EVIDENCE_EXPORT,
+    escape_markdown,
+    safe_filename,
+)
 from app.modules.export.model import ExportRecord
 from app.modules.export.schema import ExportRead, ExportType, MarkdownExportCreate
 from app.modules.paper_analysis.service import PaperAnalysisService
@@ -22,14 +26,23 @@ class ExportService:
         model_info = None
         if request.export_type == ExportType.ANALYSIS:
             analysis = await PaperAnalysisService(self.session).get(request.source_id)
-            content = await PaperAnalysisService(self.session).export_markdown(request.source_id)
+            content = await PaperAnalysisService(self.session).export_markdown(
+                request.source_id
+            )
             pending = analysis.pending_confirmations
             model_info = analysis.model_version
         else:
-            conversation = await ConversationService(self.session).get(request.source_id)
+            conversation = await ConversationService(self.session).get(
+                request.source_id
+            )
             content = self._conversation_markdown(conversation)
             model_info = next(
-                (m.model_version for m in reversed(conversation.messages) if m.model_version), None
+                (
+                    m.model_version
+                    for m in reversed(conversation.messages)
+                    if m.model_version
+                ),
+                None,
             )
         content += f"\n## 用户备注\n\n{escape_markdown(request.user_notes or '无')}\n\n生成时间：{generated.isoformat()}\n"
         try:
@@ -87,7 +100,9 @@ class ExportService:
             )
             for citation in message.citations:
                 page = f"，第 {citation.page} 页" if citation.page else ""
-                evidence = escape_markdown((citation.evidence_text or "")[:MAX_EVIDENCE_EXPORT])
+                evidence = escape_markdown(
+                    (citation.evidence_text or "")[:MAX_EVIDENCE_EXPORT]
+                )
                 lines.extend(
                     [
                         f"- 来源：{escape_markdown(citation.citation_text or '未命名来源')}{page}",

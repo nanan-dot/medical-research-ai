@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.common.exceptions import ConflictError, PermissionDeniedError
 from app.core.database import Base
-from app.modules.knowledge_source.schema import KnowledgeSourceCreate, KnowledgeSourceType
+from app.modules.knowledge_source.schema import (
+    KnowledgeSourceCreate,
+    KnowledgeSourceType,
+)
 from app.modules.knowledge_source.service import (
     KnowledgeSourceService,
     normalize_authorized_directory,
@@ -14,7 +17,9 @@ from app.modules.knowledge_source.service import (
 
 @pytest.fixture
 async def session(tmp_path: Path):
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}"
+    )
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -29,7 +34,9 @@ async def test_create_all_source_types(session, tmp_path: Path, source_type):
     root = tmp_path / source_type.value
     root.mkdir()
     entity = await KnowledgeSourceService(session).create(
-        KnowledgeSourceCreate(name=source_type.value, source_type=source_type, root_path=str(root))
+        KnowledgeSourceCreate(
+            name=source_type.value, source_type=source_type, root_path=str(root)
+        )
     )
     assert entity.source_type == source_type.value
     assert entity.root_path == str(root.resolve())
@@ -38,13 +45,17 @@ async def test_create_all_source_types(session, tmp_path: Path, source_type):
 
 
 @pytest.mark.asyncio
-async def test_duplicate_and_case_equivalent_paths_are_rejected(session, tmp_path: Path):
+async def test_duplicate_and_case_equivalent_paths_are_rejected(
+    session, tmp_path: Path
+):
     root = tmp_path / "Papers"
     root.mkdir()
     service = KnowledgeSourceService(session)
     await service.create(
         KnowledgeSourceCreate(
-            name="first", source_type=KnowledgeSourceType.LOCAL_FOLDER, root_path=str(root)
+            name="first",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(root),
         )
     )
     duplicate = (
@@ -55,7 +66,9 @@ async def test_duplicate_and_case_equivalent_paths_are_rejected(session, tmp_pat
     with pytest.raises(ConflictError):
         await service.create(
             KnowledgeSourceCreate(
-                name="second", source_type=KnowledgeSourceType.OBSIDIAN_VAULT, root_path=duplicate
+                name="second",
+                source_type=KnowledgeSourceType.OBSIDIAN_VAULT,
+                root_path=duplicate,
             )
         )
 
@@ -79,7 +92,9 @@ def test_missing_file_and_symlink_resolution(tmp_path: Path):
 def test_permission_denied_has_stable_error(tmp_path: Path, monkeypatch):
     root = tmp_path / "restricted"
     root.mkdir()
-    monkeypatch.setattr("app.modules.knowledge_source.service.os.access", lambda *_: False)
+    monkeypatch.setattr(
+        "app.modules.knowledge_source.service.os.access", lambda *_: False
+    )
     with pytest.raises(PermissionDeniedError, match="not readable"):
         normalize_authorized_directory(str(root))
 
@@ -91,7 +106,9 @@ async def test_moved_directory_becomes_unavailable(session, tmp_path: Path):
     service = KnowledgeSourceService(session)
     entity = await service.create(
         KnowledgeSourceCreate(
-            name="movable", source_type=KnowledgeSourceType.LOCAL_FOLDER, root_path=str(root)
+            name="movable",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(root),
         )
     )
     root.rename(tmp_path / "moved")
@@ -109,7 +126,9 @@ async def test_delete_only_removes_record(session, tmp_path: Path):
     service = KnowledgeSourceService(session)
     entity = await service.create(
         KnowledgeSourceCreate(
-            name="papers", source_type=KnowledgeSourceType.LOCAL_FOLDER, root_path=str(root)
+            name="papers",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(root),
         )
     )
     await service.delete(entity.id)

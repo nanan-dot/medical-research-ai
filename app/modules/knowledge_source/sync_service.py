@@ -65,7 +65,9 @@ class KnowledgeSourceSyncService:
                 counts["failed"] += 1
                 continue
 
-            modified_time = datetime.fromtimestamp(scanned.modified_time_ns / 1_000_000_000, UTC)
+            modified_time = datetime.fromtimestamp(
+                scanned.modified_time_ns / 1_000_000_000, UTC
+            )
             if document is None:
                 await self.document_repo.create(
                     Document(
@@ -125,7 +127,9 @@ class KnowledgeSourceSyncService:
         source.sync_failed = counts["failed"]
         if counts["failed"]:
             source.sync_status = KnowledgeSourceSyncStatus.COMPLETED_WITH_ERRORS.value
-            source.error_message = f"{counts['failed']} file system entries could not be scanned"
+            source.error_message = (
+                f"{counts['failed']} file system entries could not be scanned"
+            )
         else:
             source.sync_status = KnowledgeSourceSyncStatus.COMPLETED.value
             source.error_message = None

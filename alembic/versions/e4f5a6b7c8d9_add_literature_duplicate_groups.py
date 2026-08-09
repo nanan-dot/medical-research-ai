@@ -21,27 +21,60 @@ def upgrade() -> None:
     op.create_table(
         "literature_duplicate_groups",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("trigger_task_id", sa.Integer(), sa.ForeignKey("literature_search_tasks.id"), nullable=False),
+        sa.Column(
+            "trigger_task_id",
+            sa.Integer(),
+            sa.ForeignKey("literature_search_tasks.id"),
+            nullable=False,
+        ),
         sa.Column("match_method", sa.Text(), nullable=False),
         sa.Column("confidence", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
     )
     op.create_table(
         "literature_duplicate_group_members",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("group_id", sa.Integer(), sa.ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("result_id", sa.Integer(), sa.ForeignKey("literature_search_results.id"), nullable=False),
+        sa.Column(
+            "group_id",
+            sa.Integer(),
+            sa.ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "result_id",
+            sa.Integer(),
+            sa.ForeignKey("literature_search_results.id"),
+            nullable=False,
+        ),
         sa.Column("record_pmid", sa.Text(), nullable=False),
         sa.Column("canonical_result_id", sa.Integer(), nullable=True),
         sa.Column("canonical_record_pmid", sa.Text(), nullable=True),
-        sa.Column("source_search_ids_json", sa.Text(), nullable=False, server_default="[]"),
+        sa.Column(
+            "source_search_ids_json", sa.Text(), nullable=False, server_default="[]"
+        ),
     )
     op.create_table(
         "literature_duplicate_resolutions",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("group_id", sa.Integer(), sa.ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"), nullable=False, unique=True),
-        sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "group_id",
+            sa.Integer(),
+            sa.ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"),
+            nullable=False,
+            unique=True,
+        ),
+        sa.Column(
+            "resolved_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
         sa.Column("resolved_action", sa.Text(), nullable=False),
         sa.Column("resolved_by", sa.Text(), nullable=False),
     )

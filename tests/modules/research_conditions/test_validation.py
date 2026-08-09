@@ -5,7 +5,10 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.database import Base
-from app.modules.research_conditions.schema import ResearchConditionsCreate, ResearchConditionsPatch
+from app.modules.research_conditions.schema import (
+    ResearchConditionsCreate,
+    ResearchConditionsPatch,
+)
 from app.modules.research_conditions.service import ResearchConditionsService
 from app.modules.research_conditions.validation import exclude_unknown_fields
 
@@ -30,7 +33,9 @@ def test_illegal_feasible_research_type_is_rejected() -> None:
         "known": True,
         "source": "user",
     }
-    with pytest.raises(ValidationError, match="allowed values: clinical, animal, cell, bioinformatics"):
+    with pytest.raises(
+        ValidationError, match="allowed values: clinical, animal, cell, bioinformatics"
+    ):
         ResearchConditionsCreate.model_validate(payload)
 
 
@@ -38,7 +43,9 @@ def test_unknown_field_is_preserved_and_excluded_from_model_input() -> None:
     conditions = ResearchConditionsCreate.model_validate(_minimal_payload())
     assert conditions.sample_source is not None
     assert conditions.sample_source.known is False
-    model_input = exclude_unknown_fields(conditions.model_dump(exclude={"uncertain_notes"}))
+    model_input = exclude_unknown_fields(
+        conditions.model_dump(exclude={"uncertain_notes"})
+    )
     assert "sample_source" not in model_input
     assert model_input["specialty"] == "oncology"
 
@@ -55,10 +62,14 @@ async def test_patch_increments_version_and_keeps_uncertain_notes_separate() -> 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
     async with session_factory() as session:
         service = ResearchConditionsService(session)
-        created = await service.create(ResearchConditionsCreate.model_validate(_minimal_payload()))
+        created = await service.create(
+            ResearchConditionsCreate.model_validate(_minimal_payload())
+        )
         patched = await service.patch(
             created.id,
             ResearchConditionsPatch.model_validate(

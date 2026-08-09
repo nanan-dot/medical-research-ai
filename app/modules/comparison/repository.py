@@ -29,7 +29,9 @@ class ComparisonRepository:
         )
         return list(result.scalars())
 
-    async def cell(self, task_id: int, document_id: int, field: str) -> ComparisonCell | None:
+    async def cell(
+        self, task_id: int, document_id: int, field: str
+    ) -> ComparisonCell | None:
         result = await self.session.execute(
             select(ComparisonCell).where(
                 ComparisonCell.comparison_id == task_id,

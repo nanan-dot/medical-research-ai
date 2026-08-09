@@ -38,7 +38,9 @@ def test_whitespace_only_block_is_skipped():
 
 def test_fixed_length_mode_with_overlap():
     strategy = SplitStrategy(mode="fixed_length", chunk_size=8, overlap=2)
-    chunks = split_markdown_document("abcdefghijklmnop", document_id="doc", strategy=strategy)
+    chunks = split_markdown_document(
+        "abcdefghijklmnop", document_id="doc", strategy=strategy
+    )
     # 滑动窗口语义：step = chunk_size - overlap = 6，因此第二块从下标 6 开始。
     assert chunks[0].text == "abcdefgh"
     assert "ghijklmn" in [chunk.text for chunk in chunks]

@@ -1,6 +1,5 @@
 """HTTP interface for evidence matrices; no persistence or generation logic here."""
 
-
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,7 +113,9 @@ async def add_matrix_field(
     payload: MatrixFieldAdd,
     matrix_service: EvidenceMatrixService = Depends(service),
 ) -> EvidenceMatrixRead:
-    return await matrix_service.add_field(matrix_id, payload.field_key, payload.field_label)
+    return await matrix_service.add_field(
+        matrix_id, payload.field_key, payload.field_label
+    )
 
 
 @router.delete("/{matrix_id}/fields/{field_key}", response_model=EvidenceMatrixRead)
@@ -150,8 +151,14 @@ async def export_matrix(
     matrix_service: EvidenceMatrixService = Depends(service),
 ) -> Response:
     content = await matrix_service.export(matrix_id, payload.format)
-    media_type = "text/csv; charset=utf-8" if payload.format == "csv" else "text/markdown; charset=utf-8"
-    filename = f"evidence-matrix-{matrix_id}.{ 'csv' if payload.format == 'csv' else 'md'}"
+    media_type = (
+        "text/csv; charset=utf-8"
+        if payload.format == "csv"
+        else "text/markdown; charset=utf-8"
+    )
+    filename = (
+        f"evidence-matrix-{matrix_id}.{'csv' if payload.format == 'csv' else 'md'}"
+    )
     return Response(
         content=content,
         media_type=media_type,

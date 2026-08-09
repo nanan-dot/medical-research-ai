@@ -52,7 +52,9 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("CURRENT_TIMESTAMP"),
         ),
-        sa.UniqueConstraint("conditions_id", "version", name="uq_research_conditions_versions"),
+        sa.UniqueConstraint(
+            "conditions_id", "version", name="uq_research_conditions_versions"
+        ),
     )
 
 

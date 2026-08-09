@@ -29,7 +29,13 @@ from app.rag.bm25_store import BM25Store, tokenize_medical_text
 from app.rag.hybrid_retriever import HybridRetriever, TextRetriever
 from app.rag.notes_pipeline import NotesRAG, build_pipeline, index_notes_directory
 from app.rag.rrf import RRF_K, fuse_ranked_results
-from app.rag.schemas import Chunk, IndexStats, RetrievalContribution, RetrievalResult, SplitStrategy
+from app.rag.schemas import (
+    Chunk,
+    IndexStats,
+    RetrievalContribution,
+    RetrievalResult,
+    SplitStrategy,
+)
 from app.rag.splitter import split_markdown_document
 from app.rag.vector_retriever import VectorRetriever
 

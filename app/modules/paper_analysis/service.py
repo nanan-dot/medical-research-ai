@@ -9,13 +9,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import settings
-from app.integrations.paperqa2 import PaperQA2Client, PaperQAIndex, create_paperqa2_client
+from app.integrations.paperqa2 import (
+    PaperQA2Client,
+    PaperQAIndex,
+    create_paperqa2_client,
+)
 from app.integrations.paperqa2.exceptions import PaperQA2Error
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import IndexStatus
 from app.modules.document.service import sanitize_error_message
 from app.modules.paper_analysis.model import PaperAnalysis
-from app.modules.paper_analysis.prompts import FIELD_NAMES, TEMPLATE_VERSION, build_analysis_prompt
+from app.modules.paper_analysis.prompts import (
+    FIELD_NAMES,
+    TEMPLATE_VERSION,
+    build_analysis_prompt,
+)
 from app.modules.paper_analysis.repository import PaperAnalysisRepository
 from app.modules.paper_analysis.schema import (
     AnalysisField,
@@ -69,7 +77,9 @@ class PaperAnalysisService:
         entity.model_version = self._model_version()
         return await self._generate(entity, document.paperqa_index_key or "")
 
-    async def correct(self, id: int, correction: PaperAnalysisCorrection) -> PaperAnalysisRead:
+    async def correct(
+        self, id: int, correction: PaperAnalysisCorrection
+    ) -> PaperAnalysisRead:
         entity = await self.repo.get(id)
         if entity is None:
             raise NotFoundError(f"Paper analysis not found: {id}")
@@ -81,11 +91,13 @@ class PaperAnalysisService:
         setattr(
             result,
             correction.field_name,
-            AnalysisField.model_validate({
-                "value": correction.value,
-                "kind": correction.kind,
-                "source_indices": correction.source_indices,
-            }),
+            AnalysisField.model_validate(
+                {
+                    "value": correction.value,
+                    "kind": correction.kind,
+                    "source_indices": correction.source_indices,
+                }
+            ),
         )
         entity.structured_result = result.model_dump_json()
         entity.pending_confirmations = json.dumps(
@@ -102,17 +114,27 @@ class PaperAnalysisService:
         lines = [f"# 单篇论文分析 #{analysis.id}", ""]
         for name in FIELD_NAMES:
             field = getattr(analysis.structured_result, name)
-            references = ", ".join(f"来源 {index + 1}" for index in field.source_indices)
+            references = ", ".join(
+                f"来源 {index + 1}" for index in field.source_indices
+            )
             lines.extend([f"## {name}", "", field.value, ""])
             if references:
                 lines.extend([f"证据：{references}", ""])
         lines.extend(["## 来源", ""])
         for position, source in enumerate(analysis.sources, 1):
-            pages = f" pp. {source.page_start}-{source.page_end}" if source.page_start else ""
-            lines.append(f"{position}. {source.citation or source.title or '未命名来源'}{pages}")
+            pages = (
+                f" pp. {source.page_start}-{source.page_end}"
+                if source.page_start
+                else ""
+            )
+            lines.append(
+                f"{position}. {source.citation or source.title or '未命名来源'}{pages}"
+            )
         return "\n".join(lines).strip() + "\n"
 
-    async def _generate(self, entity: PaperAnalysis, index_key: str) -> PaperAnalysisRead:
+    async def _generate(
+        self, entity: PaperAnalysis, index_key: str
+    ) -> PaperAnalysisRead:
         entity.analysis_status = AnalysisStatus.ANALYZING.value
         entity.error_code = None
         entity.error_message = None
@@ -129,7 +151,12 @@ class PaperAnalysisService:
                 self._validate_source_indices(
                     getattr(result, name).source_indices, len(answer.sources)
                 )
-        except (PaperQA2Error, json.JSONDecodeError, ValidationError, ValueError) as exc:
+        except (
+            PaperQA2Error,
+            json.JSONDecodeError,
+            ValidationError,
+            ValueError,
+        ) as exc:
             entity.analysis_status = AnalysisStatus.FAILED.value
             entity.error_code = getattr(exc, "code", "analysis_response_invalid")
             entity.error_message = sanitize_error_message(str(exc))
@@ -137,8 +164,12 @@ class PaperAnalysisService:
             await self.repo.save(entity)
             raise ConflictError("Paper analysis failed") from exc
         entity.structured_result = result.model_dump_json()
-        entity.sources = json.dumps([source.model_dump(mode="json") for source in answer.sources])
-        pending = [name for name in FIELD_NAMES if getattr(result, name).kind == "not_found"]
+        entity.sources = json.dumps(
+            [source.model_dump(mode="json") for source in answer.sources]
+        )
+        pending = [
+            name for name in FIELD_NAMES if getattr(result, name).kind == "not_found"
+        ]
         entity.pending_confirmations = json.dumps(pending)
         entity.analysis_status = AnalysisStatus.SUCCEEDED.value
         entity.updated_at = datetime.now(UTC)
@@ -149,7 +180,10 @@ class PaperAnalysisService:
         document = await self.documents.get(document_id)
         if document is None:
             raise NotFoundError(f"Document not found: {document_id}")
-        if document.index_status != IndexStatus.SUCCEEDED.value or not document.paperqa_index_key:
+        if (
+            document.index_status != IndexStatus.SUCCEEDED.value
+            or not document.paperqa_index_key
+        ):
             raise ConflictError("Document must have a current successful index")
         return document
 
@@ -166,7 +200,9 @@ class PaperAnalysisService:
             template_version=entity.template_version,
             model_version=entity.model_version,
             generation=entity.generation,
-            structured_result=self._result(entity) if entity.structured_result else None,
+            structured_result=self._result(entity)
+            if entity.structured_result
+            else None,
             sources=self._sources(entity),
             pending_confirmations=self._pending(entity),
             error_code=entity.error_code,
@@ -177,13 +213,18 @@ class PaperAnalysisService:
 
     @staticmethod
     def _result(entity: PaperAnalysis) -> StructuredPaperResult:
-        return StructuredPaperResult.model_validate_json(entity.structured_result or "{}")
+        return StructuredPaperResult.model_validate_json(
+            entity.structured_result or "{}"
+        )
 
     @staticmethod
     def _sources(entity: PaperAnalysis):
         from app.integrations.paperqa2 import PaperSource
 
-        return [PaperSource.model_validate(item) for item in json.loads(entity.sources or "[]")]
+        return [
+            PaperSource.model_validate(item)
+            for item in json.loads(entity.sources or "[]")
+        ]
 
     @staticmethod
     def _pending(entity: PaperAnalysis) -> list[str]:

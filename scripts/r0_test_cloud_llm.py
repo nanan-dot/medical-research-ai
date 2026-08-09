@@ -11,7 +11,9 @@ TEST_MESSAGE = "Reply with exactly: cloud-llm-ok"
 async def run() -> int:
     try:
         async with LLMClient.from_settings() as client:
-            response = await client.chat([ChatMessage(role="user", content=TEST_MESSAGE)])
+            response = await client.chat(
+                [ChatMessage(role="user", content=TEST_MESSAGE)]
+            )
     except LLMClientError as error:
         print(f"Cloud LLM smoke test failed [{error.code}]: {error.message}")
         return 1

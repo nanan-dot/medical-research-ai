@@ -38,7 +38,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table("writing_projects") as batch_op:
-        batch_op.add_column(sa.Column("generated_content_json", sa.Text(), nullable=False, server_default="{}"))
+        batch_op.add_column(
+            sa.Column(
+                "generated_content_json", sa.Text(), nullable=False, server_default="{}"
+            )
+        )
     op.execute(
         sa.text(
             "UPDATE writing_projects SET generated_content_json = "

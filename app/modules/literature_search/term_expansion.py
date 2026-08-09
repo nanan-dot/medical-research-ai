@@ -13,12 +13,22 @@ class TermExpansion:
 
 
 _TERM_MAPPINGS: dict[str, TermExpansion] = {
-    "gastric cancer": TermExpansion("Gastric Neoplasms", ("gastric cancer", "stomach cancer")),
-    "lung cancer": TermExpansion("Lung Neoplasms", ("lung cancer", "pulmonary neoplasm")),
-    "breast cancer": TermExpansion("Breast Neoplasms", ("breast cancer", "mammary carcinoma")),
+    "gastric cancer": TermExpansion(
+        "Gastric Neoplasms", ("gastric cancer", "stomach cancer")
+    ),
+    "lung cancer": TermExpansion(
+        "Lung Neoplasms", ("lung cancer", "pulmonary neoplasm")
+    ),
+    "breast cancer": TermExpansion(
+        "Breast Neoplasms", ("breast cancer", "mammary carcinoma")
+    ),
     "diabetes": TermExpansion("Diabetes Mellitus", ("diabetes", "diabetic")),
-    "alzheimer disease": TermExpansion("Alzheimer Disease", ("Alzheimer's disease", "Alzheimer disease")),
-    "immunotherapy": TermExpansion("Immunotherapy", ("cancer immunotherapy", "immune therapy")),
+    "alzheimer disease": TermExpansion(
+        "Alzheimer Disease", ("Alzheimer's disease", "Alzheimer disease")
+    ),
+    "immunotherapy": TermExpansion(
+        "Immunotherapy", ("cancer immunotherapy", "immune therapy")
+    ),
     "metformin": TermExpansion("Metformin", ("metformin", "dimethylbiguanide")),
     "aspirin": TermExpansion("Aspirin", ("aspirin", "acetylsalicylic acid", "ASA")),
     "egfr": TermExpansion("EGFR", ("epidermal growth factor receptor", "ERBB1")),
@@ -27,9 +37,16 @@ _TERM_MAPPINGS: dict[str, TermExpansion] = {
 }
 
 _CHINESE_ALIASES = {
-    "胃癌": "gastric cancer", "肺癌": "lung cancer", "乳腺癌": "breast cancer", "糖尿病": "diabetes",
-    "阿尔茨海默病": "alzheimer disease", "免疫治疗": "immunotherapy", "二甲双胍": "metformin",
-    "阿司匹林": "aspirin", "表皮生长因子受体": "egfr", "靶向治疗": "targeted therapy",
+    "胃癌": "gastric cancer",
+    "肺癌": "lung cancer",
+    "乳腺癌": "breast cancer",
+    "糖尿病": "diabetes",
+    "阿尔茨海默病": "alzheimer disease",
+    "免疫治疗": "immunotherapy",
+    "二甲双胍": "metformin",
+    "阿司匹林": "aspirin",
+    "表皮生长因子受体": "egfr",
+    "靶向治疗": "targeted therapy",
 }
 
 

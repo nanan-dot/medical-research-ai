@@ -33,7 +33,9 @@ class DocumentRepository:
         result = await self.session.execute(statement.offset(offset).limit(limit))
         return list(result.scalars().all())
 
-    async def count(self, parse_status: str | None = None, index_status: str | None = None) -> int:
+    async def count(
+        self, parse_status: str | None = None, index_status: str | None = None
+    ) -> int:
         statement = select(func.count()).select_from(Document)
         if parse_status is not None:
             statement = statement.where(Document.parse_status == parse_status)

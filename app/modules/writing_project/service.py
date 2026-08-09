@@ -67,8 +67,12 @@ class WritingProjectService:
         if payload.confidential is not None:
             values["confidential"] = payload.confidential
         if payload.generated_content is not None:
-            entity.generated_content.content_json = self._dump(payload.generated_content)
-        if not await self.repository.update_if_version(project_id, payload.expected_version, values):
+            entity.generated_content.content_json = self._dump(
+                payload.generated_content
+            )
+        if not await self.repository.update_if_version(
+            project_id, payload.expected_version, values
+        ):
             raise ConflictError("Writing project version conflict; reload and retry")
         await self.session.refresh(entity)
         return self._read(entity)
@@ -85,11 +89,15 @@ class WritingProjectService:
         await self.session.refresh(project, attribute_names=["materials"])
         return UserMaterialRead.model_validate(material)
 
-    async def save_version(self, project_id: int, *, expected_version: int) -> WritingVersionRead:
+    async def save_version(
+        self, project_id: int, *, expected_version: int
+    ) -> WritingVersionRead:
         entity = await self._require(project_id)
         self._check_version(entity, expected_version)
         prior_versions = await self.repository.list_versions(project_id)
-        next_snapshot_version = max((item.version for item in prior_versions), default=0) + 1
+        next_snapshot_version = (
+            max((item.version for item in prior_versions), default=0) + 1
+        )
         snapshot = snapshot_content(
             self._content(entity),
             version=next_snapshot_version,
@@ -107,7 +115,10 @@ class WritingProjectService:
 
     async def list_versions(self, project_id: int) -> list[WritingVersionRead]:
         await self._require(project_id)
-        return [self._read_version(item) for item in await self.repository.list_versions(project_id)]
+        return [
+            self._read_version(item)
+            for item in await self.repository.list_versions(project_id)
+        ]
 
     async def restore_version(
         self,
@@ -165,7 +176,9 @@ class WritingProjectService:
 
     @staticmethod
     def _content(entity: WritingProject) -> GeneratedContent:
-        return GeneratedContent.model_validate_json(entity.generated_content.content_json)
+        return GeneratedContent.model_validate_json(
+            entity.generated_content.content_json
+        )
 
     @classmethod
     def _read(cls, entity: WritingProject) -> WritingProjectRead:
@@ -176,7 +189,9 @@ class WritingProjectService:
             confidential=entity.confidential,
             generated_content=cls._content(entity),
             version=entity.version,
-            user_materials=[UserMaterialRead.model_validate(item) for item in entity.materials],
+            user_materials=[
+                UserMaterialRead.model_validate(item) for item in entity.materials
+            ],
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )

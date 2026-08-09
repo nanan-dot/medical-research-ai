@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.modules.comparison.schema import ComparisonCellEdit, ComparisonCreate, ComparisonTaskRead
+from app.modules.comparison.schema import (
+    ComparisonCellEdit,
+    ComparisonCreate,
+    ComparisonTaskRead,
+)
 from app.modules.comparison.service import ComparisonExportFormat, ComparisonService
 
 router = APIRouter(prefix="/comparisons")
@@ -56,6 +60,14 @@ async def export_comparison(
     comparison_service: ComparisonService = Depends(service),
 ) -> Response:
     content = await comparison_service.export(comparison_id, export_format)
-    media_type = "text/csv; charset=utf-8" if export_format == "csv" else "text/markdown; charset=utf-8"
-    filename = f"comparison-{comparison_id}.{ 'csv' if export_format == 'csv' else 'md'}"
-    return Response(content=content, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    media_type = (
+        "text/csv; charset=utf-8"
+        if export_format == "csv"
+        else "text/markdown; charset=utf-8"
+    )
+    filename = f"comparison-{comparison_id}.{'csv' if export_format == 'csv' else 'md'}"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

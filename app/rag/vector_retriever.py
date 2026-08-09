@@ -11,7 +11,9 @@ QueryVectorProvider = Callable[[str], list[float]]
 class VectorRetriever:
     """通过注入的查询嵌入函数把 FAISS 检索器适配为文本检索器。"""
 
-    def __init__(self, *, index_store: FaissIndexStore, embed_query: QueryVectorProvider) -> None:
+    def __init__(
+        self, *, index_store: FaissIndexStore, embed_query: QueryVectorProvider
+    ) -> None:
         self._index_store = index_store
         self._embed_query = embed_query
 

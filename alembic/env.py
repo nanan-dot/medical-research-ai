@@ -59,7 +59,9 @@ async def run_migrations_online() -> None:
 
     async with connectable.connect() as connection:
         await connection.run_sync(
-            lambda conn: context.configure(connection=conn, target_metadata=target_metadata)
+            lambda conn: context.configure(
+                connection=conn, target_metadata=target_metadata
+            )
         )
         await connection.run_sync(lambda _: context.run_migrations())
 
@@ -70,4 +72,5 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     import asyncio
+
     asyncio.run(run_migrations_online())

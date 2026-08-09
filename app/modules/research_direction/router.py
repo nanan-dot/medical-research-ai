@@ -43,7 +43,9 @@ async def generate_research_direction_details(
     model_config_id: int | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> ResearchDirectionRead:
-    return await ResearchDirectionService(session).generate_details(direction_id, model_config_id)
+    return await ResearchDirectionService(session).generate_details(
+        direction_id, model_config_id
+    )
 
 
 @router.patch("/{direction_id}", response_model=ResearchDirectionRead)

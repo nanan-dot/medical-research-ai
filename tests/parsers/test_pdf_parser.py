@@ -14,7 +14,9 @@ def make_pdf(path: Path, pages: list[list[tuple[float, float, str]]]) -> None:
     writer.save()
 
 
-def test_single_column_pdf_preserves_one_based_pages_and_removes_margins(tmp_path: Path):
+def test_single_column_pdf_preserves_one_based_pages_and_removes_margins(
+    tmp_path: Path,
+):
     path = tmp_path / "single.pdf"
     make_pdf(
         path,
@@ -25,7 +27,11 @@ def test_single_column_pdf_preserves_one_based_pages_and_removes_margins(tmp_pat
                 (72, 720, "Page one body"),
                 (72, 40, "Footer"),
             ],
-            [(72, 800, "Repeated Header"), (72, 760, "Page two body"), (72, 40, "Footer")],
+            [
+                (72, 800, "Repeated Header"),
+                (72, 760, "Page two body"),
+                (72, 40, "Footer"),
+            ],
         ],
     )
     parsed = PDFParser().parse(path)

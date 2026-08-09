@@ -68,7 +68,9 @@ class ComparisonService:
             cells=[self._read_cell(cell) for cell in cells],
         )
 
-    async def edit_cell(self, task_id: int, edit: ComparisonCellEdit) -> ComparisonTaskRead:
+    async def edit_cell(
+        self, task_id: int, edit: ComparisonCellEdit
+    ) -> ComparisonTaskRead:
         cell = await self.repo.cell(task_id, edit.document_id, edit.field.value)
         if cell is None:
             raise NotFoundError("Comparison cell not found")
@@ -83,7 +85,9 @@ class ComparisonService:
         for cell in await self.repo.cells_for_task(task_id):
             if cell.status == CellStatus.USER_EDITED.value:
                 continue
-            generated = await self._generate_cell(task_id, cell.document_id, ComparisonField(cell.field))
+            generated = await self._generate_cell(
+                task_id, cell.document_id, ComparisonField(cell.field)
+            )
             cell.cell_value = generated.cell_value
             cell.generated_value = generated.generated_value
             cell.sources = generated.sources
@@ -103,7 +107,9 @@ class ComparisonService:
             raise NotFoundError(f"Comparison not found: {task_id}")
         return task
 
-    async def _generate_cell(self, task_id: int, document_id: int, field: ComparisonField) -> ComparisonCell:
+    async def _generate_cell(
+        self, task_id: int, document_id: int, field: ComparisonField
+    ) -> ComparisonCell:
         generated = await self._evidence_value(document_id, field)
         return ComparisonCell(
             comparison_id=task_id,
@@ -115,15 +121,25 @@ class ComparisonService:
             status=generated.status.value,
         )
 
-    async def _evidence_value(self, document_id: int, field: ComparisonField) -> ComparisonCellGenerated:
+    async def _evidence_value(
+        self, document_id: int, field: ComparisonField
+    ) -> ComparisonCellGenerated:
         library_items = await self.library.list_items(0, 1000, None)
-        library_item = next((item for item in library_items if item.document_id == document_id), None)
+        library_item = next(
+            (item for item in library_items if item.document_id == document_id), None
+        )
         if field == ComparisonField.SOURCE and library_item is not None:
             return ComparisonCellGenerated(
                 document_id=document_id,
                 field=field,
                 generated_value=library_item.title or MISSING_VALUE,
-                sources=[SourceRef(pmid=library_item.pmid, doi=library_item.doi, locator="library_item")],
+                sources=[
+                    SourceRef(
+                        pmid=library_item.pmid,
+                        doi=library_item.doi,
+                        locator="library_item",
+                    )
+                ],
             )
         analysis = await self.analyses.latest_for_document(document_id)
         if analysis is None or not analysis.structured_result or library_item is None:
@@ -157,7 +173,9 @@ class ComparisonService:
             document_id=cell.document_id,
             field=ComparisonField(cell.field),
             cell_value=cell.cell_value or MISSING_VALUE,
-            sources=[SourceRef.model_validate(item) for item in json.loads(cell.sources)],
+            sources=[
+                SourceRef.model_validate(item) for item in json.loads(cell.sources)
+            ],
             generated_value=cell.generated_value,
             user_value=cell.user_value,
             status=CellStatus(cell.status),
@@ -166,7 +184,9 @@ class ComparisonService:
     def _to_csv(self, task: ComparisonTaskRead) -> str:
         output = io.StringIO(newline="")
         writer = csv.writer(output)
-        writer.writerow(["field", *[f"document_{item}" for item in task.selected_document_ids]])
+        writer.writerow(
+            ["field", *[f"document_{item}" for item in task.selected_document_ids]]
+        )
         for field in task.fields:
             row = [field.value]
             for document_id in task.selected_document_ids:
@@ -177,16 +197,32 @@ class ComparisonService:
 
     def _to_markdown(self, task: ComparisonTaskRead) -> str:
         header = ["字段", *[f"文档 {item}" for item in task.selected_document_ids]]
-        lines = [f"# 多论文比较 #{task.id}", "", self._markdown_row(header), self._markdown_row(["---"] * len(header))]
+        lines = [
+            f"# 多论文比较 #{task.id}",
+            "",
+            self._markdown_row(header),
+            self._markdown_row(["---"] * len(header)),
+        ]
         for field in task.fields:
             values = [field.value]
-            values.extend(self._cell_for(task, field, document_id).cell_value for document_id in task.selected_document_ids)
+            values.extend(
+                self._cell_for(task, field, document_id).cell_value
+                for document_id in task.selected_document_ids
+            )
             lines.append(self._markdown_row(values))
         return "\n".join(lines) + "\n"
 
-    def _cell_for(self, task: ComparisonTaskRead, field: ComparisonField, document_id: int) -> ComparisonCellRead:
-        return next(cell for cell in task.cells if cell.field == field and cell.document_id == document_id)
+    def _cell_for(
+        self, task: ComparisonTaskRead, field: ComparisonField, document_id: int
+    ) -> ComparisonCellRead:
+        return next(
+            cell
+            for cell in task.cells
+            if cell.field == field and cell.document_id == document_id
+        )
 
     def _markdown_row(self, values: list[str]) -> str:
-        escaped_values = [value.replace("|", "\\|").replace("\n", "<br>") for value in values]
+        escaped_values = [
+            value.replace("|", "\\|").replace("\n", "<br>") for value in values
+        ]
         return f"| {' | '.join(escaped_values)} |"

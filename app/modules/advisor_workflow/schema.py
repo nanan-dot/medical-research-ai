@@ -37,7 +37,9 @@ class AdvisorNoteCreate(BaseModel):
     summary: str = Field(min_length=1, max_length=3000)
     points: list[ReviewPoint] = Field(min_length=1, max_length=30)
     literature_gaps: list[LiteratureGap] = Field(default_factory=list, max_length=30)
-    experiment_conditions: list[ExperimentCondition] = Field(default_factory=list, max_length=30)
+    experiment_conditions: list[ExperimentCondition] = Field(
+        default_factory=list, max_length=30
+    )
 
 
 class MockReviewRequest(BaseModel):

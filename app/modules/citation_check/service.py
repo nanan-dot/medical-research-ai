@@ -35,7 +35,11 @@ class CitationCheckService:
                 check_statement(item.text, item.citation_ids, topic=item.topic).__dict__
                 for item in getattr(request, "statements", [])
             ]
-            return CitationCheckResult(items=verified_items, summary=summary, statement_results=statement_results)
+            return CitationCheckResult(
+                items=verified_items,
+                summary=summary,
+                statement_results=statement_results,
+            )
         finally:
             close = getattr(self.verifier, "aclose", None)
             if callable(close):

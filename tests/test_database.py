@@ -55,6 +55,7 @@ EXPECTED_TABLES = {
     "research_conditions_versions",
     "topic_structurings",
     "topic_structuring_versions",
+    "task_records",
     "writings",
 }
 
@@ -93,7 +94,9 @@ async def test_get_session_rolls_back_on_exception(tmp_path: Path, monkeypatch):
         await session_dependency.athrow(RuntimeError("force rollback"))
 
     async with session_factory() as verification_session:
-        result = await verification_session.execute(text("SELECT COUNT(*) FROM rollback_probe"))
+        result = await verification_session.execute(
+            text("SELECT COUNT(*) FROM rollback_probe")
+        )
         assert result.scalar_one() == 0
 
     await test_engine.dispose()

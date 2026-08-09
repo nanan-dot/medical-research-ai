@@ -23,14 +23,21 @@ class MeshClient:
             return []
         rows = await self._fetcher(term)
         return [
-            {"descriptor": str(row["label"]), "mesh_id": str(row["resource"]).rsplit("/", 1)[-1], "source": "NLM MeSH"}
+            {
+                "descriptor": str(row["label"]),
+                "mesh_id": str(row["resource"]).rsplit("/", 1)[-1],
+                "source": "NLM MeSH",
+            }
             for row in rows
-            if isinstance(row.get("label"), str) and isinstance(row.get("resource"), str)
+            if isinstance(row.get("label"), str)
+            and isinstance(row.get("resource"), str)
         ]
 
     async def _fetch(self, term: str) -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(self.base_url, params={"label": term, "match": "exact", "limit": 5})
+            response = await client.get(
+                self.base_url, params={"label": term, "match": "exact", "limit": 5}
+            )
             response.raise_for_status()
             payload: Any = response.json()
         return payload if isinstance(payload, list) else []

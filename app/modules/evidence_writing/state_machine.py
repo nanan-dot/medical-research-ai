@@ -3,7 +3,12 @@
 from typing import Literal
 
 WorkflowState = Literal[
-    "drafting", "outline_pending", "outline_confirmed", "user_editing", "polishing", "done"
+    "drafting",
+    "outline_pending",
+    "outline_confirmed",
+    "user_editing",
+    "polishing",
+    "done",
 ]
 
 _TRANSITIONS: dict[tuple[WorkflowState, str], WorkflowState] = {
@@ -20,4 +25,6 @@ def transition(state: WorkflowState, action: str) -> WorkflowState:
     try:
         return _TRANSITIONS[(state, action)]
     except KeyError as error:
-        raise ValueError(f"Illegal writing workflow transition: {state} + {action}") from error
+        raise ValueError(
+            f"Illegal writing workflow transition: {state} + {action}"
+        ) from error

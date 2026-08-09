@@ -52,5 +52,5 @@ def test_document_size_limit_is_enforced(tmp_path: Path, monkeypatch):
 
 
 def test_unsupported_type_is_explicit(tmp_path: Path):
-    with pytest.raises(UnsupportedDocumentTypeError, match=".docx"):
-        create_parser(tmp_path / "paper.docx")
+    with pytest.raises(UnsupportedDocumentTypeError, match=".xlsx"):
+        create_parser(tmp_path / "paper.xlsx")

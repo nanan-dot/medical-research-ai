@@ -25,9 +25,15 @@ class ModelConfigCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_privacy(self):
-        if self.provider == Provider.OLLAMA and self.deployment_mode != DeploymentMode.LOCAL:
+        if (
+            self.provider == Provider.OLLAMA
+            and self.deployment_mode != DeploymentMode.LOCAL
+        ):
             raise ValueError("Ollama must use local mode")
-        if self.provider != Provider.OLLAMA and self.deployment_mode == DeploymentMode.LOCAL:
+        if (
+            self.provider != Provider.OLLAMA
+            and self.deployment_mode == DeploymentMode.LOCAL
+        ):
             raise ValueError("Cloud providers cannot use local mode")
         if self.provider != Provider.OLLAMA and not self.api_key:
             raise ValueError("Cloud provider API key is required")

@@ -17,7 +17,9 @@ depends_on: str | Sequence[str] | None = None
 def upgrade():
     with op.batch_alter_table("feedbacks") as batch:
         batch.add_column(
-            sa.Column("task_completion_rate", sa.Float(), nullable=False, server_default="0")
+            sa.Column(
+                "task_completion_rate", sa.Float(), nullable=False, server_default="0"
+            )
         )
         batch.add_column(sa.Column("useful", sa.Boolean()))
         batch.add_column(sa.Column("citation_correct", sa.Boolean()))

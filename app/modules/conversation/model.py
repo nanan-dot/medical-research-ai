@@ -13,13 +13,19 @@ class Conversation(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     document_ids: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class Message(Base):
     __tablename__ = "messages"
-    __table_args__ = (UniqueConstraint("conversation_id", "sequence", name="uq_message_sequence"),)
+    __table_args__ = (
+        UniqueConstraint("conversation_id", "sequence", name="uq_message_sequence"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     conversation_id: Mapped[int] = mapped_column(
         ForeignKey("conversations.id", ondelete="CASCADE"), index=True
@@ -33,7 +39,9 @@ class Message(Base):
     answer_status: Mapped[str | None] = mapped_column(String(32))
     uncertainty: Mapped[float | None]
     reason_codes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class Citation(Base):
@@ -45,7 +53,9 @@ class Citation(Base):
     document_id: Mapped[int] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"), index=True
     )
-    evidence_type: Mapped[str] = mapped_column(String(32), nullable=False, default="paperqa")
+    evidence_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="paperqa"
+    )
     page: Mapped[int | None]
     section: Mapped[str | None] = mapped_column(String(300))
     evidence_text: Mapped[str | None] = mapped_column(Text)

@@ -10,7 +10,9 @@ class LibraryItemRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def find_by_identifier(self, pmid: str, doi: str | None) -> LibraryItem | None:
+    async def find_by_identifier(
+        self, pmid: str, doi: str | None
+    ) -> LibraryItem | None:
         """按 PMID 或 DOI 精确查找（幂等去重用）。"""
         clauses = [LibraryItem.pmid == pmid]
         if doi:
@@ -31,7 +33,9 @@ class LibraryItemRepository:
         return list(result.scalars().all())
 
     async def get(self, item_id: int) -> LibraryItem | None:
-        result = await self.session.execute(select(LibraryItem).where(LibraryItem.id == item_id))
+        result = await self.session.execute(
+            select(LibraryItem).where(LibraryItem.id == item_id)
+        )
         return result.scalar_one_or_none()
 
     async def list_items(

@@ -5,7 +5,6 @@ without data loss, user notes isolation, versioning on regenerate,
 CSV escaping, and user-edited cells surviving regeneration.
 """
 
-
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -28,7 +27,9 @@ from app.modules.evidence_matrix.service import EvidenceMatrixService
 @pytest.fixture
 async def service(tmp_path):
     """内存级服务实例：独立 SQLite 引擎 + 建表，避免污染开发库。"""
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'matrix.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'matrix.db').as_posix()}"
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -94,13 +95,18 @@ async def test_remove_field_keeps_other_cells(service):
     matrix_id = data["id"]
     await _seed_documents(service, matrix_id, 3)
     # 编辑一个单元格，再删除该字段
-    await service.edit_cell(matrix_id, MatrixCellEdit(document_id=1, field_key="study_type", user_value="队列研究"))
+    await service.edit_cell(
+        matrix_id,
+        MatrixCellEdit(document_id=1, field_key="study_type", user_value="队列研究"),
+    )
     await service.remove_field(matrix_id, "study_type")
     after = await service.get(matrix_id)
     assert all(f.field_key != "study_type" for f in after.fields)  # 字段列表移除
     study_cells = [c for c in after.cells if c.field_key == "study_type"]
     assert len(study_cells) == 3  # 单元格保留（软删除，不丢数据）
-    remaining = [c for c in after.cells if c.document_id == 1 and c.field_key != "study_type"]
+    remaining = [
+        c for c in after.cells if c.document_id == 1 and c.field_key != "study_type"
+    ]
     assert remaining  # 其他字段单元格仍在
 
 
@@ -112,7 +118,9 @@ async def test_user_notes_isolated_from_generated(service):
     await service.update_document(
         matrix_id,
         1,
-        MatrixDocumentUpdate(user_notes="这篇是核心证据", reading_status=ReadingStatus.READING),
+        MatrixDocumentUpdate(
+            user_notes="这篇是核心证据", reading_status=ReadingStatus.READING
+        ),
     )
     refreshed = await service.get(matrix_id)
     doc = next(d for d in refreshed.documents if d.document_id == 1)
@@ -125,13 +133,20 @@ async def test_regenerate_preserves_user_edited_cells(service):
     data = await _create_matrix(service)
     matrix_id = data["id"]
     await _seed_documents(service, matrix_id, 3)
-    await service.edit_cell(matrix_id, MatrixCellEdit(document_id=1, field_key="study_type", user_value="人工填写的类型"))
+    await service.edit_cell(
+        matrix_id,
+        MatrixCellEdit(
+            document_id=1, field_key="study_type", user_value="人工填写的类型"
+        ),
+    )
     before = await service.get(matrix_id)
     version_before = before.version
     await service.regenerate(matrix_id)
     after = await service.get(matrix_id)
     assert after.version > version_before  # 版本递增
-    edited = next(c for c in after.cells if c.document_id == 1 and c.field_key == "study_type")
+    edited = next(
+        c for c in after.cells if c.document_id == 1 and c.field_key == "study_type"
+    )
     assert edited.cell_value == "人工填写的类型"
     assert edited.status == CellStatus.USER_EDITED
 
@@ -143,7 +158,9 @@ async def test_export_csv_escapes_commas_and_quotes(service):
     await _seed_documents(service, matrix_id, 3)
     await service.edit_cell(
         matrix_id,
-        MatrixCellEdit(document_id=1, field_key="study_type", user_value='含"引号,和逗号'),
+        MatrixCellEdit(
+            document_id=1, field_key="study_type", user_value='含"引号,和逗号'
+        ),
     )
     csv_text = await service.export(matrix_id, "csv")
     assert '"含""引号,和逗号"' in csv_text  # 引号转义为双引号

@@ -2,10 +2,18 @@
 
 from typing import Any
 
-ALLOWED_ORIGINS = {"user_provided", "paper_evidence", "model_summary", "model_inference", "pending"}
+ALLOWED_ORIGINS = {
+    "user_provided",
+    "paper_evidence",
+    "model_summary",
+    "model_inference",
+    "pending",
+}
 
 
-def validate_segments(segments: list[dict[str, Any]], *, pending_item_ids: set[str]) -> list[dict[str, Any]]:
+def validate_segments(
+    segments: list[dict[str, Any]], *, pending_item_ids: set[str]
+) -> list[dict[str, Any]]:
     if not segments:
         raise ValueError("Draft must contain marked content segments")
     for segment in segments:
@@ -15,6 +23,9 @@ def validate_segments(segments: list[dict[str, Any]], *, pending_item_ids: set[s
         citations = segment.get("citation_ids", [])
         if origin == "paper_evidence" and not citations:
             raise ValueError("paper_evidence requires citation_ids")
-        if origin == "pending" and segment.get("pending_item_id") not in pending_item_ids:
+        if (
+            origin == "pending"
+            and segment.get("pending_item_id") not in pending_item_ids
+        ):
             raise ValueError("pending sentence requires a matching pending item")
     return segments

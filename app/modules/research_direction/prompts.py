@@ -4,7 +4,9 @@ import json
 
 
 def build_candidates_prompt(
-    conditions: dict[str, object], evidence_context: list[dict[str, object]], candidate_count: int
+    conditions: dict[str, object],
+    evidence_context: list[dict[str, object]],
+    candidate_count: int,
 ) -> str:
     """构建只允许引用给定来源的候选生成提示。"""
     return f"""你是医学研究方向辅助工具，不替用户决定正式课题。
@@ -19,7 +21,9 @@ gap 必须包含“当前检索结果中较少见”，禁止“首次、首创�
 证据矩阵：{json.dumps(evidence_context, ensure_ascii=False)}"""
 
 
-def build_details_prompt(direction: dict[str, object], evidence_context: list[dict[str, object]]) -> str:
+def build_details_prompt(
+    direction: dict[str, object], evidence_context: list[dict[str, object]]
+) -> str:
     """构建按需详情提示，避免首次生成携带冗长字段。"""
     return f"""为以下候选研究方向返回严格 JSON 对象，字段为 methods, requirements, difficulty,
 time_risk, resource_risk, ethics_risk, search_terms, advisor_questions。不得假设用户已有设备；

@@ -7,7 +7,12 @@ def test_event_normalizer_keeps_scope_metadata_but_not_sensitive_text() -> None:
         model_name="local-model",
         model_version="v1",
         purpose="draft",
-        input_scope={"papers": 3, "matrices": 2, "user_notes": 1, "text": "secret unpublished data"},
+        input_scope={
+            "papers": 3,
+            "matrices": 2,
+            "user_notes": 1,
+            "text": "secret unpublished data",
+        },
         output_version="v2",
         human_edited=True,
         is_cloud=False,
@@ -16,7 +21,9 @@ def test_event_normalizer_keeps_scope_metadata_but_not_sensitive_text() -> None:
     assert "secret" not in event.input_scope
 
 
-def test_disclosure_draft_has_responsibility_notice_and_confidential_placeholder() -> None:
+def test_disclosure_draft_has_responsibility_notice_and_confidential_placeholder() -> (
+    None
+):
     draft = build_disclosure_draft([], confidential=True)
     assert "您对最终内容负责" in draft
     assert "[confidential]" in draft

@@ -39,7 +39,9 @@ class _FakeExecutor:
 async def client(tmp_path: Path, monkeypatch):
     from app.modules.literature_search.service import LiteratureSearchService
 
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'litsearch.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'litsearch.db').as_posix()}"
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
     async with engine.begin() as connection:
@@ -56,7 +58,14 @@ async def client(tmp_path: Path, monkeypatch):
 
     original_init = LiteratureSearchService.__init__
 
-    def patched_init(self, session, *, candidate_extractor=None, mesh_client=None, pubmed_executor=None):
+    def patched_init(
+        self,
+        session,
+        *,
+        candidate_extractor=None,
+        mesh_client=None,
+        pubmed_executor=None,
+    ):
         original_init(
             self,
             session,

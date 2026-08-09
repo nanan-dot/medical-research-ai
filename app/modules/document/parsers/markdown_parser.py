@@ -54,7 +54,10 @@ class MarkdownParser:
         title_value = metadata.get("title")
         title = str(title_value).strip() if title_value is not None else None
         if not title:
-            title = next((section.heading for section in sections if section.level == 1), path.stem)
+            title = next(
+                (section.heading for section in sections if section.level == 1),
+                path.stem,
+            )
         return ParsedDocument(
             source_path=str(path),
             title=title[:500],
@@ -70,14 +73,20 @@ class MarkdownParser:
             return {}, content
         try:
             closing = next(
-                index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"
+                index
+                for index, line in enumerate(lines[1:], start=1)
+                if line.strip() == "---"
             )
         except StopIteration as exc:
-            raise InvalidDocumentMetadataError("YAML front matter is not closed") from exc
+            raise InvalidDocumentMetadataError(
+                "YAML front matter is not closed"
+            ) from exc
         try:
             value = yaml.safe_load("\n".join(lines[1:closing])) or {}
         except yaml.YAMLError as exc:
             raise InvalidDocumentMetadataError("YAML front matter is invalid") from exc
         if not isinstance(value, dict):
             raise InvalidDocumentMetadataError("YAML front matter must be a mapping")
-        return {str(key): item for key, item in value.items()}, "\n".join(lines[closing + 1 :])
+        return {str(key): item for key, item in value.items()}, "\n".join(
+            lines[closing + 1 :]
+        )

@@ -19,7 +19,11 @@ async def test_structured_feedback_and_anonymous_export(session):
     )
     assert created.useful is True and created.citation_correct is False
     exported = await service.anonymous_csv()
-    assert "页码不匹配" in exported and "user_id" not in exported and "email" not in exported
+    assert (
+        "页码不匹配" in exported
+        and "user_id" not in exported
+        and "email" not in exported
+    )
 
 
 def test_subjective_only_feedback_must_still_have_comment():

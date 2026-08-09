@@ -35,7 +35,9 @@ def _mock_embed_handler(dimension: int = 4):
             200,
             json={
                 "model": payload["model"],
-                "embeddings": [[float(index) + 1.0 for index in range(dimension)] for _ in texts],
+                "embeddings": [
+                    [float(index) + 1.0 for index in range(dimension)] for _ in texts
+                ],
             },
         )
 

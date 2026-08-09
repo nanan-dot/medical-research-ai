@@ -15,7 +15,11 @@ class DateRange(BaseModel):
 
     @model_validator(mode="after")
     def validate_order(self) -> "DateRange":
-        if self.start_year is not None and self.end_year is not None and self.start_year > self.end_year:
+        if (
+            self.start_year is not None
+            and self.end_year is not None
+            and self.start_year > self.end_year
+        ):
             raise ValueError("start_year cannot be after end_year")
         return self
 
@@ -38,7 +42,11 @@ class SearchIntentCandidate(BaseModel):
     def remove_blank_and_duplicate_values(self) -> "SearchIntentCandidate":
         for field_name in ("study_types", "language", "exclusions"):
             values = getattr(self, field_name)
-            setattr(self, field_name, list(dict.fromkeys(value.strip() for value in values if value.strip())))
+            setattr(
+                self,
+                field_name,
+                list(dict.fromkeys(value.strip() for value in values if value.strip())),
+            )
         return self
 
 

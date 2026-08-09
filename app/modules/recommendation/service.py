@@ -14,7 +14,9 @@ _MAX_CANDIDATE_COUNT = 10
 
 
 class RecommendationExecutor(Protocol):
-    async def execute(self, query: str, *, retmax: int) -> tuple[list[CitationItem], int]: ...
+    async def execute(
+        self, query: str, *, retmax: int
+    ) -> tuple[list[CitationItem], int]: ...
 
 
 @dataclass(frozen=True)
@@ -49,7 +51,9 @@ class RecommendationEvidenceService:
         raw_items, total_count = await self._executor.execute(
             built.boolean_query, retmax=max(candidate_count, _DEFAULT_CANDIDATE_COUNT)
         )
-        usable = [item for item in raw_items if item.has_abstract and not item.withdrawn]
+        usable = [
+            item for item in raw_items if item.has_abstract and not item.withdrawn
+        ]
         usable.sort(key=lambda item: item.year or 0, reverse=True)
         items = usable[:candidate_count]
         warnings = [] if items else ["未找到可验证文献"]

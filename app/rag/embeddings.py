@@ -60,7 +60,9 @@ class DummyEmbeddingClient:
 
     def __init__(self, dimension: int = DUMMY_EMBEDDING_DIMENSION) -> None:
         if dimension <= 0:
-            raise EmbeddingError(f"dummy embedding dimension must be positive, got {dimension}")
+            raise EmbeddingError(
+                f"dummy embedding dimension must be positive, got {dimension}"
+            )
         self._dimension = dimension
 
     @property
@@ -153,10 +155,14 @@ class OllamaEmbeddingClient:
             payload = response.json()
             embeddings = payload.get("embeddings")
         except ValueError as error:
-            raise EmbeddingError("ollama returned a non-JSON embedding response") from error
+            raise EmbeddingError(
+                "ollama returned a non-JSON embedding response"
+            ) from error
 
         if not isinstance(embeddings, list) or len(embeddings) != len(texts):
-            raise EmbeddingError("ollama embedding response is incompatible with the input")
+            raise EmbeddingError(
+                "ollama embedding response is incompatible with the input"
+            )
 
         vector_dimension: int | None = None
         normalized: list[list[float]] = []
@@ -169,13 +175,18 @@ class OllamaEmbeddingClient:
             if vector_dimension is None:
                 vector_dimension = len(flat)
             elif len(flat) != vector_dimension:
-                raise EmbeddingError("ollama returned embeddings of inconsistent dimensions")
+                raise EmbeddingError(
+                    "ollama returned embeddings of inconsistent dimensions"
+                )
             normalized.append(flat)
 
         if vector_dimension is None or vector_dimension == 0:
             raise EmbeddingError("ollama returned empty embeddings")
 
-        if self._declared_dimension is not None and vector_dimension != self._declared_dimension:
+        if (
+            self._declared_dimension is not None
+            and vector_dimension != self._declared_dimension
+        ):
             raise EmbeddingDimensionError(
                 f"ollama embedding dimension {vector_dimension} does not match the configured "
                 f"EMBEDDING_DIMENSION {self._declared_dimension}; set EMBEDDING_DIMENSION "

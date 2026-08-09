@@ -14,4 +14,6 @@ class Feedback(Base):
     error_type: Mapped[str | None] = mapped_column(String(32))
     comment: Mapped[str | None] = mapped_column(Text)
     next_step: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

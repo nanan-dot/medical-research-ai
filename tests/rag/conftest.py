@@ -24,7 +24,13 @@ class FakeEmbeddingClient:
         return self.dimension_value
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        return [[float(byte) / 255.0 for byte in text.encode("utf-8")[: self.dimension_value]] for text in texts]
+        return [
+            [
+                float(byte) / 255.0
+                for byte in text.encode("utf-8")[: self.dimension_value]
+            ]
+            for text in texts
+        ]
 
 
 @pytest.fixture

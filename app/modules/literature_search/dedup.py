@@ -13,9 +13,13 @@ from app.modules.literature_search.schema import CitationItem
 MatchMethod = Literal["pmid", "doi", "title_normalized", "author_year", "manual"]
 Confidence = Literal["clear", "fuzzy"]
 
-DOI_PREFIX_PATTERN = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", re.IGNORECASE)
+DOI_PREFIX_PATTERN = re.compile(
+    r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", re.IGNORECASE
+)
 WHITESPACE_PATTERN = re.compile(r"\s+")
-PUNCTUATION_TRANSLATION = str.maketrans({character: " " for character in string.punctuation})
+PUNCTUATION_TRANSLATION = str.maketrans(
+    {character: " " for character in string.punctuation}
+)
 
 
 @dataclass(frozen=True)
@@ -60,7 +64,11 @@ def find_duplicate_candidates(records: list[DedupRecord]) -> list[DuplicateCandi
     matching_rules: tuple[tuple[MatchMethod, Confidence, object], ...] = (
         ("pmid", "clear", lambda record: record.item.pmid.strip() or None),
         ("doi", "clear", lambda record: normalize_doi(record.item.doi)),
-        ("title_normalized", "fuzzy", lambda record: normalize_title(record.item.title)),
+        (
+            "title_normalized",
+            "fuzzy",
+            lambda record: normalize_title(record.item.title),
+        ),
         ("author_year", "fuzzy", _author_year_key),
     )
     for method, confidence, key_function in matching_rules:
@@ -77,7 +85,9 @@ def find_duplicate_candidates(records: list[DedupRecord]) -> list[DuplicateCandi
             candidates.append(
                 DuplicateCandidate(tuple(group_records), method, confidence)
             )
-            unmatched_ids.difference_update(record.record_id for record in group_records)
+            unmatched_ids.difference_update(
+                record.record_id for record in group_records
+            )
     return candidates
 
 

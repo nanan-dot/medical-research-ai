@@ -18,7 +18,9 @@ class PubMedConfig(BaseModel):
     timeout_seconds: float = Field(default=20.0, gt=0)
     # E-utilities 返回的 tool 参数，用于标注请求来源。
     tool: str = Field(default="med-research-assistant", max_length=100)
-    base_url: str = Field(default="https://eutils.ncbi.nlm.nih.gov/entrez/eutils", max_length=300)
+    base_url: str = Field(
+        default="https://eutils.ncbi.nlm.nih.gov/entrez/eutils", max_length=300
+    )
 
 
 class PubMedRecord(BaseModel):

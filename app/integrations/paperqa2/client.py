@@ -58,7 +58,9 @@ class PaperQA2Client:
         rebuild: bool = False,
     ) -> PaperQAIndex:
         try:
-            normalized, index_id = await asyncio.to_thread(self._normalize_documents, documents)
+            normalized, index_id = await asyncio.to_thread(
+                self._normalize_documents, documents
+            )
             result = await asyncio.to_thread(
                 self._backend.index_documents,
                 normalized,
@@ -79,17 +81,23 @@ class PaperQA2Client:
     async def ask(self, index: PaperQAIndex | str, question: str) -> PaperQAAnswer:
         index_id = index.index_id if isinstance(index, PaperQAIndex) else index
         if not index_id.strip():
-            raise PaperQA2DocumentError("A non-empty PaperQA2 index identifier is required")
+            raise PaperQA2DocumentError(
+                "A non-empty PaperQA2 index identifier is required"
+            )
         if not question.strip():
             raise PaperQA2DocumentError("A non-empty PaperQA2 question is required")
 
         try:
-            session = await asyncio.to_thread(self._backend.ask, index_id, question.strip())
+            session = await asyncio.to_thread(
+                self._backend.ask, index_id, question.strip()
+            )
             return self._convert_answer(session, index_id)
         except PaperQA2Error:
             raise
         except Exception as error:
-            raise PaperQA2OperationError("PaperQA2 question answering failed") from error
+            raise PaperQA2OperationError(
+                "PaperQA2 question answering failed"
+            ) from error
 
     @staticmethod
     def _normalize_documents(
@@ -102,7 +110,9 @@ class PaperQA2Client:
         fingerprints: list[str] = []
         for value in documents:
             document = (
-                value if isinstance(value, PaperDocument) else PaperDocument(path=Path(value))
+                value
+                if isinstance(value, PaperDocument)
+                else PaperDocument(path=Path(value))
             )
             path = document.path.resolve()
             if not path.is_file():
@@ -111,9 +121,13 @@ class PaperQA2Client:
             normalized.append(document.model_copy(update={"path": path}))
             fingerprints.append(f"{path.as_posix()}\0{digest}")
 
-        pairs = sorted(zip(fingerprints, normalized, strict=True), key=lambda item: item[0])
+        pairs = sorted(
+            zip(fingerprints, normalized, strict=True), key=lambda item: item[0]
+        )
         ordered = tuple(document for _, document in pairs)
-        index_digest = hashlib.sha256("\n".join(sorted(fingerprints)).encode()).hexdigest()
+        index_digest = hashlib.sha256(
+            "\n".join(sorted(fingerprints)).encode()
+        ).hexdigest()
         return ordered, f"pqa2-{index_digest[:24]}"
 
     @staticmethod
@@ -126,7 +140,9 @@ class PaperQA2Client:
 
     @classmethod
     def _convert_answer(cls, session: Any, index_id: str) -> PaperQAAnswer:
-        answer = getattr(session, "answer", None) or getattr(session, "raw_answer", None)
+        answer = getattr(session, "answer", None) or getattr(
+            session, "raw_answer", None
+        )
         if not isinstance(answer, str) or not answer.strip():
             raise PaperQA2ResponseError("PaperQA2 returned an empty answer")
 
@@ -158,9 +174,13 @@ class PaperQA2Client:
         return PaperSource(
             source_id=chunk_name,
             title=title if isinstance(title, str) and title.strip() else None,
-            citation=citation if isinstance(citation, str) and citation.strip() else None,
+            citation=citation
+            if isinstance(citation, str) and citation.strip()
+            else None,
             page_start=int(page_match.group(1)) if page_match else None,
-            page_end=int(page_match.group(2) or page_match.group(1)) if page_match else None,
+            page_end=int(page_match.group(2) or page_match.group(1))
+            if page_match
+            else None,
             excerpt=(
                 excerpt.strip()[:MAX_SOURCE_EXCERPT_CHARS]
                 if isinstance(excerpt, str) and excerpt.strip()

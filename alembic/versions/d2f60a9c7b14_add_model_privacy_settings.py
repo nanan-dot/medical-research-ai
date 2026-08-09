@@ -17,26 +17,43 @@ depends_on: str | Sequence[str] | None = None
 def upgrade():
     with op.batch_alter_table("model_configs") as batch:
         batch.add_column(
-            sa.Column("deployment_mode", sa.String(16), nullable=False, server_default="local")
-        )
-        batch.add_column(
-            sa.Column("provider", sa.String(32), nullable=False, server_default="ollama")
+            sa.Column(
+                "deployment_mode", sa.String(16), nullable=False, server_default="local"
+            )
         )
         batch.add_column(
             sa.Column(
-                "api_base", sa.Text(), nullable=False, server_default="http://localhost:11434"
+                "provider", sa.String(32), nullable=False, server_default="ollama"
+            )
+        )
+        batch.add_column(
+            sa.Column(
+                "api_base",
+                sa.Text(),
+                nullable=False,
+                server_default="http://localhost:11434",
             )
         )
         batch.add_column(sa.Column("encrypted_api_key", sa.Text()))
         batch.add_column(
-            sa.Column("model_name", sa.String(200), nullable=False, server_default="unconfigured")
-        )
-        batch.add_column(
-            sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.false())
+            sa.Column(
+                "model_name",
+                sa.String(200),
+                nullable=False,
+                server_default="unconfigured",
+            )
         )
         batch.add_column(
             sa.Column(
-                "allow_cloud_content", sa.Boolean(), nullable=False, server_default=sa.false()
+                "is_default", sa.Boolean(), nullable=False, server_default=sa.false()
+            )
+        )
+        batch.add_column(
+            sa.Column(
+                "allow_cloud_content",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
             )
         )
         batch.add_column(

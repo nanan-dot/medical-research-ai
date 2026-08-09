@@ -6,7 +6,9 @@ from app.modules.recommendation.schema import RecommendationResponse
 
 
 class FakeRecommendationService:
-    async def recommend(self, query: str, *, candidate_count: int = 5) -> RecommendationResponse:
+    async def recommend(
+        self, query: str, *, candidate_count: int = 5
+    ) -> RecommendationResponse:
         return RecommendationResponse(
             query=query,
             status="completed_with_warnings",

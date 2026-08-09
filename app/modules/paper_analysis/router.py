@@ -15,7 +15,9 @@ router = APIRouter(prefix="/paper-analysis", tags=["论文分析"])
 
 
 @router.post("", response_model=PaperAnalysisRead)
-async def create_analysis(request: PaperAnalysisCreate, session: AsyncSession = Depends(get_session)):
+async def create_analysis(
+    request: PaperAnalysisCreate, session: AsyncSession = Depends(get_session)
+):
     return await PaperAnalysisService(session).create(request.document_id)
 
 
@@ -31,7 +33,9 @@ async def regenerate_analysis(id: int, session: AsyncSession = Depends(get_sessi
 
 @router.patch("/{id}", response_model=PaperAnalysisRead)
 async def correct_analysis(
-    id: int, request: PaperAnalysisCorrection, session: AsyncSession = Depends(get_session)
+    id: int,
+    request: PaperAnalysisCorrection,
+    session: AsyncSession = Depends(get_session),
 ):
     return await PaperAnalysisService(session).correct(id, request)
 

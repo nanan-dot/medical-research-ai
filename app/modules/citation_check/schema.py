@@ -41,7 +41,9 @@ class CitationAuditItem(BaseModel):
     replacement_suggested: bool = False
     verified_by: str | None = Field(default=None, max_length=40)
     verified_on: str | None = Field(default=None, max_length=40)
-    matched: str | None = Field(default=None, max_length=200, description="匹配到的 PMID/DOI")
+    matched: str | None = Field(
+        default=None, max_length=200, description="匹配到的 PMID/DOI"
+    )
     notes: list[str] = Field(default_factory=list)
 
 

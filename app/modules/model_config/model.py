@@ -21,6 +21,12 @@ class ModelConfig(Base):
     encrypted_api_key: Mapped[str | None] = mapped_column(Text)
     model_name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    allow_cloud_content: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    allow_cloud_content: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

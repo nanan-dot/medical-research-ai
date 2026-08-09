@@ -18,7 +18,9 @@ router = APIRouter(prefix="/research-directions", tags=["advisor-workflow"])
 
 @router.post("/{direction_id}/advisor-notes", response_model=AdvisorReviewRead)
 async def create_advisor_note(
-    direction_id: int, payload: AdvisorNoteCreate, session: AsyncSession = Depends(get_session)
+    direction_id: int,
+    payload: AdvisorNoteCreate,
+    session: AsyncSession = Depends(get_session),
 ) -> AdvisorReviewRead:
     return await AdvisorWorkflowService(session).record_note(direction_id, payload)
 
@@ -54,5 +56,7 @@ async def list_direction_versions(
 
 
 @router.post("/{direction_id}/export-report", response_class=PlainTextResponse)
-async def export_report(direction_id: int, session: AsyncSession = Depends(get_session)) -> str:
+async def export_report(
+    direction_id: int, session: AsyncSession = Depends(get_session)
+) -> str:
     return await AdvisorWorkflowService(session).export_markdown(direction_id)

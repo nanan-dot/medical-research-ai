@@ -57,11 +57,15 @@ def make_client(backend: FakeBackend) -> PaperQA2Client:
 
 
 def make_session(*, contexts):
-    return SimpleNamespace(answer="A grounded answer.", raw_answer="", contexts=contexts)
+    return SimpleNamespace(
+        answer="A grounded answer.", raw_answer="", contexts=contexts
+    )
 
 
 @pytest.mark.asyncio
-async def test_raw_answer_and_source_are_converted_without_external_types(tmp_path: Path):
+async def test_raw_answer_and_source_are_converted_without_external_types(
+    tmp_path: Path,
+):
     pdf = tmp_path / "paper.pdf"
     pdf.write_bytes(b"%PDF-test")
     document = SimpleNamespace(docname="trial", citation="Journal citation")
@@ -71,7 +75,9 @@ async def test_raw_answer_and_source_are_converted_without_external_types(tmp_pa
         text="Evidence from the paper.",
     )
     backend = FakeBackend(
-        make_session(contexts=[SimpleNamespace(text=text, context=text.text, score=4.5)])
+        make_session(
+            contexts=[SimpleNamespace(text=text, context=text.text, score=4.5)]
+        )
     )
     client = make_client(backend)
 
@@ -100,8 +106,12 @@ async def test_raw_answer_and_source_are_converted_without_external_types(tmp_pa
 async def test_missing_page_numbers_remain_none(tmp_path: Path):
     pdf = tmp_path / "paper.pdf"
     pdf.write_bytes(b"%PDF-test")
-    text = SimpleNamespace(name="paper chunk unknown", doc=SimpleNamespace(), text="Evidence")
-    client = make_client(FakeBackend(make_session(contexts=[SimpleNamespace(text=text)])))
+    text = SimpleNamespace(
+        name="paper chunk unknown", doc=SimpleNamespace(), text="Evidence"
+    )
+    client = make_client(
+        FakeBackend(make_session(contexts=[SimpleNamespace(text=text)]))
+    )
     index = await client.index_documents([pdf])
 
     source = (await client.ask(index, "Question")).sources[0]
@@ -169,7 +179,9 @@ async def test_external_exception_is_sanitized(tmp_path: Path):
 async def test_structured_adapter_error_is_preserved(tmp_path: Path):
     pdf = tmp_path / "paper.pdf"
     pdf.write_bytes(b"%PDF-test")
-    client = make_client(FakeBackend(error=PaperQA2IndexCorruptError("Index is corrupted")))
+    client = make_client(
+        FakeBackend(error=PaperQA2IndexCorruptError("Index is corrupted"))
+    )
     with pytest.raises(PaperQA2IndexCorruptError):
         await client.index_documents([pdf])
 
@@ -190,7 +202,9 @@ async def test_changed_source_container_is_rejected(tmp_path: Path):
     pdf = tmp_path / "paper.pdf"
     pdf.write_bytes(b"%PDF-test")
     backend = FakeBackend(
-        SimpleNamespace(answer="Stable answer", raw_answer="", contexts={"changed": True})
+        SimpleNamespace(
+            answer="Stable answer", raw_answer="", contexts={"changed": True}
+        )
     )
     client = make_client(backend)
     index = await client.index_documents([pdf])
@@ -217,14 +231,20 @@ def test_fixed_version_missing_and_mismatch_are_explicit(monkeypatch):
 
         raise PackageNotFoundError("paper-qa")
 
-    monkeypatch.setattr("app.integrations.paperqa2.factory.importlib.metadata.version", missing)
-    from app.integrations.paperqa2.exceptions import PaperQA2NotInstalledError, PaperQA2VersionError
+    monkeypatch.setattr(
+        "app.integrations.paperqa2.factory.importlib.metadata.version", missing
+    )
+    from app.integrations.paperqa2.exceptions import (
+        PaperQA2NotInstalledError,
+        PaperQA2VersionError,
+    )
 
     with pytest.raises(PaperQA2NotInstalledError):
         backend._check_installed_version()
 
     monkeypatch.setattr(
-        "app.integrations.paperqa2.factory.importlib.metadata.version", lambda _: "unexpected"
+        "app.integrations.paperqa2.factory.importlib.metadata.version",
+        lambda _: "unexpected",
     )
     with pytest.raises(PaperQA2VersionError, match="2026.3.18"):
         backend._check_installed_version()

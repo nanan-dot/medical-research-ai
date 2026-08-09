@@ -3,7 +3,10 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
+from app.modules.research_conditions.model import (
+    ResearchConditions,
+    ResearchConditionsVersion,
+)
 
 
 class ResearchConditionsRepository:

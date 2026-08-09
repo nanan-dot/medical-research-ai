@@ -14,7 +14,9 @@ from typing import Any
 class TTLCache:
     """线程安全的简单 TTL 缓存（先进先删最接近过期的条目）。"""
 
-    def __init__(self, default_ttl_seconds: float = 3600.0, max_entries: int = 1024) -> None:
+    def __init__(
+        self, default_ttl_seconds: float = 3600.0, max_entries: int = 1024
+    ) -> None:
         if default_ttl_seconds <= 0:
             raise ValueError("default_ttl_seconds must be positive")
         self._default_ttl_seconds = default_ttl_seconds
@@ -36,7 +38,11 @@ class TTLCache:
     def set(self, key: str, value: Any, ttl_seconds: float | None = None) -> None:
         ttl = self._default_ttl_seconds if ttl_seconds is None else ttl_seconds
         with self._lock:
-            if self._max_entries and len(self._data) >= self._max_entries and key not in self._data:
+            if (
+                self._max_entries
+                and len(self._data) >= self._max_entries
+                and key not in self._data
+            ):
                 # 容量不足时淘汰最接近过期的一条，避免缓存无限增长。
                 oldest = min(self._data, key=lambda k: self._data[k][0])
                 del self._data[oldest]

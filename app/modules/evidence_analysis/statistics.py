@@ -43,7 +43,9 @@ class ResearchTypeStatistic:
     basis: str
 
 
-def calculate_topic_statistics(documents: list[StatisticalDocument]) -> list[TopicStatistic]:
+def calculate_topic_statistics(
+    documents: list[StatisticalDocument],
+) -> list[TopicStatistic]:
     """Calculate per-topic frequency and conservative temporal direction."""
     topic_documents: dict[str, list[StatisticalDocument]] = defaultdict(list)
     for document in documents:
@@ -51,7 +53,9 @@ def calculate_topic_statistics(documents: list[StatisticalDocument]) -> list[Top
             topic_documents[topic].append(document)
     return [
         _build_topic_statistic(topic, matching_documents, len(documents))
-        for topic, matching_documents in sorted(topic_documents.items(), key=lambda item: (-len(item[1]), item[0]))
+        for topic, matching_documents in sorted(
+            topic_documents.items(), key=lambda item: (-len(item[1]), item[0])
+        )
     ]
 
 
@@ -67,7 +71,9 @@ def calculate_research_type_distribution(
             count=count,
             basis=f"统计自 {total} 篇文献的研究类型字段",
         )
-        for research_type, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        for research_type, count in sorted(
+            counts.items(), key=lambda item: (-item[1], item[0])
+        )
     ]
 
 
@@ -75,7 +81,9 @@ def _build_topic_statistic(
     topic: str, documents: list[StatisticalDocument], total_documents: int
 ) -> TopicStatistic:
     years = [document.year for document in documents if document.year is not None]
-    research_types = Counter(document.research_type or "未标注" for document in documents)
+    research_types = Counter(
+        document.research_type or "未标注" for document in documents
+    )
     return TopicStatistic(
         topic=topic,
         count=len(documents),
@@ -87,7 +95,11 @@ def _build_topic_statistic(
 
 
 def _normalize_topics(topics: tuple[str, ...]) -> list[str]:
-    return [" ".join(topic.split()) for topic in topics if topic.strip() and topic.strip() != "缺失"]
+    return [
+        " ".join(topic.split())
+        for topic in topics
+        if topic.strip() and topic.strip() != "缺失"
+    ]
 
 
 def _year_range(years: list[int]) -> str | None:

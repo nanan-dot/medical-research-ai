@@ -23,10 +23,14 @@ class EvidenceAnalysisRepository:
         return list(result.scalars())
 
     async def list_cells(self, matrix_id: int) -> list[MatrixCell]:
-        result = await self._session.execute(select(MatrixCell).where(MatrixCell.matrix_id == matrix_id))
+        result = await self._session.execute(
+            select(MatrixCell).where(MatrixCell.matrix_id == matrix_id)
+        )
         return list(result.scalars())
 
-    async def list_library_items_for_documents(self, document_ids: list[int]) -> list[LibraryItem]:
+    async def list_library_items_for_documents(
+        self, document_ids: list[int]
+    ) -> list[LibraryItem]:
         if not document_ids:
             return []
         result = await self._session.execute(

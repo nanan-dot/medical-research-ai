@@ -17,5 +17,7 @@ def validate_polish(original: str, polished: str) -> list[str]:
     before = extract_protected_tokens(original)
     after = extract_protected_tokens(polished)
     if before != after:
-        raise ValueError(f"protected tokens changed: before={before!r}, after={after!r}")
+        raise ValueError(
+            f"protected tokens changed: before={before!r}, after={after!r}"
+        )
     return []

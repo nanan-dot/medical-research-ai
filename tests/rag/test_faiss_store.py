@@ -24,7 +24,10 @@ DIMENSION = 4
 
 
 def _vectors(count: int, dimension: int = DIMENSION) -> list[list[float]]:
-    return [[float(index) + float(row) for index in range(dimension)] for row in range(count)]
+    return [
+        [float(index) + float(row) for index in range(dimension)]
+        for row in range(count)
+    ]
 
 
 def _store(tmp_path: Path) -> FaissIndexStore:
@@ -86,7 +89,9 @@ def test_save_load_round_trip_preserves_records(tmp_path: Path):
     assert (saved_dir / VECTOR_IDS_FILE).is_file()
     assert (saved_dir / METADATA_FILE).is_file()
 
-    loaded = FaissIndexStore(saved_dir, dimension=DIMENSION, embedding_model="test-embed")
+    loaded = FaissIndexStore(
+        saved_dir, dimension=DIMENSION, embedding_model="test-embed"
+    )
     loaded.load()
     assert loaded.size == 1
     results = loaded.search(_vectors(1)[0], top_k=1)
@@ -119,7 +124,9 @@ def test_corrupt_vectors_file_prompts_rebuild(tmp_path: Path):
     saved_dir = store.save()
     (saved_dir / VECTORS_FILE).write_text("not numpy", encoding="utf-8")
 
-    corrupt = FaissIndexStore(saved_dir, dimension=DIMENSION, embedding_model="test-embed")
+    corrupt = FaissIndexStore(
+        saved_dir, dimension=DIMENSION, embedding_model="test-embed"
+    )
     with pytest.raises(IndexCorruptError, match="rebuild"):
         corrupt.load()
 
@@ -130,7 +137,9 @@ def test_missing_manifest_prompts_rebuild(tmp_path: Path):
     saved_dir = store.save()
     (saved_dir / "manifest.json").unlink()
 
-    missing = FaissIndexStore(saved_dir, dimension=DIMENSION, embedding_model="test-embed")
+    missing = FaissIndexStore(
+        saved_dir, dimension=DIMENSION, embedding_model="test-embed"
+    )
     with pytest.raises(IndexCorruptError, match="rebuild"):
         missing.load()
 

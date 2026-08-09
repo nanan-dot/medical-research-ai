@@ -18,13 +18,17 @@ async def list_configs(session: AsyncSession = Depends(get_session)):
 
 
 @router.post("", response_model=ModelConfigRead)
-async def create_config(request: ModelConfigCreate, session: AsyncSession = Depends(get_session)):
+async def create_config(
+    request: ModelConfigCreate, session: AsyncSession = Depends(get_session)
+):
     return await ModelConfigService(session).create(request)
 
 
 @router.post("/{id}/test", response_model=ConnectionTestResult)
 async def test_config(
-    id: int, request: ConnectionTestRequest, session: AsyncSession = Depends(get_session)
+    id: int,
+    request: ConnectionTestRequest,
+    session: AsyncSession = Depends(get_session),
 ):
     return await ModelConfigService(session).test(id, request.acknowledge_possible_cost)
 

@@ -6,7 +6,10 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.database import Base
-from app.modules.topic_structuring.schema import TopicStructuringParseRequest, TopicStructuringPatchRequest
+from app.modules.topic_structuring.schema import (
+    TopicStructuringParseRequest,
+    TopicStructuringPatchRequest,
+)
 from app.modules.topic_structuring.service import TopicStructuringService
 
 
@@ -52,13 +55,20 @@ async def session() -> AsyncSession:
 @pytest.mark.asyncio
 async def test_edit_and_clarification_create_versions(session: AsyncSession) -> None:
     service = TopicStructuringService(session, candidate_extractor=_pico_extractor)
-    created = await service.parse(TopicStructuringParseRequest(topic="Metformin for diabetes outcomes"))
+    created = await service.parse(
+        TopicStructuringParseRequest(topic="Metformin for diabetes outcomes")
+    )
 
-    assert created.candidate.to_search_intent(created.original_topic).disease == "type 2 diabetes"
+    assert (
+        created.candidate.to_search_intent(created.original_topic).disease
+        == "type 2 diabetes"
+    )
     question_id = created.candidate.clarification_questions[0].id
     answered = await service.patch(
         created.id,
-        TopicStructuringPatchRequest(clarification_question_id=question_id, answer="adults"),
+        TopicStructuringPatchRequest(
+            clarification_question_id=question_id, answer="adults"
+        ),
     )
     edited = await service.patch(
         created.id,
@@ -73,9 +83,15 @@ async def test_edit_and_clarification_create_versions(session: AsyncSession) -> 
 
 
 @pytest.mark.asyncio
-async def test_unstructured_topic_keeps_topic_without_pico_fields(session: AsyncSession) -> None:
-    service = TopicStructuringService(session, candidate_extractor=_unstructured_extractor)
-    created = await service.parse(TopicStructuringParseRequest(topic="Ethical perspectives on precision medicine"))
+async def test_unstructured_topic_keeps_topic_without_pico_fields(
+    session: AsyncSession,
+) -> None:
+    service = TopicStructuringService(
+        session, candidate_extractor=_unstructured_extractor
+    )
+    created = await service.parse(
+        TopicStructuringParseRequest(topic="Ethical perspectives on precision medicine")
+    )
 
     assert created.candidate.structuring_status == "unstructured"
     assert created.candidate.reason == "The topic is a broad conceptual discussion."

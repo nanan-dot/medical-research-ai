@@ -18,14 +18,18 @@ pytestmark = pytest.mark.integration
 
 # 锚点：使用经典文献 PMID 与 DOI，均由真实服务校验结果决定，不手动编造验证结论。
 KNOWN_PMID = "11731580"  # 高被引经典文献，PMID 在 PubMed 中长期存在
-UNKNOWN_PMID = "99999999"  # 8 位伪造 PMID：PubMed 未分配此编号，用于验证"查不到标 false"
+UNKNOWN_PMID = (
+    "99999999"  # 8 位伪造 PMID：PubMed 未分配此编号，用于验证"查不到标 false"
+)
 KNOWN_DOI = "10.1038/nmeth.2089"  # Nature Methods 经典论文 DOI
 UNKNOWN_DOI = "10.9999/does-not-exist-xyz"
 
 
 def _skip_unless_enabled() -> None:
     if os.getenv("RUN_CITATION_CHECK_LIVE_TEST") != "1":
-        pytest.skip("set RUN_CITATION_CHECK_LIVE_TEST=1 to run live citation-check tests")
+        pytest.skip(
+            "set RUN_CITATION_CHECK_LIVE_TEST=1 to run live citation-check tests"
+        )
 
 
 @pytest.mark.asyncio

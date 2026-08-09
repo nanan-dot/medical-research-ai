@@ -44,7 +44,9 @@ class ModelConfigService:
                 deployment_mode=data.deployment_mode.value,
                 provider=data.provider.value,
                 api_base=data.api_base.rstrip("/"),
-                encrypted_api_key=cipher.encrypt(data.api_key) if data.api_key else None,
+                encrypted_api_key=cipher.encrypt(data.api_key)
+                if data.api_key
+                else None,
                 model_name=data.model_name,
                 is_default=data.is_default,
                 allow_cloud_content=data.allow_cloud_content,
@@ -94,7 +96,9 @@ class ModelConfigService:
     @staticmethod
     async def _test_connection(entity, key):
         if entity.provider == "ollama":
-            async with OllamaClient(base_url=entity.api_base, model=entity.model_name) as client:
+            async with OllamaClient(
+                base_url=entity.api_base, model=entity.model_name
+            ) as client:
                 await client.ensure_model_available()
         else:
             config = LLMConfig(

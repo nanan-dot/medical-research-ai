@@ -15,7 +15,9 @@ from app.modules.knowledge_source.model import KnowledgeSource
 
 @pytest.fixture
 def api_context(tmp_path: Path):
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'api.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'api.db').as_posix()}"
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
     root = tmp_path / "source"
     root.mkdir()
@@ -74,7 +76,9 @@ def api_context(tmp_path: Path):
 
 def test_document_list_detail_retry_and_delete_index_api(api_context):
     client, document_id, paper = api_context
-    listed = client.get("/api/v1/documents", params={"parse_status": "failed", "limit": 10})
+    listed = client.get(
+        "/api/v1/documents", params={"parse_status": "failed", "limit": 10}
+    )
     assert listed.status_code == 200
     assert listed.json()["total"] == 1
     assert listed.json()["items"][0]["error_code"] == "parse_failed"

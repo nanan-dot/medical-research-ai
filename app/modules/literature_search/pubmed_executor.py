@@ -25,7 +25,9 @@ class PubMedExecutor:
     def __init__(self, client: PubMedClient) -> None:
         self._client = client
 
-    async def execute(self, query: str, *, retmax: int = 20) -> tuple[list[CitationItem], int]:
+    async def execute(
+        self, query: str, *, retmax: int = 20
+    ) -> tuple[list[CitationItem], int]:
         """执行检索，返回 (条目列表, 命中总数)。
 
         ESearch 无命中时直接返回空列表；命中时用 EFetch 拉取记录。EFetch 可能

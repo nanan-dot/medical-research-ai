@@ -43,9 +43,13 @@ class FakeContext:
     score: float
 
 
-def test_sanitized_raw_result_preserves_source_and_page_then_saves(tmp_path: Path) -> None:
+def test_sanitized_raw_result_preserves_source_and_page_then_saves(
+    tmp_path: Path,
+) -> None:
     document = SimpleNamespace(title="A medical paper", citation="Journal (2023)")
-    text = SimpleNamespace(doc=document, name="paper pages 11-12", text="507 events: 233 and 274.")
+    text = SimpleNamespace(
+        doc=document, name="paper pages 11-12", text="507 events: 233 and 274."
+    )
     session = SimpleNamespace(
         question="How many?",
         answer="There were 507 events: 233 intervention and 274 usual care.",
@@ -55,7 +59,9 @@ def test_sanitized_raw_result_preserves_source_and_page_then_saves(tmp_path: Pat
         contexts=[FakeContext(text, text.text, 0.9)],
         used_contexts=[0],
     )
-    result = sanitize_session(session, run_metadata={}, index_metadata={"reused": False})
+    result = sanitize_session(
+        session, run_metadata={}, index_metadata={"reused": False}
+    )
     assert result["capabilities"] == {
         "nonempty_answer": True,
         "source_count": 1,

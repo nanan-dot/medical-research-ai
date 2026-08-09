@@ -24,7 +24,9 @@ async def list_conversations(session: AsyncSession = Depends(get_session)):
 async def create_conversation(
     request: ConversationCreate, session: AsyncSession = Depends(get_session)
 ):
-    return await ConversationService(session).create(request.document_ids, request.title)
+    return await ConversationService(session).create(
+        request.document_ids, request.title
+    )
 
 
 @router.get("/{id}", response_model=ConversationRead)
@@ -41,7 +43,10 @@ async def create_message(
 
 @router.post("/{id}/messages/{message_id}/feedback", response_model=MessageRead)
 async def feedback(
-    id: int, message_id: int, request: FeedbackCreate, session: AsyncSession = Depends(get_session)
+    id: int,
+    message_id: int,
+    request: FeedbackCreate,
+    session: AsyncSession = Depends(get_session),
 ):
     return await ConversationService(session).feedback(id, message_id, request.rating)
 

@@ -8,7 +8,10 @@ from app.core import models  # noqa: F401
 from app.core.database import Base
 from app.common.exceptions import ConflictError
 from app.modules.document.repository import DocumentRepository
-from app.modules.knowledge_source.schema import KnowledgeSourceCreate, KnowledgeSourceType
+from app.modules.knowledge_source.schema import (
+    KnowledgeSourceCreate,
+    KnowledgeSourceType,
+)
 from app.modules.knowledge_source.service import KnowledgeSourceService
 from app.modules.knowledge_source.scanner import DirectoryScan
 from app.modules.knowledge_source.sync_service import KnowledgeSourceSyncService
@@ -16,7 +19,9 @@ from app.modules.knowledge_source.sync_service import KnowledgeSourceSyncService
 
 @pytest.fixture
 async def session(tmp_path: Path):
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'sync.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'sync.db').as_posix()}"
+    )
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -36,7 +41,9 @@ async def create_source(session, root: Path):
 
 
 @pytest.mark.asyncio
-async def test_first_idempotent_modified_timestamp_and_deleted_sync(session, tmp_path: Path):
+async def test_first_idempotent_modified_timestamp_and_deleted_sync(
+    session, tmp_path: Path
+):
     root = tmp_path / "source"
     root.mkdir()
     files = {
@@ -56,7 +63,9 @@ async def test_first_idempotent_modified_timestamp_and_deleted_sync(session, tmp
     source = await create_source(session, root)
     service = KnowledgeSourceSyncService(session)
     first = await service.sync(source.id)
-    assert first.model_dump(include={"added", "modified", "deleted", "skipped", "failed"}) == {
+    assert first.model_dump(
+        include={"added", "modified", "deleted", "skipped", "failed"}
+    ) == {
         "added": 4,
         "modified": 0,
         "deleted": 0,
@@ -107,7 +116,9 @@ async def test_new_file_and_single_hash_failure_do_not_block_sync(
             raise PermissionError("simulated file lock")
         return "a" * 64
 
-    monkeypatch.setattr("app.modules.knowledge_source.sync_service.sha256_file", selective_hash)
+    monkeypatch.setattr(
+        "app.modules.knowledge_source.sync_service.sha256_file", selective_hash
+    )
     summary = await KnowledgeSourceSyncService(session).sync(source.id)
     assert summary.added == 1
     assert summary.failed == 1
@@ -118,7 +129,9 @@ async def test_new_file_and_single_hash_failure_do_not_block_sync(
 
 
 @pytest.mark.asyncio
-async def test_failed_existing_file_is_not_deleted(session, tmp_path: Path, monkeypatch):
+async def test_failed_existing_file_is_not_deleted(
+    session, tmp_path: Path, monkeypatch
+):
     root = tmp_path / "source"
     root.mkdir()
     paper = root / "paper.pdf"
@@ -131,7 +144,9 @@ async def test_failed_existing_file_is_not_deleted(session, tmp_path: Path, monk
     def locked_hash(_path: Path) -> str:
         raise OSError("locked")
 
-    monkeypatch.setattr("app.modules.knowledge_source.sync_service.sha256_file", locked_hash)
+    monkeypatch.setattr(
+        "app.modules.knowledge_source.sync_service.sha256_file", locked_hash
+    )
     summary = await service.sync(source.id)
     assert summary.failed == 1
     assert summary.deleted == 0

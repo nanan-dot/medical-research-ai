@@ -79,14 +79,22 @@ class CitationVerifier:
             item.status = "invalid_format"
             item.notes.append("PMID 格式非法，未发起网络请求")
             return item
-        cache_key = ("pmid", format_result.normalized, datetime.now(UTC).date().isoformat())
+        cache_key = (
+            "pmid",
+            format_result.normalized,
+            datetime.now(UTC).date().isoformat(),
+        )
         if cache_key in self._cache:
             return self._cache[cache_key].model_copy(deep=True)
         try:
             records = await self._pubmed.fetch_records([item.identifier])
         except PubMedError as exc:
             # 结构化记录为不可验证，不向调用方泄漏网络异常细节。
-            logger.warning("citation_check PMID verification failed id=%s error=%s", item.identifier, exc)
+            logger.warning(
+                "citation_check PMID verification failed id=%s error=%s",
+                item.identifier,
+                exc,
+            )
             item.notes.append("PubMed 校验服务暂不可用，标记为未验证")
             item.status = "unverified"
             return item
@@ -117,7 +125,9 @@ class CitationVerifier:
         try:
             response = await self._http.get(url)
         except httpx.HTTPError as exc:
-            logger.warning("citation_check DOI verification failed doi=%s error=%s", doi, exc)
+            logger.warning(
+                "citation_check DOI verification failed doi=%s error=%s", doi, exc
+            )
             item.notes.append("CrossRef 校验服务暂不可用，标记为未验证")
             item.status = "unverified"
             return item

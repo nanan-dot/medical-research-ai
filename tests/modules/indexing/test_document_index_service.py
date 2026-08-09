@@ -22,7 +22,9 @@ class FakePaperQAClient:
         self.calls.append((document.path, rebuild))
         if document.path.name == self.fail_name:
             raise PaperQA2OperationError("indexing unavailable")
-        return PaperQAIndex(index_id=f"idx-{document.path.stem}", document_count=1, reused=False)
+        return PaperQAIndex(
+            index_id=f"idx-{document.path.stem}", document_count=1, reused=False
+        )
 
 
 async def prepared_document(session, tmp_path: Path, name: str = "paper.txt"):
@@ -39,7 +41,10 @@ async def test_single_index_persists_mapping_and_reuses_it(session, tmp_path: Pa
     document, path = await prepared_document(session, tmp_path)
     client = FakePaperQAClient()
     service = DocumentIndexService(
-        session, client_factory=lambda: client, index_root=tmp_path / "indexes", paperqa_version="1.0"
+        session,
+        client_factory=lambda: client,
+        index_root=tmp_path / "indexes",
+        paperqa_version="1.0",
     )
 
     first = await service.index(document.id)
@@ -50,7 +55,9 @@ async def test_single_index_persists_mapping_and_reuses_it(session, tmp_path: Pa
     assert second.reused is True
     assert len(client.calls) == 1
     assert path.read_text(encoding="utf-8") == "test fixture"
-    assert (tmp_path / "indexes" / f"document-{document.id}" / "metadata.json").is_file()
+    assert (
+        tmp_path / "indexes" / f"document-{document.id}" / "metadata.json"
+    ).is_file()
 
 
 @pytest.mark.asyncio

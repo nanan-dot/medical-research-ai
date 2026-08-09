@@ -37,7 +37,10 @@ from app.modules.literature_search.model import (
 )
 from app.modules.literature_search.prompts import PROMPT_VERSION, build_candidate_prompt
 from app.modules.literature_search.pubmed_executor import PubMedExecutor
-from app.modules.literature_search.query_model import SearchIntentCandidate, relative_year_range
+from app.modules.literature_search.query_model import (
+    SearchIntentCandidate,
+    relative_year_range,
+)
 from app.modules.literature_search.repository import LiteratureSearchRepository
 from app.modules.literature_search.schema import (
     BooleanQueryResult,
@@ -77,7 +80,10 @@ from app.modules.literature_search.user_state import (
 )
 from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.query_builder import build_boolean_query
-from app.modules.literature_search.term_expansion import expand_term, is_ascii_search_term
+from app.modules.literature_search.term_expansion import (
+    expand_term,
+    is_ascii_search_term,
+)
 from app.modules.library_item.repository import LibraryItemRepository
 
 CandidateExtractor = Callable[[str], Awaitable[str]]
@@ -89,7 +95,9 @@ STATUS_SUCCEEDED = "succeeded"
 STATUS_FAILED = "failed"
 
 # 合法状态集合：与 schema.SearchTaskStatus（Literal）保持一致。
-_VALID_STATUSES = frozenset({STATUS_PENDING, STATUS_RUNNING, STATUS_SUCCEEDED, STATUS_FAILED})
+_VALID_STATUSES = frozenset(
+    {STATUS_PENDING, STATUS_RUNNING, STATUS_SUCCEEDED, STATUS_FAILED}
+)
 
 
 def _coerce_status(value: str) -> SearchTaskStatus:
@@ -116,9 +124,13 @@ class LiteratureSearchService:
         # generate_reading_order 里的 LibraryItemRepository）。
         self.session = session
         self.repo = LiteratureSearchRepository(session)
-        self.candidate_extractor = candidate_extractor or self._extract_with_configured_model
+        self.candidate_extractor = (
+            candidate_extractor or self._extract_with_configured_model
+        )
         self.mesh_client = mesh_client or MeshClient()
-        self.pubmed_executor = pubmed_executor or PubMedExecutor(PubMedClient.from_settings())
+        self.pubmed_executor = pubmed_executor or PubMedExecutor(
+            PubMedClient.from_settings()
+        )
 
     async def get(self, id: int):
         entity = await self.repo.get(id)
@@ -140,7 +152,9 @@ class LiteratureSearchService:
         normalized = " ".join(raw_topic.split())
         fallback = self._rule_candidate(normalized)
         try:
-            raw_json = await self.candidate_extractor(build_candidate_prompt(normalized))
+            raw_json = await self.candidate_extractor(
+                build_candidate_prompt(normalized)
+            )
             candidate = self._constrain_candidate(
                 SearchIntentCandidate.model_validate_json(raw_json), normalized
             )
@@ -175,10 +189,14 @@ class LiteratureSearchService:
             if not value:
                 continue
             expansion = expand_term(value)
-            terms = list(dict.fromkeys([*expansion.synonyms, *user_edits.get(name, [])]))
+            terms = list(
+                dict.fromkeys([*expansion.synonyms, *user_edits.get(name, [])])
+            )
             ascii_terms = [term for term in terms if is_ascii_search_term(term)]
             if len(ascii_terms) != len(terms):
-                warnings.append(f"{name}: Chinese-only terms were retained for editing but omitted from PubMed query output.")
+                warnings.append(
+                    f"{name}: Chinese-only terms were retained for editing but omitted from PubMed query output."
+                )
             if not ascii_terms:
                 continue
             groups.append(
@@ -192,7 +210,9 @@ class LiteratureSearchService:
             try:
                 rows = await self.mesh_client.lookup(expansion.core_term)
             except Exception:
-                warnings.append(f"{name}: official MeSH lookup was unavailable; no MeSH candidate was assumed.")
+                warnings.append(
+                    f"{name}: official MeSH lookup was unavailable; no MeSH candidate was assumed."
+                )
                 continue
             mesh_candidates.extend(
                 MeshCandidate(group_name=name, **row) for row in rows
@@ -212,7 +232,9 @@ class LiteratureSearchService:
     # R2-WP04：检索任务与历史
     # ------------------------------------------------------------------
 
-    async def create_task(self, request: LiteratureSearchTaskCreate) -> LiteratureSearchTaskRead:
+    async def create_task(
+        self, request: LiteratureSearchTaskCreate
+    ) -> LiteratureSearchTaskRead:
         """创建检索任务并立即执行（pending → running → succeeded/failed）。
 
         设计说明：任务持久化的是完整检索输入快照，执行复用 WP03.5 的
@@ -244,11 +266,15 @@ class LiteratureSearchService:
             raise NotFoundError(f"LiteratureSearchTask not found: {id}")
         return await self._to_task_read(entity)
 
-    async def list_tasks(self, offset: int = 0, limit: int = 20) -> LiteratureSearchTaskList:
+    async def list_tasks(
+        self, offset: int = 0, limit: int = 20
+    ) -> LiteratureSearchTaskList:
         """分页返回任务历史（创建时间倒序），列表不携带条目明细。"""
         tasks, total = await self.repo.list_tasks(offset=offset, limit=limit)
         items = [await self._to_task_read(task) for task in tasks]
-        return LiteratureSearchTaskList(total=total, offset=offset, limit=limit, items=items)
+        return LiteratureSearchTaskList(
+            total=total, offset=offset, limit=limit, items=items
+        )
 
     async def rerun_task(self, id: int) -> LiteratureSearchTaskRerun:
         """重跑任务：按持久化的输入快照重新检索，创建新结果版本，不覆盖旧版本。
@@ -268,7 +294,11 @@ class LiteratureSearchService:
         if updated is None:
             raise NotFoundError(f"LiteratureSearchTask not found: {id}")
         change = None
-        if previous is not None and new_version is not None and new_version.id != previous.id:
+        if (
+            previous is not None
+            and new_version is not None
+            and new_version.id != previous.id
+        ):
             change = await self._build_change(previous, new_version)
         task_read = await self._to_task_read(updated)
         return LiteratureSearchTaskRerun(
@@ -375,10 +405,14 @@ class LiteratureSearchService:
     def _pmids_from_result(entity: LiteratureSearchResult | None) -> set[str]:
         if entity is None:
             return set()
-        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        items = [
+            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+        ]
         return {item.pmid for item in items}
 
-    async def _to_task_read(self, entity: LiteratureSearchTask) -> LiteratureSearchTaskRead:
+    async def _to_task_read(
+        self, entity: LiteratureSearchTask
+    ) -> LiteratureSearchTaskRead:
         versions = await self.repo.get_task_versions(entity.id)
         version_reads: list[LiteratureSearchTaskVersion] = []
         prev_ref: LiteratureSearchResultVersion | None = None
@@ -390,7 +424,9 @@ class LiteratureSearchService:
                     result_id=ref.result_id,
                     searched_at=ref.created_at,
                     result_count=result.total_count if result is not None else 0,
-                    change=await self._build_change(prev_ref, ref) if prev_ref is not None else None,
+                    change=await self._build_change(prev_ref, ref)
+                    if prev_ref is not None
+                    else None,
                 )
             )
             prev_ref = ref
@@ -413,7 +449,9 @@ class LiteratureSearchService:
             versions=version_reads,
         )
 
-    async def execute_search(self, request: SearchExecuteRequest) -> LiteratureSearchResultRead:
+    async def execute_search(
+        self, request: SearchExecuteRequest
+    ) -> LiteratureSearchResultRead:
         """执行 PubMed 检索并把结果落库。
 
         反幻觉边界：条目 verified 标记由 pubmed_executor 依据真实 EFetch 响应
@@ -425,7 +463,9 @@ class LiteratureSearchService:
         entity = LiteratureSearchResult(
             query=request.boolean_query,
             total_count=total_count,
-            items_json=json.dumps([item.model_dump() for item in items], ensure_ascii=False),
+            items_json=json.dumps(
+                [item.model_dump() for item in items], ensure_ascii=False
+            ),
         )
         saved = await self.repo.create_result(entity)
         return self._to_result_read(saved, items)
@@ -452,7 +492,9 @@ class LiteratureSearchService:
         entity = await self.repo.get_result(id)
         if entity is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {id}")
-        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        items = [
+            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+        ]
         state_map = await self.repo.get_item_states(id)
         filtered = filtering.apply_filters(
             items,
@@ -502,17 +544,23 @@ class LiteratureSearchService:
             LiteratureSearchItemState(
                 result_id=result_id,
                 pmid=pmid,
-                saved=request.saved if request.saved is not None else (
-                    existing.saved if existing is not None else False
-                ),
-                read_status=request.read_status if request.read_status is not None else (
-                    existing.read_status if existing is not None else DEFAULT_READ_STATUS
+                saved=request.saved
+                if request.saved is not None
+                else (existing.saved if existing is not None else False),
+                read_status=request.read_status
+                if request.read_status is not None
+                else (
+                    existing.read_status
+                    if existing is not None
+                    else DEFAULT_READ_STATUS
                 ),
                 tags_json=tags,
                 custom_order_index=(
                     request.custom_order_index
                     if request.custom_order_index is not None
-                    else existing.custom_order_index if existing is not None else None
+                    else existing.custom_order_index
+                    if existing is not None
+                    else None
                 ),
             )
         )
@@ -552,7 +600,9 @@ class LiteratureSearchService:
         entity = await self.repo.get_result(result_id)
         if entity is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
-        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        items = [
+            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+        ]
         if not items:
             return ReadingOrderRead(
                 result_id=result_id,
@@ -589,7 +639,9 @@ class LiteratureSearchService:
         algorithm_ranked = rank_reading_order(classified)
         ordered = apply_manual_order(algorithm_ranked, effective_manual)
         # order_source 收敛为 Literal["rule", "manual"]：有人工顺序则 manual 优先。
-        order_source: Literal["rule", "manual"] = "manual" if effective_manual else "rule"
+        order_source: Literal["rule", "manual"] = (
+            "manual" if effective_manual else "rule"
+        )
 
         return ReadingOrderRead(
             result_id=result_id,
@@ -602,7 +654,9 @@ class LiteratureSearchService:
                     priority=index + 1,
                     reason=entry.reason,
                     evidence_features=list(entry.evidence_features),
-                    title=next((item.title for item in items if item.pmid == entry.pmid), None),
+                    title=next(
+                        (item.title for item in items if item.pmid == entry.pmid), None
+                    ),
                     year=entry.year,
                 )
                 for index, entry in enumerate(ordered)
@@ -663,7 +717,9 @@ class LiteratureSearchService:
                 trigger_task_id=task_id,
                 match_method=candidate.match_method,
                 confidence=candidate.confidence,
-                status="auto_merged" if candidate.confidence == "clear" else "pending_resolution",
+                status="auto_merged"
+                if candidate.confidence == "clear"
+                else "pending_resolution",
             )
             for record in candidate.records:
                 group.members.append(
@@ -671,8 +727,16 @@ class LiteratureSearchService:
                         result_id=int(record.record_id.split(":", maxsplit=1)[0]),
                         record_pmid=record.item.pmid,
                         source_search_ids_json=json.dumps(record.source_search_ids),
-                        canonical_result_id=(canonical_result_id if candidate.confidence == "clear" else None),
-                        canonical_record_pmid=(canonical.item.pmid if candidate.confidence == "clear" else None),
+                        canonical_result_id=(
+                            canonical_result_id
+                            if candidate.confidence == "clear"
+                            else None
+                        ),
+                        canonical_record_pmid=(
+                            canonical.item.pmid
+                            if candidate.confidence == "clear"
+                            else None
+                        ),
                     )
                 )
             await self.repo.create_duplicate_group(group)
@@ -680,7 +744,10 @@ class LiteratureSearchService:
 
     async def list_duplicate_groups(self) -> DuplicateGroupList:
         return DuplicateGroupList(
-            items=[self._to_duplicate_group_read(group) for group in await self.repo.list_duplicate_groups()]
+            items=[
+                self._to_duplicate_group_read(group)
+                for group in await self.repo.list_duplicate_groups()
+            ]
         )
 
     async def resolve_duplicate_group(
@@ -695,7 +762,9 @@ class LiteratureSearchService:
             for member in group.members:
                 member.canonical_result_id = None
                 member.canonical_record_pmid = None
-            group.status = "pending_resolution" if group.confidence == "fuzzy" else "auto_merged"
+            group.status = (
+                "pending_resolution" if group.confidence == "fuzzy" else "auto_merged"
+            )
             await self.repo.save_duplicate_group(group)
             return self._to_duplicate_group_read(group)
 
@@ -703,11 +772,15 @@ class LiteratureSearchService:
         should_merge = request.action in {"keep_record", "merge_all"}
         for member in group.members:
             member.canonical_result_id = canonical.result_id if should_merge else None
-            member.canonical_record_pmid = canonical.record_pmid if should_merge else None
+            member.canonical_record_pmid = (
+                canonical.record_pmid if should_merge else None
+            )
         group.status = "resolved_merged" if should_merge else "resolved_keep_all"
         group.resolution = await self.repo.replace_duplicate_resolution(
             LiteratureDuplicateResolution(
-                group_id=group.id, resolved_action=request.action, resolved_by=request.resolved_by
+                group_id=group.id,
+                resolved_action=request.action,
+                resolved_by=request.resolved_by,
             )
         )
         await self.repo.save_duplicate_group(group)
@@ -737,32 +810,50 @@ class LiteratureSearchService:
         if request.action in {"keep_all", "merge_all"}:
             return group.members[0]
         if request.canonical_result_id is None or request.canonical_record_pmid is None:
-            raise ValueError("keep_record requires canonical_result_id and canonical_record_pmid")
+            raise ValueError(
+                "keep_record requires canonical_result_id and canonical_record_pmid"
+            )
         for member in group.members:
-            if member.result_id == request.canonical_result_id and member.record_pmid == request.canonical_record_pmid:
+            if (
+                member.result_id == request.canonical_result_id
+                and member.record_pmid == request.canonical_record_pmid
+            ):
                 return member
         raise ValueError("canonical record is not a member of the duplicate group")
 
     @staticmethod
     def _to_duplicate_group_read(group: LiteratureDuplicateGroup) -> DuplicateGroupRead:
         return DuplicateGroupRead(
-            id=group.id, trigger_task_id=group.trigger_task_id,
-            match_method=cast("Literal['pmid', 'doi', 'title_normalized', 'author_year', 'manual']", group.match_method),
+            id=group.id,
+            trigger_task_id=group.trigger_task_id,
+            match_method=cast(
+                "Literal['pmid', 'doi', 'title_normalized', 'author_year', 'manual']",
+                group.match_method,
+            ),
             confidence=cast("Literal['clear', 'fuzzy']", group.confidence),
-            status=cast("Literal['pending_resolution', 'auto_merged', 'resolved_keep_all', 'resolved_merged']", group.status),
+            status=cast(
+                "Literal['pending_resolution', 'auto_merged', 'resolved_keep_all', 'resolved_merged']",
+                group.status,
+            ),
             created_at=group.created_at,
             members=[
                 DuplicateGroupMemberRead(
-                    result_id=member.result_id, record_pmid=member.record_pmid,
+                    result_id=member.result_id,
+                    record_pmid=member.record_pmid,
                     canonical_result_id=member.canonical_result_id,
                     canonical_record_pmid=member.canonical_record_pmid,
                     source_search_ids=json.loads(member.source_search_ids_json),
                 )
                 for member in group.members
             ],
-            resolution=None if group.resolution is None else DuplicateResolutionRead(
+            resolution=None
+            if group.resolution is None
+            else DuplicateResolutionRead(
                 resolved_at=group.resolution.resolved_at,
-                resolved_action=cast("Literal['keep_record', 'keep_all', 'merge_all', 'undo']", group.resolution.resolved_action),
+                resolved_action=cast(
+                    "Literal['keep_record', 'keep_all', 'merge_all', 'undo']",
+                    group.resolution.resolved_action,
+                ),
                 resolved_by=group.resolution.resolved_by,
             ),
         )
@@ -770,17 +861,23 @@ class LiteratureSearchService:
     @staticmethod
     def _result_items(entity: LiteratureSearchResult) -> list[CitationItem]:
         """从结果快照解析条目列表（仅用于 PMID 存在性校验）。"""
-        return [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        return [
+            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+        ]
 
     @staticmethod
-    def _state_tuple(state: LiteratureSearchItemState | None) -> tuple[bool, str, list[str]]:
+    def _state_tuple(
+        state: LiteratureSearchItemState | None,
+    ) -> tuple[bool, str, list[str]]:
         """把用户态实体收敛为 filtering 回调签名 (saved, read_status, tags)。"""
         if state is None:
             return False, DEFAULT_READ_STATUS, []
         return state.saved, state.read_status, deserialize_tags(state.tags_json)
 
     @staticmethod
-    def _custom_order_map(state_map: dict[str, LiteratureSearchItemState]) -> dict[str, int]:
+    def _custom_order_map(
+        state_map: dict[str, LiteratureSearchItemState],
+    ) -> dict[str, int]:
         """提取 {pmid: 自定义序号}，供 ranking.custom 排序使用。"""
         return {
             pmid: state.custom_order_index
@@ -797,7 +894,9 @@ class LiteratureSearchService:
         return RankedCitationItem(
             item=entry.item,
             sort_reason=entry.sort_reason,
-            state=None if state is None else LiteratureSearchService._to_state_read(state),
+            state=None
+            if state is None
+            else LiteratureSearchService._to_state_read(state),
         )
 
     @staticmethod
@@ -826,7 +925,9 @@ class LiteratureSearchService:
         entity = await self.repo.get_result(id)
         if entity is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {id}")
-        items = [CitationItem.model_validate(item) for item in json.loads(entity.items_json)]
+        items = [
+            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+        ]
         return to_bibtex(items)
 
     @staticmethod
@@ -836,7 +937,8 @@ class LiteratureSearchService:
     ) -> LiteratureSearchResultRead:
         if items is None:
             items = [
-                CitationItem.model_validate(item) for item in json.loads(entity.items_json)
+                CitationItem.model_validate(item)
+                for item in json.loads(entity.items_json)
             ]
         return LiteratureSearchResultRead(
             id=entity.id,
@@ -863,18 +965,22 @@ class LiteratureSearchService:
         relative = re.search(r"近\s*([一二三四五六七八九十\d]{1,3})\s*年", raw_topic)
         if relative:
             candidate.date_range = relative_year_range(
-                LiteratureSearchService._parse_year_count(relative.group(1)), relative.group(0)
+                LiteratureSearchService._parse_year_count(relative.group(1)),
+                relative.group(0),
             )
         return candidate
 
     @staticmethod
-    def _constrain_candidate(candidate: SearchIntentCandidate, raw_topic: str) -> SearchIntentCandidate:
+    def _constrain_candidate(
+        candidate: SearchIntentCandidate, raw_topic: str
+    ) -> SearchIntentCandidate:
         if not candidate.topic.strip() or len(candidate.topic) > len(raw_topic) * 3:
             candidate.topic = raw_topic
         relative = re.search(r"近\s*([一二三四五六七八九十\d]{1,3})\s*年", raw_topic)
         if relative:
             candidate.date_range = relative_year_range(
-                LiteratureSearchService._parse_year_count(relative.group(1)), relative.group(0)
+                LiteratureSearchService._parse_year_count(relative.group(1)),
+                relative.group(0),
             )
         return candidate
 
@@ -883,8 +989,16 @@ class LiteratureSearchService:
         if value.isdigit():
             return int(value)
         numerals = {
-            "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
-            "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
+            "一": 1,
+            "二": 2,
+            "三": 3,
+            "四": 4,
+            "五": 5,
+            "六": 6,
+            "七": 7,
+            "八": 8,
+            "九": 9,
+            "十": 10,
         }
         if value == "十":
             return 10

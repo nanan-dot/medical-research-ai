@@ -35,7 +35,9 @@ def evaluate_answer(answers: list[PaperQAAnswer]) -> AnswerDecision:
     if scores and max(scores) < LOW_RELEVANCE_THRESHOLD:
         reasons.append("low_relevance")
     if any(
-        phrase in answer.answer.casefold() for answer in answers for phrase in UNCERTAIN_PHRASES
+        phrase in answer.answer.casefold()
+        for answer in answers
+        for phrase in UNCERTAIN_PHRASES
     ):
         reasons.append("model_uncertain")
     if reasons:

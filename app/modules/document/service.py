@@ -96,7 +96,9 @@ class DocumentService:
         if current == IndexStatus.INDEXING:
             raise ConflictError("Document indexing is already running")
         if current not in {IndexStatus.FAILED, IndexStatus.OUTDATED}:
-            raise ConflictError("Only failed or outdated document indexing can be retried")
+            raise ConflictError(
+                "Only failed or outdated document indexing can be retried"
+            )
         if entity.parse_status != ParseStatus.SUCCEEDED.value:
             raise ConflictError("Document must be parsed successfully before indexing")
         await self._require_source_file(entity)
@@ -140,7 +142,10 @@ class DocumentService:
             raise ConflictError("Document could not be read during parsing") from exc
         except Exception as exc:
             await self.mark_parse_status(
-                entity, ParseStatus.FAILED, "document_parse_failed", "Document parsing failed"
+                entity,
+                ParseStatus.FAILED,
+                "document_parse_failed",
+                "Document parsing failed",
             )
             raise ConflictError("Document parsing failed") from exc
         entity.parsed_title = parsed.title
@@ -153,7 +158,10 @@ class DocumentService:
 
     async def content_summary(self, id: int) -> ParsedContentSummary:
         entity = await self.get(id)
-        if not entity.parsed_content or entity.parse_status != ParseStatus.SUCCEEDED.value:
+        if (
+            not entity.parsed_content
+            or entity.parse_status != ParseStatus.SUCCEEDED.value
+        ):
             raise ConflictError("Document has no successful parsed content")
         try:
             parsed = ParsedDocument.model_validate_json(entity.parsed_content)
@@ -225,7 +233,9 @@ class DocumentService:
         entity.error_code = "source_file_missing"
         entity.error_message = "The source file is no longer available"
         entity.finished_at = datetime.now(UTC)
-        logger.warning("document_state_changed id=%s reason=source_file_missing", entity.id)
+        logger.warning(
+            "document_state_changed id=%s reason=source_file_missing", entity.id
+        )
         await self.repo.save(entity)
 
     async def _require_source_file(self, entity: Document) -> None:
@@ -245,7 +255,9 @@ class DocumentService:
         return path
 
     @staticmethod
-    def _content_summary(entity: Document, parsed: ParsedDocument) -> ParsedContentSummary:
+    def _content_summary(
+        entity: Document, parsed: ParsedDocument
+    ) -> ParsedContentSummary:
         return ParsedContentSummary(
             document_id=entity.id,
             title=parsed.title,
@@ -281,7 +293,9 @@ class DocumentService:
             entity.finished_at = now
         if target == "failed":
             entity.error_code = (error_code or "task_failed")[:MAX_ERROR_CODE_LENGTH]
-            entity.error_message = sanitize_error_message(error_message or "Task failed")
+            entity.error_message = sanitize_error_message(
+                error_message or "Task failed"
+            )
         else:
             entity.error_code = None
             entity.error_message = None

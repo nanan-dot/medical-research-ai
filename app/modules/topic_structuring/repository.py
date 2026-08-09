@@ -3,7 +3,10 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.topic_structuring.model import TopicStructuring, TopicStructuringVersion
+from app.modules.topic_structuring.model import (
+    TopicStructuring,
+    TopicStructuringVersion,
+)
 
 
 class TopicStructuringRepository:
@@ -19,13 +22,17 @@ class TopicStructuringRepository:
     async def get(self, structuring_id: int) -> TopicStructuring | None:
         return await self._session.get(TopicStructuring, structuring_id)
 
-    async def create_version(self, entity: TopicStructuringVersion) -> TopicStructuringVersion:
+    async def create_version(
+        self, entity: TopicStructuringVersion
+    ) -> TopicStructuringVersion:
         self._session.add(entity)
         await self._session.flush()
         await self._session.refresh(entity)
         return entity
 
-    async def get_version(self, structuring_id: int, version: int) -> TopicStructuringVersion | None:
+    async def get_version(
+        self, structuring_id: int, version: int
+    ) -> TopicStructuringVersion | None:
         result = await self._session.execute(
             select(TopicStructuringVersion).where(
                 TopicStructuringVersion.topic_structuring_id == structuring_id,

@@ -85,7 +85,9 @@ async def test_chinese_filename_repeat_export_and_citations(session, tmp_path):
     second = await service.create(request)
     assert first.filename == "中文：问答.md" and second.filename == "中文：问答-2.md"
     content = (await service.path(first.id)).read_text(encoding="utf-8")
-    assert "真实来源" in content and "120 participants" in content and "第 " not in content
+    assert (
+        "真实来源" in content and "120 participants" in content and "第 " not in content
+    )
     assert "我的 \\*备注\\*" in content and "local:test" == first.model_info
 
 
@@ -107,10 +109,14 @@ async def test_path_traversal_and_unwritable_output_are_rejected(session, tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_conversation_history_and_delete_do_not_delete_document(session, tmp_path):
+async def test_conversation_history_and_delete_do_not_delete_document(
+    session, tmp_path
+):
     conversation, doc = await conversation_fixture(session, tmp_path)
     service = ConversationService(session)
-    assert (await service.get(conversation.id)).messages[1].citations[0].citation_text == "真实来源"
+    assert (await service.get(conversation.id)).messages[1].citations[
+        0
+    ].citation_text == "真实来源"
     assert (await service.list())[0].message_count == 2
     await service.delete(conversation.id)
     with pytest.raises(NotFoundError):

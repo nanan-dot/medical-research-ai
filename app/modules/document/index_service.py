@@ -10,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.exceptions import ConflictError
 from app.common.hashing import sha256_file
 from app.core.config import settings
-from app.integrations.paperqa2 import PaperDocument, PaperQA2Client, create_paperqa2_client
+from app.integrations.paperqa2 import (
+    PaperDocument,
+    PaperQA2Client,
+    create_paperqa2_client,
+)
 from app.integrations.paperqa2.exceptions import PaperQA2Error
 from app.modules.document.model import Document
 from app.modules.document.schema import (
@@ -55,7 +59,9 @@ class DocumentIndexService:
             document.index_status = IndexStatus.OUTDATED.value
             document.index_error = "Source file changed after the last synchronization"
             await self.documents.repo.save(document)
-            raise ConflictError("Document changed and must be synchronized before indexing")
+            raise ConflictError(
+                "Document changed and must be synchronized before indexing"
+            )
 
         if (
             document.index_status == IndexStatus.SUCCEEDED.value
@@ -86,7 +92,9 @@ class DocumentIndexService:
             await self._mark_failed(document, exc.code, exc.message)
             raise ConflictError(exc.message) from exc
         except Exception as exc:
-            await self._mark_failed(document, "paperqa2_operation_error", "PaperQA2 indexing failed")
+            await self._mark_failed(
+                document, "paperqa2_operation_error", "PaperQA2 indexing failed"
+            )
             raise ConflictError("PaperQA2 indexing failed") from exc
 
         document.paperqa_index_key = index.index_id
@@ -116,7 +124,9 @@ class DocumentIndexService:
                     )
                 )
         failed = sum(result.index_status == IndexStatus.FAILED for result in results)
-        return BatchIndexResult(results=results, succeeded=len(results) - failed, failed=failed)
+        return BatchIndexResult(
+            results=results, succeeded=len(results) - failed, failed=failed
+        )
 
     async def delete_index(self, document_id: int) -> DocumentIndexResult:
         document = await self.documents.get(document_id)
@@ -162,7 +172,9 @@ class DocumentIndexService:
             except (OSError, ValueError) as exc:
                 raise ConflictError("PaperQA2 index metadata is incompatible") from exc
             if metadata.get("document_id") != document.id:
-                raise ConflictError("PaperQA2 index namespace conflicts with another document")
+                raise ConflictError(
+                    "PaperQA2 index namespace conflicts with another document"
+                )
         return namespace
 
     @staticmethod
@@ -186,7 +198,9 @@ class DocumentIndexService:
 
     async def _mark_failed(self, document: Document, code: str, message: str) -> None:
         document.index_error = sanitize_error_message(message)
-        await self.documents.mark_index_status(document, IndexStatus.FAILED, code, message)
+        await self.documents.mark_index_status(
+            document, IndexStatus.FAILED, code, message
+        )
 
     @staticmethod
     def _result(document: Document, *, reused: bool) -> DocumentIndexResult:

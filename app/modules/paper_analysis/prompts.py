@@ -3,11 +3,23 @@
 TEMPLATE_VERSION = "general-v1"
 MAX_PROMPT_CHARACTERS = 16_000
 FIELD_NAMES = (
-    "basic_information", "one_sentence_conclusion", "research_background",
-    "research_question", "study_type", "population", "sample_size",
-    "intervention_or_exposure", "comparator", "primary_outcome",
-    "statistical_methods", "main_results", "innovations", "limitations",
-    "next_questions", "original_evidence", "pending_items",
+    "basic_information",
+    "one_sentence_conclusion",
+    "research_background",
+    "research_question",
+    "study_type",
+    "population",
+    "sample_size",
+    "intervention_or_exposure",
+    "comparator",
+    "primary_outcome",
+    "statistical_methods",
+    "main_results",
+    "innovations",
+    "limitations",
+    "next_questions",
+    "original_evidence",
+    "pending_items",
 )
 
 

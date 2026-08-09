@@ -5,7 +5,11 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.modules.ai_disclosure.schema import AIUsageEventCreate, AIUsageEventRead, DisclosureDraftRead
+from app.modules.ai_disclosure.schema import (
+    AIUsageEventCreate,
+    AIUsageEventRead,
+    DisclosureDraftRead,
+)
 from app.modules.ai_disclosure.service import AIDisclosureService
 
 router = APIRouter(prefix="/ai-disclosure", tags=["ai-disclosure"])
@@ -21,12 +25,16 @@ async def add_event(
 
 
 @router.get("/projects/{project_id}/events", response_model=list[AIUsageEventRead])
-async def list_events(project_id: int, session: AsyncSession = Depends(get_session)) -> list[AIUsageEventRead]:
+async def list_events(
+    project_id: int, session: AsyncSession = Depends(get_session)
+) -> list[AIUsageEventRead]:
     return await AIDisclosureService(session).list_events(project_id)
 
 
 @router.get("/projects/{project_id}/draft", response_model=DisclosureDraftRead)
-async def get_project_draft(project_id: int, session: AsyncSession = Depends(get_session)) -> DisclosureDraftRead:
+async def get_project_draft(
+    project_id: int, session: AsyncSession = Depends(get_session)
+) -> DisclosureDraftRead:
     return await AIDisclosureService(session).get_or_create_draft(project_id)
 
 
@@ -40,5 +48,7 @@ async def update_draft(
 
 
 @router.get("/drafts/{draft_id}/export", response_class=PlainTextResponse)
-async def export_draft(draft_id: int, session: AsyncSession = Depends(get_session)) -> str:
+async def export_draft(
+    draft_id: int, session: AsyncSession = Depends(get_session)
+) -> str:
     return await AIDisclosureService(session).export_draft(draft_id)

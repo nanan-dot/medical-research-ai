@@ -39,9 +39,13 @@ def normalize_authorized_directory(raw_path: str) -> tuple[str, str]:
     except PermissionDeniedError:
         raise
     except (FileNotFoundError, NotADirectoryError) as exc:
-        raise KnowledgeSourcePathError("Knowledge source directory does not exist") from exc
+        raise KnowledgeSourcePathError(
+            "Knowledge source directory does not exist"
+        ) from exc
     except PermissionError as exc:
-        raise PermissionDeniedError("Knowledge source directory is not readable") from exc
+        raise PermissionDeniedError(
+            "Knowledge source directory is not readable"
+        ) from exc
     except OSError as exc:
         raise TemporarilyUnavailableError(
             "Knowledge source directory is temporarily unavailable"

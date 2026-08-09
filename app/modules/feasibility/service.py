@@ -68,7 +68,9 @@ class FeasibilityService:
         """
         versions = await self._repository.list_versions(direction_id)
         if not versions:
-            raise ConflictError("Create an initial feasibility score before adjusting weights")
+            raise ConflictError(
+                "Create an initial feasibility score before adjusting weights"
+            )
         previous = self._read(versions[-1])
         assessments = [
             UserAssessment(
@@ -88,7 +90,10 @@ class FeasibilityService:
 
     async def versions(self, direction_id: int) -> list[FeasibilityRead]:
         """Return immutable score snapshots ordered by version."""
-        return [self._read(score) for score in await self._repository.list_versions(direction_id)]
+        return [
+            self._read(score)
+            for score in await self._repository.list_versions(direction_id)
+        ]
 
     async def _save_score(
         self,
@@ -156,7 +161,9 @@ class FeasibilityService:
         new_weights: dict[DimensionName, float],
         new_total_score: float,
     ) -> bool:
-        comparable_scores = await self._repository.list_latest_scores_for_matrix(evidence_matrix_id)
+        comparable_scores = await self._repository.list_latest_scores_for_matrix(
+            evidence_matrix_id
+        )
         if len(comparable_scores) < 2:
             return False
 

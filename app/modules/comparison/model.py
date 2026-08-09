@@ -15,13 +15,17 @@ class ComparisonTask(Base):
     selected_document_ids: Mapped[str] = mapped_column(Text, nullable=False)
     fields: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class ComparisonCell(Base):
     __tablename__ = "comparison_cells"
     __table_args__ = (
-        UniqueConstraint("comparison_id", "document_id", "field", name="uq_comparison_cell"),
+        UniqueConstraint(
+            "comparison_id", "document_id", "field", name="uq_comparison_cell"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

@@ -32,7 +32,11 @@ def normalize_event(
 
 def _scope_summary(scope: Mapping[str, object]) -> str:
     parts: list[str] = []
-    labels = (("papers", "篇文献"), ("matrices", "个证据矩阵"), ("user_notes", "段用户笔记"))
+    labels = (
+        ("papers", "篇文献"),
+        ("matrices", "个证据矩阵"),
+        ("user_notes", "段用户笔记"),
+    )
     for key, label in labels:
         value = scope.get(key)
         if isinstance(value, int) and value >= 0:

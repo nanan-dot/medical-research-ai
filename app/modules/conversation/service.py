@@ -8,10 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import settings
-from app.integrations.paperqa2 import PaperQA2Client, PaperQAIndex, create_paperqa2_client
+from app.integrations.paperqa2 import (
+    PaperQA2Client,
+    PaperQAIndex,
+    create_paperqa2_client,
+)
 from app.integrations.paperqa2.exceptions import PaperQA2Error
 from app.modules.conversation.model import Citation, Conversation, Message
-from app.modules.conversation.no_answer import NO_ANSWER_TEXT, POLICY_VERSION, evaluate_answer
+from app.modules.conversation.no_answer import (
+    NO_ANSWER_TEXT,
+    POLICY_VERSION,
+    evaluate_answer,
+)
 from app.modules.conversation.repository import ConversationRepository
 from app.modules.conversation.schema import (
     CitationRead,
@@ -27,7 +35,10 @@ _LOCKS: dict[int, asyncio.Lock] = {}
 
 class ConversationService:
     def __init__(
-        self, session: AsyncSession, *, client_factory: Callable[[], PaperQA2Client] | None = None
+        self,
+        session: AsyncSession,
+        *,
+        client_factory: Callable[[], PaperQA2Client] | None = None,
     ):
         self.repo = ConversationRepository(session)
         self.documents = DocumentRepository(session)
@@ -40,7 +51,10 @@ class ConversationService:
         now = datetime.now(UTC)
         entity = await self.repo.create(
             Conversation(
-                document_ids=json.dumps(unique), title=title, created_at=now, updated_at=now
+                document_ids=json.dumps(unique),
+                title=title,
+                created_at=now,
+                updated_at=now,
             )
         )
         return await self._read(entity)
@@ -79,7 +93,9 @@ class ConversationService:
             entity = await self.repo.get(id)
             if entity is None:
                 raise NotFoundError(f"Conversation not found: {id}")
-            documents = [await self._indexed(value) for value in json.loads(entity.document_ids)]
+            documents = [
+                await self._indexed(value) for value in json.loads(entity.document_ids)
+            ]
             sequence = await self.repo.next_sequence(id)
             await self.repo.create(
                 Message(
@@ -97,7 +113,9 @@ class ConversationService:
                 for document in documents:
                     answer = await client.ask(
                         PaperQAIndex(
-                            index_id=document.paperqa_index_key, document_count=1, reused=True
+                            index_id=document.paperqa_index_key,
+                            document_count=1,
+                            reused=True,
                         ),
                         "Answer only from the indexed paper. If evidence is insufficient, say so explicitly. Question: "
                         + question,
@@ -149,7 +167,10 @@ class ConversationService:
                                 evidence_type="paperqa",
                                 page=source.page_start,
                                 section=source.title,
-                                evidence_text=(source.excerpt or "")[:MAX_EVIDENCE_LENGTH] or None,
+                                evidence_text=(source.excerpt or "")[
+                                    :MAX_EVIDENCE_LENGTH
+                                ]
+                                or None,
                                 citation_text=source.citation,
                                 retrieval_score=source.score,
                             )
@@ -179,7 +200,9 @@ class ConversationService:
         if document is None:
             raise NotFoundError(f"Document not found: {id}")
         if document.index_status != "succeeded" or not document.paperqa_index_key:
-            raise ConflictError("All selected documents must have current successful indexes")
+            raise ConflictError(
+                "All selected documents must have current successful indexes"
+            )
         return document
 
     async def _read(self, entity):
@@ -189,7 +212,10 @@ class ConversationService:
             title=entity.title,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
-            messages=[await self._message(item) for item in await self.repo.messages(entity.id)],
+            messages=[
+                await self._message(item)
+                for item in await self.repo.messages(entity.id)
+            ],
         )
 
     async def _message(self, entity):

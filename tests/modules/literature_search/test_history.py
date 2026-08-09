@@ -23,8 +23,7 @@ TASK_PAYLOAD = {
         {"topic": "胃癌 EGFR 免疫治疗", "disease": "胃癌"}, ensure_ascii=False
     ),
     "search_string": (
-        '"stomach neoplasms"[Title/Abstract] AND "EGFR"[Title/Abstract] '
-        "AND immunotherapy"
+        '"stomach neoplasms"[Title/Abstract] AND "EGFR"[Title/Abstract] AND immunotherapy'
     ),
     "database": "pubmed",
     "filters": json.dumps({"language": "English"}, ensure_ascii=False),
@@ -103,7 +102,12 @@ async def api_client(tmp_path, monkeypatch):
     original_init = LiteratureSearchService.__init__
 
     def patched_init(
-        self, session, *, candidate_extractor=None, mesh_client=None, pubmed_executor=None
+        self,
+        session,
+        *,
+        candidate_extractor=None,
+        mesh_client=None,
+        pubmed_executor=None,
     ):
         original_init(
             self,
@@ -227,9 +231,7 @@ def test_list_tasks_paginates_and_orders_by_recency(api_client):
         executor.enqueue([_item(f"{i:05d}")], 1)
         client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
 
-    page1 = client.get(
-        "/api/v1/literature-search", params={"offset": 0, "limit": 2}
-    )
+    page1 = client.get("/api/v1/literature-search", params={"offset": 0, "limit": 2})
     assert page1.status_code == 200
     payload1 = page1.json()
     assert payload1["total"] == 3
@@ -238,9 +240,7 @@ def test_list_tasks_paginates_and_orders_by_recency(api_client):
     ids_desc = [item["id"] for item in payload1["items"]]
     assert ids_desc == sorted(ids_desc, reverse=True)
 
-    page2 = client.get(
-        "/api/v1/literature-search", params={"offset": 2, "limit": 2}
-    )
+    page2 = client.get("/api/v1/literature-search", params={"offset": 2, "limit": 2})
     assert page2.status_code == 200
     assert len(page2.json()["items"]) == 1
 

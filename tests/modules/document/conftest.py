@@ -8,13 +8,18 @@ from app.core import models  # noqa: F401
 from app.core.database import Base
 from app.modules.document.model import Document
 from app.modules.document.repository import DocumentRepository
-from app.modules.knowledge_source.schema import KnowledgeSourceCreate, KnowledgeSourceType
+from app.modules.knowledge_source.schema import (
+    KnowledgeSourceCreate,
+    KnowledgeSourceType,
+)
 from app.modules.knowledge_source.service import KnowledgeSourceService
 
 
 @pytest.fixture
 async def session(tmp_path: Path):
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'documents.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'documents.db').as_posix()}"
+    )
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)

@@ -9,7 +9,9 @@ class ConsistencyResult:
     differences: list[str]
 
 
-def compare_metadata(local: dict[str, object], remote: dict[str, object]) -> ConsistencyResult:
+def compare_metadata(
+    local: dict[str, object], remote: dict[str, object]
+) -> ConsistencyResult:
     differences: list[str] = []
     local_title = str(local.get("title", "")).lower()
     remote_title = str(remote.get("title", "")).lower()
@@ -17,7 +19,11 @@ def compare_metadata(local: dict[str, object], remote: dict[str, object]) -> Con
         differences.append("title mismatch")
     local_authors = _author_names(local.get("authors"))
     remote_authors = _author_names(remote.get("authors"))
-    if local_authors and remote_authors and not local_authors.intersection(remote_authors):
+    if (
+        local_authors
+        and remote_authors
+        and not local_authors.intersection(remote_authors)
+    ):
         differences.append("authors mismatch")
     if local.get("year") and remote.get("year") and local["year"] != remote["year"]:
         differences.append("year mismatch")

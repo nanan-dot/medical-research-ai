@@ -35,8 +35,7 @@ TASK_PAYLOAD = {
         {"topic": "胃癌 EGFR 免疫治疗", "disease": "胃癌"}, ensure_ascii=False
     ),
     "search_string": (
-        '"stomach neoplasms"[Title/Abstract] AND "EGFR"[Title/Abstract] '
-        "AND immunotherapy"
+        '"stomach neoplasms"[Title/Abstract] AND "EGFR"[Title/Abstract] AND immunotherapy'
     ),
     "database": "pubmed",
     "filters": json.dumps({"language": "English"}, ensure_ascii=False),
@@ -115,7 +114,12 @@ async def api_client(tmp_path, monkeypatch):
     original_init = LiteratureSearchService.__init__
 
     def patched_init(
-        self, session, *, candidate_extractor=None, mesh_client=None, pubmed_executor=None
+        self,
+        session,
+        *,
+        candidate_extractor=None,
+        mesh_client=None,
+        pubmed_executor=None,
     ):
         original_init(
             self,
@@ -172,9 +176,7 @@ def test_apply_filters_combines_snapshot_and_user_state():
     params = ResultQueryParams(
         year=2024, has_abstract=True, saved=True, read_status="read", tags="key"
     )
-    filtered = apply_filters(
-        items, params, state_by_pmid=lambda pmid: states[pmid]
-    )
+    filtered = apply_filters(items, params, state_by_pmid=lambda pmid: states[pmid])
     assert [item.pmid for item in filtered] == ["1"]
 
 
@@ -246,9 +248,7 @@ def test_sort_newest_orders_by_year_desc_with_pmid_tiebreak():
         _item("c", year=2023),
         _item("d", year=None),
     ]
-    ranked = sort_items(
-        items, ResultQueryParams(sort="newest"), current_year=2026
-    )
+    ranked = sort_items(items, ResultQueryParams(sort="newest"), current_year=2026)
     # 2023 两条按 pmid 次级键稳定排序；None 年份排最后。
     assert [entry.item.pmid for entry in ranked] == ["b", "c", "a", "d"]
     assert all(entry.sort_reason for entry in ranked)
@@ -260,9 +260,7 @@ def test_sort_classic_prefers_top_journal_and_recent_year():
         _item("recent", year=2024, journal="Some Journal"),
         _item("none", year=None, journal="Science"),
     ]
-    ranked = sort_items(
-        items, ResultQueryParams(sort="classic"), current_year=2026
-    )
+    ranked = sort_items(items, ResultQueryParams(sort="classic"), current_year=2026)
     first = ranked[0].item
     # Nature 权威期刊 + 老年份 应排在"普通期刊 + 新年份"之前；None 排最后。
     assert first.pmid == "old"
@@ -277,9 +275,7 @@ def test_sort_classic_is_stable_for_same_score():
         _item("p1", year=2024, journal="Nature"),
         _item("p2", year=2024, journal="Nature"),
     ]
-    ranked = sort_items(
-        items, ResultQueryParams(sort="classic"), current_year=2026
-    )
+    ranked = sort_items(items, ResultQueryParams(sort="classic"), current_year=2026)
     # 同分（同期刊、同年份）时按 pmid 升序兜底，翻页不跳动。
     assert [entry.item.pmid for entry in ranked] == ["p1", "p2"]
 
@@ -301,9 +297,7 @@ def test_sort_custom_places_configured_first_others_keep_relevance():
 
 def test_sort_relevance_preserves_input_order():
     items = [_item("2"), _item("1")]
-    ranked = sort_items(
-        items, ResultQueryParams(sort="relevance"), current_year=2026
-    )
+    ranked = sort_items(items, ResultQueryParams(sort="relevance"), current_year=2026)
     assert [entry.item.pmid for entry in ranked] == ["2", "1"]
     assert ranked[0].sort_reason == (
         "relevance: ordered by PubMed default ranking for this search"
@@ -485,7 +479,9 @@ def test_custom_sort_uses_persisted_custom_order(api_client):
     assert custom.status_code == 200
     pmids = [entry["item"]["pmid"] for entry in custom.json()["items"]]
     assert pmids == ["b", "c", "a"]
-    assert all(entry["sort_reason"].startswith("custom:") for entry in custom.json()["items"])
+    assert all(
+        entry["sort_reason"].startswith("custom:") for entry in custom.json()["items"]
+    )
 
 
 def test_newest_sort_reason_explains_year_unknown(api_client):

@@ -26,7 +26,9 @@ class WritingProjectRepository:
         return await self.session.get(WritingProject, project_id)
 
     async def list_projects(self) -> list[WritingProject]:
-        result = await self.session.execute(select(WritingProject).order_by(WritingProject.id.desc()))
+        result = await self.session.execute(
+            select(WritingProject).order_by(WritingProject.id.desc())
+        )
         return list(result.scalars())
 
     async def save(self, entity: WritingProject) -> WritingProject:

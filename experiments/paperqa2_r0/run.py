@@ -27,7 +27,9 @@ PAPER_TITLE = (
     "complications in South Asia at 6.5 years follow-up: Post hoc analyses "
     "of the CARRS randomized clinical trial"
 )
-PAPER_CITATION = f"{PAPER_TITLE}. PLOS Medicine (2023). doi:10.1371/journal.pmed.1004335"
+PAPER_CITATION = (
+    f"{PAPER_TITLE}. PLOS Medicine (2023). doi:10.1371/journal.pmed.1004335"
+)
 PUBLIC_SOURCE_URL = (
     "https://journals.plos.org/plosmedicine/article/file?"
     "id=10.1371%2Fjournal.pmed.1004335&type=printable"
@@ -65,7 +67,9 @@ def ensure_within(path: Path, root: Path, label: str) -> Path:
     return resolved
 
 
-def save_trusted_index(path: Path, root: Path, docs: Any, metadata: dict[str, str]) -> None:
+def save_trusted_index(
+    path: Path, root: Path, docs: Any, metadata: dict[str, str]
+) -> None:
     path = ensure_within(path, root, "Index")
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -79,7 +83,9 @@ def load_trusted_index(path: Path, root: Path, expected: dict[str, str]) -> Any:
     with path.open("rb") as stream:
         payload = pickle.load(stream)  # noqa: S301 - restricted to this experiment's data root
     if not isinstance(payload, dict) or payload.get("metadata") != expected:
-        raise ExperimentInputError("Index metadata does not match PDF or PaperQA version")
+        raise ExperimentInputError(
+            "Index metadata does not match PDF or PaperQA version"
+        )
     return payload["docs"]
 
 
@@ -104,7 +110,10 @@ def sanitize_session(
         sources.append(
             {
                 "rank": position,
-                "title": str(getattr(document, "title", "") or run_metadata.get("paper_title", "")),
+                "title": str(
+                    getattr(document, "title", "")
+                    or run_metadata.get("paper_title", "")
+                ),
                 "citation": str(getattr(document, "citation", "")),
                 "chunk_name": chunk_name,
                 "page_range": page_match.group(1) if page_match else None,
@@ -134,7 +143,9 @@ def sanitize_session(
             "source_count": len(sources),
             "paper_title_present": any(source["title"] for source in sources),
             "page_range_present": any(source["page_range"] for source in sources),
-            "expected_values_present": all(value in combined for value in ("507", "233", "274")),
+            "expected_values_present": all(
+                value in combined for value in ("507", "233", "274")
+            ),
             "manual_source_pdf_page": 11,
         },
     }
@@ -143,7 +154,9 @@ def sanitize_session(
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     temporary.replace(path)
 
 
@@ -190,7 +203,9 @@ async def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         raise RuntimeError(f"Expected paper-qa=={PAPERQA_VERSION}, found {installed}")
     pdf_path = validate_pdf(args.pdf)
     data_root = args.data_dir.resolve()
-    index_path = ensure_within(data_root / "index" / "paperqa-docs.pkl", data_root, "Index")
+    index_path = ensure_within(
+        data_root / "index" / "paperqa-docs.pkl", data_root, "Index"
+    )
     output_path = ensure_within(args.output, data_root, "Output")
     pdf_hash = sha256_file(pdf_path)
     metadata = {"paperqa_version": installed, "pdf_sha256": pdf_hash}
@@ -244,20 +259,26 @@ def parse_args() -> argparse.Namespace:
     repository = Path(__file__).resolve().parents[2]
     data_dir = repository / "data" / "paperqa2_r0"
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--pdf", type=Path, default=data_dir / "plos-medicine-carrs-followup.pdf")
+    parser.add_argument(
+        "--pdf", type=Path, default=data_dir / "plos-medicine-carrs-followup.pdf"
+    )
     parser.add_argument("--data-dir", type=Path, default=data_dir)
     parser.add_argument("--output", type=Path, default=data_dir / "result.json")
     parser.add_argument("--question", default=DEFAULT_QUESTION)
     parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", "qwen3:4b"))
     parser.add_argument(
-        "--ollama-base-url", default=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        "--ollama-base-url",
+        default=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    if args.ollama_base_url.rstrip("/") not in {"http://localhost:11434", "http://127.0.0.1:11434"}:
+    if args.ollama_base_url.rstrip("/") not in {
+        "http://localhost:11434",
+        "http://127.0.0.1:11434",
+    }:
         raise ExperimentInputError("WP05 only permits a loopback Ollama endpoint")
     result = asyncio.run(run_experiment(args))
     print(

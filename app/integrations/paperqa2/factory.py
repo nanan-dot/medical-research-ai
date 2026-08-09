@@ -47,7 +47,9 @@ class _OfficialPaperQA2Backend:
             try:
                 docs = asyncio.run(self._build_docs(documents))
             except Exception as error:
-                raise PaperQA2OperationError("PaperQA2 could not index the documents") from error
+                raise PaperQA2OperationError(
+                    "PaperQA2 could not index the documents"
+                ) from error
             self._indexes[index_id] = docs
             return _BackendIndexResult(index_id, len(documents), False)
 
@@ -56,13 +58,21 @@ class _OfficialPaperQA2Backend:
         with self._lock:
             docs = self._indexes.get(index_id)
             if docs is None:
-                raise PaperQA2IndexNotFoundError("PaperQA2 index is unavailable in this process")
+                raise PaperQA2IndexNotFoundError(
+                    "PaperQA2 index is unavailable in this process"
+                )
             if not hasattr(docs, "aquery") or not hasattr(docs, "docs"):
-                raise PaperQA2IndexCorruptError("PaperQA2 index is incompatible or corrupted")
+                raise PaperQA2IndexCorruptError(
+                    "PaperQA2 index is incompatible or corrupted"
+                )
             try:
-                return asyncio.run(docs.aquery(question, settings=self._make_settings()))
+                return asyncio.run(
+                    docs.aquery(question, settings=self._make_settings())
+                )
             except Exception as error:
-                raise PaperQA2OperationError("PaperQA2 could not answer the question") from error
+                raise PaperQA2OperationError(
+                    "PaperQA2 could not answer the question"
+                ) from error
 
     async def _build_docs(self, documents: tuple[PaperDocument, ...]) -> Any:
         from paperqa import Docs
@@ -115,7 +125,9 @@ class _OfficialPaperQA2Backend:
         )
         paperqa_settings.parsing.use_doc_details = False
         paperqa_settings.parsing.reader_config = {"chunk_chars": 1600, "overlap": 120}
-        paperqa_settings.parsing.multimodal = type(paperqa_settings.parsing.multimodal).OFF
+        paperqa_settings.parsing.multimodal = type(
+            paperqa_settings.parsing.multimodal
+        ).OFF
         paperqa_settings.answer.evidence_skip_summary = True
         paperqa_settings.answer.evidence_k = 10
         paperqa_settings.answer.answer_max_sources = 5
@@ -156,9 +168,13 @@ def create_paperqa2_client(
     if selected_provider == "ollama":
         _validate_local_ollama_url(base_url)
     elif not api_key:
-        raise PaperQA2ConfigurationError(f"{selected_provider.upper()} API key is not configured")
+        raise PaperQA2ConfigurationError(
+            f"{selected_provider.upper()} API key is not configured"
+        )
     if not model:
-        raise PaperQA2ConfigurationError(f"{selected_provider.upper()}_MODEL is not configured")
+        raise PaperQA2ConfigurationError(
+            f"{selected_provider.upper()}_MODEL is not configured"
+        )
     config = PaperQA2Config(
         version=app_settings.PAPERQA_VERSION,
         provider=selected_provider,
@@ -180,4 +196,6 @@ def _validate_local_ollama_url(value: str) -> None:
     except ValueError:
         is_loopback = parsed.hostname == "localhost"
     if not is_loopback:
-        raise PaperQA2ConfigurationError("PaperQA2 Ollama URL must use a loopback address")
+        raise PaperQA2ConfigurationError(
+            "PaperQA2 Ollama URL must use a loopback address"
+        )

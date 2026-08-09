@@ -8,7 +8,9 @@ router = APIRouter(prefix="/outlines", tags=["outlines"])
 
 
 @router.post("/generate", response_model=OutlineRead)
-async def generate(p: OutlineCreate, s: AsyncSession = Depends(get_session)) -> OutlineRead:
+async def generate(
+    p: OutlineCreate, s: AsyncSession = Depends(get_session)
+) -> OutlineRead:
     return await OutlineService(s).create(p)
 
 
@@ -18,7 +20,9 @@ async def get(id: int, s: AsyncSession = Depends(get_session)) -> OutlineRead:
 
 
 @router.patch("/{id}", response_model=OutlineRead)
-async def update(id: int, p: OutlineUpdate, s: AsyncSession = Depends(get_session)) -> OutlineRead:
+async def update(
+    id: int, p: OutlineUpdate, s: AsyncSession = Depends(get_session)
+) -> OutlineRead:
     return await OutlineService(s).update(id, p)
 
 

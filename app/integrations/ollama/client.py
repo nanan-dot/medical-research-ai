@@ -26,7 +26,11 @@ from app.integrations.ollama.exceptions import (
     OllamaServiceUnavailableError,
     OllamaTimeoutError,
 )
-from app.integrations.ollama.schemas import OllamaModelInfo, OllamaResourceUsage, OllamaStatus
+from app.integrations.ollama.schemas import (
+    OllamaModelInfo,
+    OllamaResourceUsage,
+    OllamaStatus,
+)
 
 
 class OllamaClient:
@@ -90,7 +94,9 @@ class OllamaClient:
         payload = await self._get_json("/api/tags")
         raw_models = payload.get("models")
         if not isinstance(raw_models, list):
-            raise OllamaIncompatibleServiceError("Ollama returned an invalid model list")
+            raise OllamaIncompatibleServiceError(
+                "Ollama returned an invalid model list"
+            )
 
         models: list[OllamaModelInfo] = []
         for raw_model in raw_models:
@@ -127,7 +133,9 @@ class OllamaClient:
                 "Ollama request timed out; first load may need a larger timeout"
             ) from error
         except LLMResponseFormatError as error:
-            raise OllamaResponseError("Ollama returned empty or incompatible text") from error
+            raise OllamaResponseError(
+                "Ollama returned empty or incompatible text"
+            ) from error
         except LLMProviderError as error:
             if error.status_code and error.status_code >= 500:
                 raise OllamaResourceError(
@@ -139,7 +147,9 @@ class OllamaClient:
         payload = await self._get_json("/api/ps")
         raw_models = payload.get("models")
         if not isinstance(raw_models, list):
-            raise OllamaIncompatibleServiceError("Ollama returned invalid resource data")
+            raise OllamaIncompatibleServiceError(
+                "Ollama returned invalid resource data"
+            )
 
         usage: list[OllamaResourceUsage] = []
         for raw_model in raw_models:
@@ -148,7 +158,11 @@ class OllamaClient:
             model = raw_model.get("name") or raw_model.get("model")
             size = raw_model.get("size", 0)
             size_vram = raw_model.get("size_vram", 0)
-            if isinstance(model, str) and isinstance(size, int) and isinstance(size_vram, int):
+            if (
+                isinstance(model, str)
+                and isinstance(size, int)
+                and isinstance(size_vram, int)
+            ):
                 usage.append(
                     OllamaResourceUsage(
                         model=model,
@@ -192,7 +206,9 @@ class OllamaClient:
                 "The configured port did not return an Ollama JSON response"
             ) from error
         if not isinstance(payload, dict):
-            raise OllamaIncompatibleServiceError("Ollama returned an incompatible response")
+            raise OllamaIncompatibleServiceError(
+                "Ollama returned an incompatible response"
+            )
         return payload
 
     def _validate_local_base_url(self) -> None:

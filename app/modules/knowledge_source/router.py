@@ -42,7 +42,9 @@ async def list_knowledge_sources(
     return await service.list(offset=offset, limit=limit)
 
 
-@router.post("", response_model=KnowledgeSourceRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=KnowledgeSourceRead, status_code=status.HTTP_201_CREATED
+)
 async def create_knowledge_source(
     data: KnowledgeSourceCreate,
     session: AsyncSession = Depends(get_session),

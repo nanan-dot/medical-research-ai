@@ -137,14 +137,13 @@ class LiteratureSearchItemState(Base):
     __tablename__ = "literature_search_item_state"
 
     result_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("literature_search_results.id", ondelete="CASCADE"),
+        Integer,
+        ForeignKey("literature_search_results.id", ondelete="CASCADE"),
         primary_key=True,
     )
     pmid: Mapped[str] = mapped_column(Text, primary_key=True)
     saved: Mapped[bool] = mapped_column(nullable=False, default=False)
-    read_status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="unread"
-    )
+    read_status: Mapped[str] = mapped_column(Text, nullable=False, default="unread")
     tags_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     # 用户自定义排序序号（custom 排序使用）：由用户拖拽顺序写入，同一结果内
     # 每条记录保存自己的序号，避免在每个条目上冗余存全量 PMID 顺序列表。
@@ -164,7 +163,9 @@ class LiteratureDuplicateGroup(Base):
     confidence: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     members: Mapped[list["LiteratureDuplicateGroupMember"]] = relationship(
         back_populates="group", cascade="all, delete-orphan"
@@ -181,7 +182,9 @@ class LiteratureDuplicateGroupMember(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     group_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("literature_duplicate_groups.id", ondelete="CASCADE"),
+        nullable=False,
     )
     result_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("literature_search_results.id"), nullable=False
@@ -189,7 +192,9 @@ class LiteratureDuplicateGroupMember(Base):
     record_pmid: Mapped[str] = mapped_column(Text, nullable=False)
     canonical_result_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     canonical_record_pmid: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source_search_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    source_search_ids_json: Mapped[str] = mapped_column(
+        Text, nullable=False, default="[]"
+    )
     group: Mapped[LiteratureDuplicateGroup] = relationship(back_populates="members")
 
 
@@ -206,7 +211,9 @@ class LiteratureDuplicateResolution(Base):
         unique=True,
     )
     resolved_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     resolved_action: Mapped[str] = mapped_column(Text, nullable=False)
     resolved_by: Mapped[str] = mapped_column(Text, nullable=False)
@@ -236,8 +243,12 @@ class LiteratureReadingOrder(Base):
     # 人工顺序：完整 PMID 列表（JSON 数组），位置即顺序。
     manual_order_json: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )

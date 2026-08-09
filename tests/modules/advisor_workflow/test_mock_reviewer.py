@@ -41,7 +41,9 @@ def _config(
         id=config_id,
         deployment_mode="local" if provider == "ollama" else "cloud",
         provider=provider,
-        api_base="http://127.0.0.1:11434/v1" if provider == "ollama" else "https://example.test/v1",
+        api_base="http://127.0.0.1:11434/v1"
+        if provider == "ollama"
+        else "https://example.test/v1",
         encrypted_api_key=None,
         model_name="review-model",
         is_default=True,

@@ -33,8 +33,7 @@ TASK_PAYLOAD = {
         {"topic": "胃癌 EGFR 免疫治疗", "disease": "胃癌"}, ensure_ascii=False
     ),
     "search_string": (
-        '"stomach neoplasms"[Title/Abstract] AND "EGFR"[Title/Abstract] '
-        "AND immunotherapy"
+        '"stomach neoplasms"[Title/Abstract] AND "EGFR"[Title/Abstract] AND immunotherapy'
     ),
     "database": "pubmed",
     "filters": json.dumps({"language": "English"}, ensure_ascii=False),
@@ -68,7 +67,9 @@ def _item(
     )
 
 
-def _context(position: int, total: int = 3, fulltext_status: str | None = None) -> ReadingContext:
+def _context(
+    position: int, total: int = 3, fulltext_status: str | None = None
+) -> ReadingContext:
     """构造规则分类上下文：current_year 固定 2026（与排序测试一致）。"""
     return ReadingContext(
         current_year=2026,
@@ -119,7 +120,9 @@ def test_original_research_randomized_trial():
     )
     classified = classify_reading_item(item, _context(0))
     assert classified.category == "original_research"
-    assert "publication_type=Randomized Controlled Trial" in classified.evidence_features
+    assert (
+        "publication_type=Randomized Controlled Trial" in classified.evidence_features
+    )
     assert "建议在综述与指南之后阅读" in classified.reason
 
 
@@ -157,10 +160,14 @@ def test_frontier_needs_recent_year_not_just_presence():
 def test_classification_never_uses_citation_metrics():
     # 证据特征只收录真实字段：verified / position / year / publication_type。
     item = _item("9", year=2024, publication_types=("Journal Article", "Review"))
-    classified = classify_reading_item(item, _context(0, fulltext_status="local_pdf_available"))
+    classified = classify_reading_item(
+        item, _context(0, fulltext_status="local_pdf_available")
+    )
     assert classified.category == "review"
     assert all(
-        feature.startswith(("verified=", "position=", "year=", "publication_type=", "frontier="))
+        feature.startswith(
+            ("verified=", "position=", "year=", "publication_type=", "frontier=")
+        )
         for feature in classified.evidence_features
     )
     # 全文状态在理由里如实描述，不作为分类依据。
@@ -170,7 +177,9 @@ def test_classification_never_uses_citation_metrics():
 def test_unverified_item_records_no_verified_feature():
     item = _item("10", verified=False)
     classified = classify_reading_item(item, _context(0))
-    assert all(not feature.startswith("verified=") for feature in classified.evidence_features)
+    assert all(
+        not feature.startswith("verified=") for feature in classified.evidence_features
+    )
     assert "未经验证" in classified.reason
 
 
@@ -178,7 +187,9 @@ def test_unverified_item_records_no_verified_feature():
 # ----------------------------------------------------------------------
 
 
-def _classified(pmid: str, category: ReadingCategory, position: int, year: int | None = 2024) -> ClassifiedReadingItem:
+def _classified(
+    pmid: str, category: ReadingCategory, position: int, year: int | None = 2024
+) -> ClassifiedReadingItem:
     """构造一条已分类条目（供排序测试直接使用，避免重复分类噪音）。
 
     阅读顺序排序只看 category / position / year，evidence_features 与 reason
@@ -298,7 +309,12 @@ async def api_client(tmp_path, monkeypatch):
     original_init = LiteratureSearchService.__init__
 
     def patched_init(
-        self, session, *, candidate_extractor=None, mesh_client=None, pubmed_executor=None
+        self,
+        session,
+        *,
+        candidate_extractor=None,
+        mesh_client=None,
+        pubmed_executor=None,
     ):
         original_init(
             self,
@@ -329,13 +345,23 @@ def _seed_result(client, executor, items):
 def test_reading_order_rule_orders_by_evidence_pyramid(api_client):
     client, executor = api_client
     items = [
-        _item("orig", year=2023, publication_types=("Journal Article", "Randomized Controlled Trial")),
+        _item(
+            "orig",
+            year=2023,
+            publication_types=("Journal Article", "Randomized Controlled Trial"),
+        ),
         _item("rev", year=2021, publication_types=("Journal Article", "Review")),
-        _item("guideline", year=2020, publication_types=("Journal Article", "Practice Guideline")),
+        _item(
+            "guideline",
+            year=2020,
+            publication_types=("Journal Article", "Practice Guideline"),
+        ),
     ]
     result_id = _seed_result(client, executor, items)
 
-    generated = client.post(f"/api/v1/literature-search/{result_id}/reading-order", json={})
+    generated = client.post(
+        f"/api/v1/literature-search/{result_id}/reading-order", json={}
+    )
     assert generated.status_code == 200
     payload = generated.json()
     assert payload["order_source"] == "rule"
@@ -355,9 +381,17 @@ def test_reading_order_rule_orders_by_evidence_pyramid(api_client):
 def test_reading_order_manual_persisted_and_survives_regeneration(api_client):
     client, executor = api_client
     items = [
-        _item("orig", year=2023, publication_types=("Journal Article", "Randomized Controlled Trial")),
+        _item(
+            "orig",
+            year=2023,
+            publication_types=("Journal Article", "Randomized Controlled Trial"),
+        ),
         _item("rev", year=2021, publication_types=("Journal Article", "Review")),
-        _item("guideline", year=2020, publication_types=("Journal Article", "Practice Guideline")),
+        _item(
+            "guideline",
+            year=2020,
+            publication_types=("Journal Article", "Practice Guideline"),
+        ),
     ]
     result_id = _seed_result(client, executor, items)
 
@@ -368,7 +402,11 @@ def test_reading_order_manual_persisted_and_survives_regeneration(api_client):
     )
     assert saved.status_code == 200
     assert saved.json()["order_source"] == "manual"
-    assert [entry["pmid"] for entry in saved.json()["items"]] == ["orig", "rev", "guideline"]
+    assert [entry["pmid"] for entry in saved.json()["items"]] == [
+        "orig",
+        "rev",
+        "guideline",
+    ]
 
     # 重新生成（不携带 manual_order）：仍优先人工顺序，不被算法覆盖。
     regenerated = client.post(
@@ -376,14 +414,20 @@ def test_reading_order_manual_persisted_and_survives_regeneration(api_client):
     )
     assert regenerated.status_code == 200
     assert regenerated.json()["order_source"] == "manual"
-    assert [entry["pmid"] for entry in regenerated.json()["items"]] == ["orig", "rev", "guideline"]
+    assert [entry["pmid"] for entry in regenerated.json()["items"]] == [
+        "orig",
+        "rev",
+        "guideline",
+    ]
 
 
 def test_reading_order_request_manual_overrides_each_time(api_client):
     client, executor = api_client
     items = [
         _item("a", year=2023, publication_types=("Journal Article", "Review")),
-        _item("b", year=2020, publication_types=("Journal Article", "Practice Guideline")),
+        _item(
+            "b", year=2020, publication_types=("Journal Article", "Practice Guideline")
+        ),
     ]
     result_id = _seed_result(client, executor, items)
 

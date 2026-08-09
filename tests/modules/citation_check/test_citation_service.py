@@ -37,7 +37,9 @@ class FakeVerifier:
 
 async def test_check_builds_audit_report_with_summary():
     service = CitationCheckService(verifier=FakeVerifier({"39000401"}))
-    result = await service.check(CitationCheckRequest(text="PMID: 39000401 and PMID: 99999999"))
+    result = await service.check(
+        CitationCheckRequest(text="PMID: 39000401 and PMID: 99999999")
+    )
 
     assert isinstance(result, CitationCheckResult)
     assert len(result.items) == 2

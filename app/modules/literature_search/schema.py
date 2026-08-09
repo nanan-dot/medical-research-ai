@@ -331,9 +331,13 @@ class ItemStateRead(BaseModel):
 # R2-WP06：可撤销文献去重
 # ----------------------------------------------------------------------
 
-DuplicateMatchMethod = Literal["pmid", "doi", "title_normalized", "author_year", "manual"]
+DuplicateMatchMethod = Literal[
+    "pmid", "doi", "title_normalized", "author_year", "manual"
+]
 DuplicateConfidence = Literal["clear", "fuzzy"]
-DuplicateGroupStatus = Literal["pending_resolution", "auto_merged", "resolved_keep_all", "resolved_merged"]
+DuplicateGroupStatus = Literal[
+    "pending_resolution", "auto_merged", "resolved_keep_all", "resolved_merged"
+]
 DuplicateResolutionAction = Literal["keep_record", "keep_all", "merge_all", "undo"]
 
 

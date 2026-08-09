@@ -28,7 +28,9 @@ scope, feasibility, ethics, and missing validation. This is an AI simulation, no
 class MockReviewGenerator:
     """按显式配置路由模型；隐私数据默认只允许本地 Ollama。"""
 
-    def __init__(self, session: AsyncSession, cipher: SecretCipher | None = None) -> None:
+    def __init__(
+        self, session: AsyncSession, cipher: SecretCipher | None = None
+    ) -> None:
         self._session = session
         self._cipher = cipher
 
@@ -73,9 +75,13 @@ class MockReviewGenerator:
                 "Mock review model is not configured; configure local Ollama or explicitly select a cloud model"
             )
         if provider is not None and config.provider != provider:
-            raise ConflictError("Selected model configuration does not match the requested provider")
+            raise ConflictError(
+                "Selected model configuration does not match the requested provider"
+            )
         explicit_cloud = model_config_id is not None and provider is not None
-        if config.provider != "ollama" and not (explicit_cloud and config.allow_cloud_content):
+        if config.provider != "ollama" and not (
+            explicit_cloud and config.allow_cloud_content
+        ):
             raise ConflictError(
                 "Private research content requires local Ollama unless an allowed cloud model is explicitly selected"
             )

@@ -67,7 +67,9 @@ async def run_demo(
 
     total_started = perf_counter()
     index_started = perf_counter()
-    index = await client.index_documents([PaperDocument(path=pdf_path)], rebuild=rebuild)
+    index = await client.index_documents(
+        [PaperDocument(path=pdf_path)], rebuild=rebuild
+    )
     index_seconds = perf_counter() - index_started
     if index.reused and index_seconds > max_reuse_seconds:
         raise DemoError(
@@ -128,7 +130,9 @@ def _write_json(path: Path, result: DemoResult) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pdf", type=Path, required=True, help="Path to a text PDF")
-    parser.add_argument("--question", required=True, help="Factual question for the PDF")
+    parser.add_argument(
+        "--question", required=True, help="Factual question for the PDF"
+    )
     parser.add_argument(
         "--provider",
         choices=("ollama", "openai", "openrouter"),
@@ -137,7 +141,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", help="Override the provider model from .env")
     parser.add_argument("--base-url", help="Override the provider base URL from .env")
     parser.add_argument("--output", type=Path, required=True, help="Result JSON path")
-    parser.add_argument("--rebuild", action="store_true", help="Request a fresh process index")
+    parser.add_argument(
+        "--rebuild", action="store_true", help="Request a fresh process index"
+    )
     parser.add_argument("--max-reuse-seconds", type=float, default=5.0)
     return parser
 
@@ -156,7 +162,9 @@ def _settings_for_args(args: argparse.Namespace) -> tuple[Settings, str]:
         app_settings = app_settings.model_copy(update=updates)
     model = getattr(app_settings, model_field)
     if not model:
-        raise DemoError(f"Model is not configured for provider '{provider}'", exit_code=2)
+        raise DemoError(
+            f"Model is not configured for provider '{provider}'", exit_code=2
+        )
     return app_settings, model
 
 
@@ -186,9 +194,13 @@ def print_result(result: DemoResult) -> None:
     print("sources:")
     for position, source in enumerate(result.answer.sources, start=1):
         pages = (
-            f"{source.page_start}-{source.page_end}" if source.page_start is not None else "unknown"
+            f"{source.page_start}-{source.page_end}"
+            if source.page_start is not None
+            else "unknown"
         )
-        print(f"{position}. {source.citation or source.title or 'unknown'}; pages={pages}")
+        print(
+            f"{position}. {source.citation or source.title or 'unknown'}; pages={pages}"
+        )
 
 
 def _console_safe(value: str) -> str:

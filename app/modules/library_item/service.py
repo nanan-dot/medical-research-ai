@@ -14,7 +14,11 @@ from app.modules.document.matcher import find_exact_document_match, normalize_do
 from app.modules.document.repository import DocumentRepository
 from app.modules.library_item.model import LibraryItem
 from app.modules.library_item.repository import LibraryItemRepository
-from app.modules.library_item.schema import FulltextStatus, LibraryItemPage, LibraryItemRead
+from app.modules.library_item.schema import (
+    FulltextStatus,
+    LibraryItemPage,
+    LibraryItemRead,
+)
 from app.modules.literature_search.model import LiteratureSearchResult
 from app.modules.literature_search.schema import CitationItem
 
@@ -75,7 +79,9 @@ class LibraryItemService:
         )
         return LibraryItemRead.model_validate(await self.repo.create(item))
 
-    async def link_local_pdf(self, item_id: int, document_id: int | None) -> LibraryItemRead:
+    async def link_local_pdf(
+        self, item_id: int, document_id: int | None
+    ) -> LibraryItemRead:
         """手动绑定/解绑本地 PDF；document_id=None 表示解绑（元数据保留）。"""
         item = await self._get(item_id)
         if document_id is None:

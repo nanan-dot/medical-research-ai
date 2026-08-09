@@ -45,7 +45,9 @@ def fuse_ranked_results(
                 "contributions": contributions,
             }
         )
-        for index, (representative, fused_score, contributions) in enumerate(sorted_results[:top_k])
+        for index, (representative, fused_score, contributions) in enumerate(
+            sorted_results[:top_k]
+        )
     ]
 
 

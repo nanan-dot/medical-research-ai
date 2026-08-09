@@ -10,12 +10,17 @@ class KnowledgeSourceRepository:
         self.session = session
 
     async def get(self, id: int) -> KnowledgeSource | None:
-        result = await self.session.execute(select(KnowledgeSource).where(KnowledgeSource.id == id))
+        result = await self.session.execute(
+            select(KnowledgeSource).where(KnowledgeSource.id == id)
+        )
         return result.scalar_one_or_none()
 
     async def list(self, offset: int = 0, limit: int = 20) -> list[KnowledgeSource]:
         result = await self.session.execute(
-            select(KnowledgeSource).order_by(KnowledgeSource.id).offset(offset).limit(limit)
+            select(KnowledgeSource)
+            .order_by(KnowledgeSource.id)
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.scalars().all())
 

@@ -12,7 +12,9 @@ class ResearchDirectionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create_many(self, entities: list[ResearchDirection]) -> list[ResearchDirection]:
+    async def create_many(
+        self, entities: list[ResearchDirection]
+    ) -> list[ResearchDirection]:
         self._session.add_all(entities)
         await self._session.flush()
         for entity in entities:
@@ -24,7 +26,9 @@ class ResearchDirectionRepository:
 
     async def list_for_matrix(self, matrix_id: int) -> list[ResearchDirection]:
         result = await self._session.execute(
-            select(ResearchDirection).where(ResearchDirection.evidence_matrix_id == matrix_id)
+            select(ResearchDirection).where(
+                ResearchDirection.evidence_matrix_id == matrix_id
+            )
         )
         return list(result.scalars())
 

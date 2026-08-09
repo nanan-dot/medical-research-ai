@@ -36,7 +36,11 @@ from app.integrations.pubmed.exceptions import (
     PubMedTimeoutError,
 )
 from app.integrations.pubmed.rate_limit import RateLimiter
-from app.integrations.pubmed.schemas import PubMedConfig, PubMedRecord, PubMedSearchResult
+from app.integrations.pubmed.schemas import (
+    PubMedConfig,
+    PubMedRecord,
+    PubMedSearchResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +169,9 @@ class PubMedClient:
         result = self._parse_esearch(payload)
         if use_cache:
             self._cache.set(cache_key, result)
-        logger.info("PubMed ESearch done query=%r hits=%d", query[:120], result.total_count)
+        logger.info(
+            "PubMed ESearch done query=%r hits=%d", query[:120], result.total_count
+        )
         return result
 
     async def fetch_summary(
@@ -239,7 +245,9 @@ class PubMedClient:
     # EFetch 内部分片
     # ------------------------------------------------------------------
 
-    async def _fetch_records_chunk(self, ids: list[str], *, use_cache: bool) -> list[PubMedRecord]:
+    async def _fetch_records_chunk(
+        self, ids: list[str], *, use_cache: bool
+    ) -> list[PubMedRecord]:
         params = self._common_params(
             {"db": "pubmed", "id": ",".join(ids), "retmode": "xml"}
         )
@@ -305,12 +313,19 @@ class PubMedClient:
         last_error: Exception | None = None
         for attempt in range(1, retry_count + 1):
             await self._rate_limiter.wait()
-            logger.debug("PubMed request endpoint=%s attempt=%d/%d", endpoint, attempt, retry_count)
+            logger.debug(
+                "PubMed request endpoint=%s attempt=%d/%d",
+                endpoint,
+                attempt,
+                retry_count,
+            )
             try:
                 response = await self._http_client.get(url, params=params)
             except httpx.TimeoutException as error:
                 last_error = error
-                logger.warning("PubMed timeout endpoint=%s attempt=%d", endpoint, attempt)
+                logger.warning(
+                    "PubMed timeout endpoint=%s attempt=%d", endpoint, attempt
+                )
                 if attempt < retry_count:
                     await self._backoff(attempt)
                     continue
@@ -319,7 +334,9 @@ class PubMedClient:
                 ) from error
             except httpx.TransportError as error:
                 last_error = error
-                logger.warning("PubMed connection failed endpoint=%s attempt=%d", endpoint, attempt)
+                logger.warning(
+                    "PubMed connection failed endpoint=%s attempt=%d", endpoint, attempt
+                )
                 if attempt < retry_count:
                     await self._backoff(attempt)
                     continue
@@ -409,8 +426,12 @@ class PubMedClient:
         return PubMedSearchResult(
             pmids=pmids,
             total_count=max(0, total_count),
-            query_key=esearch.get("querykey") if isinstance(esearch.get("querykey"), str) else None,
-            web_env=esearch.get("webenv") if isinstance(esearch.get("webenv"), str) else None,
+            query_key=esearch.get("querykey")
+            if isinstance(esearch.get("querykey"), str)
+            else None,
+            web_env=esearch.get("webenv")
+            if isinstance(esearch.get("webenv"), str)
+            else None,
         )
 
     def _parse_esummary(self, payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -429,9 +450,8 @@ class PubMedClient:
             out[str(uid)] = {
                 "title": _first_str(entry.get("title")),
                 "authors": _extract_authors(entry.get("authors")),
-                "journal": _first_str(entry.get("fulljournalname")) or _first_str(
-                    entry.get("source")
-                ),
+                "journal": _first_str(entry.get("fulljournalname"))
+                or _first_str(entry.get("source")),
                 "year": _to_int(entry.get("pubdate") or entry.get("epubdate")),
                 "pubtypes": _extract_pubtypes(entry.get("pubtype")),
                 "doi": _extract_doi(entry.get("articleids")),

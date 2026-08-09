@@ -2,7 +2,10 @@ import pytest
 
 from app.common.exceptions import ConflictError
 from app.modules.document.schema import IndexStatus, ParseStatus
-from app.modules.document.state_machine import ensure_index_transition, ensure_parse_transition
+from app.modules.document.state_machine import (
+    ensure_index_transition,
+    ensure_parse_transition,
+)
 
 
 @pytest.mark.parametrize(

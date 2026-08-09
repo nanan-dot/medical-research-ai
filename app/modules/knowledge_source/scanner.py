@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.common.path_utils import is_within_root, normalized_path_key
 
-SUPPORTED_SUFFIXES = frozenset({".pdf", ".md", ".docx", ".txt"})
+SUPPORTED_SUFFIXES = frozenset({".pdf", ".md", ".doc", ".docx", ".pptx", ".txt"})
 IGNORED_DIRECTORIES = frozenset({".obsidian", ".git", ".trash"})
 
 
@@ -60,7 +60,9 @@ def scan_directory(root_path: Path) -> DirectoryScan:
             if entry.name.casefold() in IGNORED_DIRECTORIES:
                 continue
             raw_path = Path(entry.path)
-            relative_hint = os.path.normcase(os.path.normpath(str(raw_path.relative_to(root))))
+            relative_hint = os.path.normcase(
+                os.path.normpath(str(raw_path.relative_to(root)))
+            )
             try:
                 resolved = raw_path.resolve(strict=True)
                 if not is_within_root(resolved, root):
@@ -81,7 +83,11 @@ def scan_directory(root_path: Path) -> DirectoryScan:
                 continue
 
             identity: tuple[int, int] | str
-            identity = (stat.st_dev, stat.st_ino) if stat.st_ino else normalized_path_key(resolved)
+            identity = (
+                (stat.st_dev, stat.st_ino)
+                if stat.st_ino
+                else normalized_path_key(resolved)
+            )
             if identity in seen_files:
                 result.skipped_duplicates += 1
                 continue

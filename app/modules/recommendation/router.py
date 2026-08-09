@@ -12,8 +12,14 @@ from app.integrations.ollama.exceptions import OllamaError
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
 from app.modules.recommendation.orchestrator import RecommendationService
-from app.modules.recommendation.reason_fusion import RecommendationReasonService, ReasonLLM
-from app.modules.recommendation.schema import RecommendationRequest, RecommendationResponse
+from app.modules.recommendation.reason_fusion import (
+    RecommendationReasonService,
+    ReasonLLM,
+)
+from app.modules.recommendation.schema import (
+    RecommendationRequest,
+    RecommendationResponse,
+)
 from app.modules.recommendation.service import RecommendationExecutor
 from app.modules.literature_search.pubmed_executor import PubMedExecutor
 
@@ -48,8 +54,12 @@ async def create_recommendation(
     service: RecommendationService = Depends(get_recommendation_service),
 ) -> RecommendationResponse:
     try:
-        return await service.recommend(request.query, candidate_count=request.candidate_count)
+        return await service.recommend(
+            request.query, candidate_count=request.candidate_count
+        )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except PubMedError as error:
-        raise HTTPException(status_code=503, detail="PubMed service unavailable") from error
+        raise HTTPException(
+            status_code=503, detail="PubMed service unavailable"
+        ) from error

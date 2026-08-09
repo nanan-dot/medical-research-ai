@@ -16,10 +16,14 @@ class ResearchConditions(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     current_version: Mapped[int] = mapped_column(nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )
 
 
@@ -28,15 +32,23 @@ class ResearchConditionsVersion(Base):
 
     __tablename__ = "research_conditions_versions"
     # (conditions_id, version) 唯一：同一条件的版本号不可重复，与迁移保持一致。
-    __table_args__ = (UniqueConstraint("conditions_id", "version", name="uq_research_conditions_versions"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "conditions_id", "version", name="uq_research_conditions_versions"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     conditions_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("research_conditions.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("research_conditions.id", ondelete="CASCADE"),
+        nullable=False,
     )
     version: Mapped[int] = mapped_column(nullable=False)
     conditions_json: Mapped[str] = mapped_column(Text, nullable=False)
     uncertain_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
     )

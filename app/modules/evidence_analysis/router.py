@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.modules.evidence_analysis.schema import EvidenceAnalysisRead, EvidenceAnalysisRequest
+from app.modules.evidence_analysis.schema import (
+    EvidenceAnalysisRead,
+    EvidenceAnalysisRequest,
+)
 from app.modules.evidence_analysis.service import EvidenceAnalysisService
 
 router = APIRouter(prefix="/evidence-analysis", tags=["热点、争议与证据缺口"])

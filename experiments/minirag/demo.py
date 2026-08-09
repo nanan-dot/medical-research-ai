@@ -137,13 +137,17 @@ async def _run(args: argparse.Namespace) -> None:
         try:
             rag.load_index()
         except NotesRAGError as error:
-            raise ExperimentError(f"加载索引失败（{error.code}）: {error.message}") from error
+            raise ExperimentError(
+                f"加载索引失败（{error.code}）: {error.message}"
+            ) from error
         _run_queries(rag, args.questions, args.top_k)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    args.questions = [item.strip() for item in args.questions.split(";") if item.strip()]
+    args.questions = [
+        item.strip() for item in args.questions.split(";") if item.strip()
+    ]
     if not args.questions:
         print("错误: --questions 为空", file=sys.stderr)
         return 2

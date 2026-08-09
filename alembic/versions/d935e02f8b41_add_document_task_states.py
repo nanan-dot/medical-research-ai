@@ -20,12 +20,18 @@ def upgrade() -> None:
     with op.batch_alter_table("documents") as batch_op:
         batch_op.add_column(
             sa.Column(
-                "parse_status", sa.String(length=32), server_default="pending", nullable=False
+                "parse_status",
+                sa.String(length=32),
+                server_default="pending",
+                nullable=False,
             )
         )
         batch_op.add_column(
             sa.Column(
-                "index_status", sa.String(length=32), server_default="pending", nullable=False
+                "index_status",
+                sa.String(length=32),
+                server_default="pending",
+                nullable=False,
             )
         )
         batch_op.add_column(sa.Column("error_code", sa.String(length=64)))
@@ -37,7 +43,9 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("finished_at", sa.DateTime(timezone=True)))
 
     op.execute(
-        sa.text("UPDATE documents SET index_status = 'outdated' WHERE scan_state = 'outdated'")
+        sa.text(
+            "UPDATE documents SET index_status = 'outdated' WHERE scan_state = 'outdated'"
+        )
     )
 
 

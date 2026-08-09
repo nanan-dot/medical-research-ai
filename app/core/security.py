@@ -20,7 +20,9 @@ class SecretCipher:
         try:
             self.cipher = MultiFernet([Fernet(value) for value in values])
         except (ValueError, TypeError) as exc:
-            raise ConflictError("Model configuration encryption key is invalid") from exc
+            raise ConflictError(
+                "Model configuration encryption key is invalid"
+            ) from exc
 
     def encrypt(self, value: str) -> str:
         return self.cipher.encrypt(value.encode()).decode()

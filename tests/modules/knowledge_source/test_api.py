@@ -44,7 +44,9 @@ def create_source(client: TestClient, root: Path, source_type: str = "local_fold
     )
 
 
-def test_crud_enable_disable_and_delete_preserves_files(client: TestClient, tmp_path: Path):
+def test_crud_enable_disable_and_delete_preserves_files(
+    client: TestClient, tmp_path: Path
+):
     root = tmp_path / "papers"
     root.mkdir()
     paper = root / "paper.txt"
@@ -58,10 +60,14 @@ def test_crud_enable_disable_and_delete_preserves_files(client: TestClient, tmp_
     assert duplicate.status_code == 409
     assert duplicate.json()["error"]["code"] == "conflict"
 
-    disabled = client.patch(f"/api/v1/knowledge-sources/{source_id}", json={"enabled": False})
+    disabled = client.patch(
+        f"/api/v1/knowledge-sources/{source_id}", json={"enabled": False}
+    )
     assert disabled.status_code == 200
     assert disabled.json()["enabled"] is False
-    enabled = client.patch(f"/api/v1/knowledge-sources/{source_id}", json={"enabled": True})
+    enabled = client.patch(
+        f"/api/v1/knowledge-sources/{source_id}", json={"enabled": True}
+    )
     assert enabled.json()["enabled"] is True
 
     listed = client.get("/api/v1/knowledge-sources")
@@ -88,7 +94,9 @@ def test_permission_and_network_errors_are_explicit(
 ):
     root = tmp_path / "source"
     root.mkdir()
-    monkeypatch.setattr("app.modules.knowledge_source.service.os.access", lambda *_: False)
+    monkeypatch.setattr(
+        "app.modules.knowledge_source.service.os.access", lambda *_: False
+    )
     denied = create_source(client, root)
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "permission_denied"

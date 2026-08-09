@@ -24,6 +24,7 @@ def _git(*args: str, input_text: str | None = None) -> subprocess.CompletedProce
         input=input_text,
         text=True,
         capture_output=True,
+        encoding="utf-8",
         check=False,
     )
 
@@ -60,7 +61,9 @@ def test_no_sensitive_runtime_files_are_tracked():
 def test_configured_real_keys_do_not_appear_in_tracked_files():
     app_settings = Settings()
     secrets = [
-        value for value in (app_settings.OPENAI_API_KEY, app_settings.OPENROUTER_API_KEY) if value
+        value
+        for value in (app_settings.OPENAI_API_KEY, app_settings.OPENROUTER_API_KEY)
+        if value
     ]
     if not secrets:
         pytest.skip("no local cloud key is configured")

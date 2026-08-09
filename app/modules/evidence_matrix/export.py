@@ -19,12 +19,20 @@ def to_csv(matrix: EvidenceMatrixRead) -> str:
     output = io.StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(
-        ["字段", *[f"文档 {item.document_id} (阅读:{item.reading_status})" for item in documents]]
+        [
+            "字段",
+            *[
+                f"文档 {item.document_id} (阅读:{item.reading_status})"
+                for item in documents
+            ],
+        ]
     )
     for field in active_fields:
         row = [field.field_label]
         for document in documents:
-            row.append(_cell_for(matrix, document.document_id, field.field_key).cell_value)
+            row.append(
+                _cell_for(matrix, document.document_id, field.field_key).cell_value
+            )
         writer.writerow(row)
     return output.getvalue()
 
@@ -53,7 +61,9 @@ def to_markdown(matrix: EvidenceMatrixRead) -> str:
     for document in documents:
         notes = document.user_notes.strip()
         suffix = f"（备注：{notes}）" if notes else ""
-        lines.append(f"- 文档 {document.document_id}：{document.document_status}{suffix}")
+        lines.append(
+            f"- 文档 {document.document_id}：{document.document_status}{suffix}"
+        )
     return "\n".join(lines) + "\n"
 
 

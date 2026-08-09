@@ -10,8 +10,12 @@ from tests.modules.document.conftest import create_document
 
 
 @pytest.mark.asyncio
-async def test_failed_parse_can_retry_and_running_retry_conflicts(session, tmp_path: Path, caplog):
-    document, _ = await create_document(session, tmp_path / "source", parse_status="failed")
+async def test_failed_parse_can_retry_and_running_retry_conflicts(
+    session, tmp_path: Path, caplog
+):
+    document, _ = await create_document(
+        session, tmp_path / "source", parse_status="failed"
+    )
     service = DocumentService(session)
     retried = await service.retry_parse(document.id)
     assert retried.parse_status == "pending"
@@ -26,7 +30,9 @@ async def test_failed_parse_can_retry_and_running_retry_conflicts(session, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_failed_and_outdated_index_retry_requires_successful_parse(session, tmp_path: Path):
+async def test_failed_and_outdated_index_retry_requires_successful_parse(
+    session, tmp_path: Path
+):
     document, _ = await create_document(
         session, tmp_path / "source", parse_status="succeeded", index_status="failed"
     )
@@ -42,8 +48,12 @@ async def test_failed_and_outdated_index_retry_requires_successful_parse(session
 
 
 @pytest.mark.asyncio
-async def test_stalled_task_becomes_failed_and_error_is_bounded(session, tmp_path: Path):
-    document, _ = await create_document(session, tmp_path / "source", parse_status="parsing")
+async def test_stalled_task_becomes_failed_and_error_is_bounded(
+    session, tmp_path: Path
+):
+    document, _ = await create_document(
+        session, tmp_path / "source", parse_status="parsing"
+    )
     document.started_at = datetime.now(UTC) - timedelta(hours=1)
     service = DocumentService(session)
     reconciled = await service.get(document.id)
@@ -82,7 +92,9 @@ async def test_filter_pagination_and_total_are_consistent(session, tmp_path: Pat
     await create_document(session, tmp_path / "one", parse_status="failed")
     await create_document(session, tmp_path / "two", parse_status="succeeded")
     await create_document(session, tmp_path / "three", parse_status="failed")
-    page = await DocumentService(session).list(offset=1, limit=1, parse_status=ParseStatus.FAILED)
+    page = await DocumentService(session).list(
+        offset=1, limit=1, parse_status=ParseStatus.FAILED
+    )
     assert page.total == 2
     assert len(page.items) == 1
     assert page.items[0].parse_status == ParseStatus.FAILED

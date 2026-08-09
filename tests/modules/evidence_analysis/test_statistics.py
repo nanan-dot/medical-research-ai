@@ -21,7 +21,10 @@ def test_topic_frequency_and_research_type_distribution_are_calculated() -> None
     assert topics[0].count == 3
     assert topics[0].year_range == "2021-2023"
     assert topics[0].research_types == {"RCT": 2, "队列": 1}
-    assert [(item.research_type, item.count) for item in research_types] == [("RCT", 2), ("队列", 1)]
+    assert [(item.research_type, item.count) for item in research_types] == [
+        ("RCT", 2),
+        ("队列", 1),
+    ]
 
 
 def test_trend_is_up_when_later_half_has_more_documents() -> None:

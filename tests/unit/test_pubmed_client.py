@@ -54,7 +54,9 @@ class FakeHTTPClient:
         if isinstance(scripted, Exception):
             raise scripted
         text = scripted if isinstance(scripted, str) else self._dump_json(scripted)
-        return httpx.Response(self.status_code, text=text, request=httpx.Request("GET", url))
+        return httpx.Response(
+            self.status_code, text=text, request=httpx.Request("GET", url)
+        )
 
     @staticmethod
     def _dump_json(payload: dict[str, Any]) -> str:
@@ -344,7 +346,9 @@ async def test_fetch_records_detects_withdrawn_record():
 
 @pytest.mark.asyncio
 async def test_timeout_raises_pubmed_timeout():
-    client = fast_backoff(make_client({"esearch.fcgi": httpx.TimeoutException("timed out")}))
+    client = fast_backoff(
+        make_client({"esearch.fcgi": httpx.TimeoutException("timed out")})
+    )
 
     with pytest.raises(PubMedTimeoutError):
         await client.search("cancer")
@@ -371,7 +375,9 @@ async def test_retry_after_429_then_success():
             self.count += 1
             if self.count == 1:
                 return httpx.Response(429, text="rate limited")
-            return httpx.Response(200, text='{"esearchresult":{"count":"1","idlist":["777"]}}')
+            return httpx.Response(
+                200, text='{"esearchresult":{"count":"1","idlist":["777"]}}'
+            )
 
     retry_http = RetryHTTP()
     client = fast_backoff(
@@ -521,11 +527,20 @@ async def test_esummary_cache_immune_to_caller_mutation():
     所有缓存命中返回被篡改数据；修复后存取两端均深拷贝。
     """
     client = make_client(
-        {"esummary.fcgi": esummary_payload({
-            "123": {"title": "Original Title", "fulljournalname": "J Med",
-                    "pubdate": "2024", "authors": [], "pubtype": [],
-                    "articleids": []},
-        })}
+        {
+            "esummary.fcgi": esummary_payload(
+                {
+                    "123": {
+                        "title": "Original Title",
+                        "fulljournalname": "J Med",
+                        "pubdate": "2024",
+                        "authors": [],
+                        "pubtype": [],
+                        "articleids": [],
+                    },
+                }
+            )
+        }
     )
     first = await client.fetch_summary(["123"])
     # 调用方恶意/无意修改返回的 dict
@@ -556,10 +571,12 @@ async def test_retry_after_capped_at_30_seconds():
         async def get(self, url: str, params: dict[str, str]) -> httpx.Response:
             self.count += 1
             if self.count == 1:
-                return httpx.Response(429, headers={"Retry-After": "3600"},
-                                      text="rate limited")
+                return httpx.Response(
+                    429, headers={"Retry-After": "3600"}, text="rate limited"
+                )
             return httpx.Response(
-                200, text='{"esearchresult":{"count":"1","idlist":["777"]}}')
+                200, text='{"esearchresult":{"count":"1","idlist":["777"]}}'
+            )
 
     async def _capture_sleep(seconds: float) -> None:
         sleeps.append(seconds)

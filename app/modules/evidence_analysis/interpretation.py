@@ -1,7 +1,10 @@
 """Model-output validation for grounded evidence interpretations."""
 
 from app.modules.comparison.shared import SourceRef
-from app.modules.evidence_analysis.schema import InterpretationLayerRead, StatisticsLayerRead
+from app.modules.evidence_analysis.schema import (
+    InterpretationLayerRead,
+    StatisticsLayerRead,
+)
 
 
 def parse_grounded_interpretation(
@@ -13,21 +16,33 @@ def parse_grounded_interpretation(
     statistic_bases = _statistic_bases(statistics)
     for item in _all_items(interpretation):
         if not set(item.statistics_basis).issubset(statistic_bases):
-            raise ValueError("Interpretation must cite an exact statistic from the statistics layer")
+            raise ValueError(
+                "Interpretation must cite an exact statistic from the statistics layer"
+            )
         for evidence in item.evidence:
             if _source_key(evidence) not in allowed_source_keys:
-                raise ValueError("Interpretation evidence is not present in the selected matrix")
+                raise ValueError(
+                    "Interpretation evidence is not present in the selected matrix"
+                )
     for conflict in interpretation.conflicts:
         for evidence in [*conflict.supporting_evidence, *conflict.opposing_evidence]:
             if _source_key(evidence) not in allowed_source_keys:
-                raise ValueError("Conflict evidence is not present in the selected matrix")
+                raise ValueError(
+                    "Conflict evidence is not present in the selected matrix"
+                )
     return interpretation
 
 
 def _statistic_bases(statistics: StatisticsLayerRead) -> set[str]:
     return {
-        *[f"主题 {item.topic}: {item.count} 篇, 趋势 {item.trend}" for item in statistics.high_frequency_topics],
-        *[f"研究类型 {item.research_type}: {item.count} 篇" for item in statistics.research_type_distribution],
+        *[
+            f"主题 {item.topic}: {item.count} 篇, 趋势 {item.trend}"
+            for item in statistics.high_frequency_topics
+        ],
+        *[
+            f"研究类型 {item.research_type}: {item.count} 篇"
+            for item in statistics.research_type_distribution
+        ],
     }
 
 

@@ -54,7 +54,9 @@ class FeasibilityRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_unique_assessments(self) -> "FeasibilityRequest":
-        if len({item.dimension for item in self.user_assessments}) != len(self.user_assessments):
+        if len({item.dimension for item in self.user_assessments}) != len(
+            self.user_assessments
+        ):
             raise ValueError("User assessments must be unique")
         return self
 

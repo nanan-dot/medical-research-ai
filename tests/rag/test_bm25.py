@@ -24,7 +24,9 @@ def medical_chunks() -> list[Chunk]:
         ("NCT04209660", "trial:0"),
     ],
 )
-def test_search_returns_exact_medical_term_match(medical_chunks, query: str, expected_chunk_id: str) -> None:
+def test_search_returns_exact_medical_term_match(
+    medical_chunks, query: str, expected_chunk_id: str
+) -> None:
     store = BM25Store()
     store.build(medical_chunks)
 
@@ -35,7 +37,9 @@ def test_search_returns_exact_medical_term_match(medical_chunks, query: str, exp
     assert results[0].rank == 1
 
 
-def test_tokenize_medical_text_preserves_alphanumeric_term_and_chinese_bigrams() -> None:
+def test_tokenize_medical_text_preserves_alphanumeric_term_and_chinese_bigrams() -> (
+    None
+):
     tokens = tokenize_medical_text("EGFR 奥希替尼 NCT04209660")
 
     assert "egfr" in tokens
@@ -44,7 +48,9 @@ def test_tokenize_medical_text_preserves_alphanumeric_term_and_chinese_bigrams()
 
 
 @pytest.mark.parametrize("top_k", [0, -1])
-def test_search_returns_empty_for_non_positive_top_k(medical_chunks, top_k: int) -> None:
+def test_search_returns_empty_for_non_positive_top_k(
+    medical_chunks, top_k: int
+) -> None:
     store = BM25Store()
     store.build(medical_chunks)
 

@@ -41,9 +41,13 @@ class PresentationService:
     async def get(self, presentation_id: int) -> PresentationRead:
         return self._read(await self._entity(presentation_id))
 
-    async def patch(self, presentation_id: int, payload: PresentationPatch) -> PresentationRead:
+    async def patch(
+        self, presentation_id: int, payload: PresentationPatch
+    ) -> PresentationRead:
         entity = await self._entity(presentation_id)
-        entity.outline_json = json.dumps([section.model_dump() for section in payload.sections])
+        entity.outline_json = json.dumps(
+            [section.model_dump() for section in payload.sections]
+        )
         entity.version += 1
         entity.updated_at = datetime.now(UTC)
         return self._read(await self._repository.save(entity))
@@ -59,7 +63,9 @@ class PresentationService:
             lines.extend([f"## {section.title}", section.content, ""])
         return "\n".join(lines)
 
-    async def _build_sections(self, payload: PresentationCreate) -> list[OutlineSection]:
+    async def _build_sections(
+        self, payload: PresentationCreate
+    ) -> list[OutlineSection]:
         if payload.comparison_id:
             try:
                 return await self._comparison_sections(payload.comparison_id)
@@ -77,7 +83,10 @@ class PresentationService:
             raise ConflictError("Run paper analysis before creating a presentation")
         result = StructuredPaperResult.model_validate_json(analysis.structured_result)
         items = await self._library.list_items(0, 1000, None)
-        item = next((candidate for candidate in items if candidate.document_id == document_id), None)
+        item = next(
+            (candidate for candidate in items if candidate.document_id == document_id),
+            None,
+        )
         evidence_by_index = {}
         if item is not None and (item.pmid or item.doi):
             evidence_by_index = {
@@ -95,8 +104,13 @@ class PresentationService:
                 title="Original sources",
                 content=", ".join(
                     sorted({source.pmid or source.doi or "" for source in all_evidence})
-                ) or "No verified PMID/DOI available",
-                evidence=list({source.model_dump_json(): source for source in all_evidence}.values()),
+                )
+                or "No verified PMID/DOI available",
+                evidence=list(
+                    {
+                        source.model_dump_json(): source for source in all_evidence
+                    }.values()
+                ),
                 missing_evidence=not all_evidence,
             )
         )

@@ -117,12 +117,21 @@ class EvidenceMatrixService:
 
     async def list_matrices(self, offset: int, limit: int) -> list[EvidenceMatrixRead]:
         # 方法名用 list_matrices 而非 list：避免遮蔽内置 list，破坏类内后续注解求值。
-        return [await self.get(matrix.id) for matrix in await self.repo.list_matrices(offset, limit)]
+        return [
+            await self.get(matrix.id)
+            for matrix in await self.repo.list_matrices(offset, limit)
+        ]
 
     async def count(self) -> int:
         return await self.repo.count_matrices()
 
-    async def update(self, matrix_id: int, name: str | None, description: str | None, status: str | None) -> EvidenceMatrixRead:
+    async def update(
+        self,
+        matrix_id: int,
+        name: str | None,
+        description: str | None,
+        status: str | None,
+    ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
         if name is not None:
             matrix.name = name
@@ -138,16 +147,25 @@ class EvidenceMatrixService:
         await self.repo.delete_matrix(await self._require_matrix(matrix_id))
 
     # ----------------------------------------------------------- documents
-    async def add_documents(self, matrix_id: int, document_ids: list[int]) -> EvidenceMatrixRead:
+    async def add_documents(
+        self, matrix_id: int, document_ids: list[int]
+    ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
-        existing = {document.document_id for document in await self.repo.list_documents(matrix_id)}
+        existing = {
+            document.document_id
+            for document in await self.repo.list_documents(matrix_id)
+        }
         current = len(existing)
-        fresh = [document_id for document_id in document_ids if document_id not in existing]
+        fresh = [
+            document_id for document_id in document_ids if document_id not in existing
+        ]
         if not fresh:
             return await self.get(matrix_id)
         # 边界校验：首次至少 3 篇，最终总数不超过 10（同 WP11 语义）。
         if current == 0 and len(fresh) < MIN_DOCUMENTS:
-            raise ConflictError(f"Evidence matrix requires at least {MIN_DOCUMENTS} documents")
+            raise ConflictError(
+                f"Evidence matrix requires at least {MIN_DOCUMENTS} documents"
+            )
         if current + len(fresh) > MAX_DOCUMENTS:
             raise ConflictError(
                 f"Evidence matrix supports at most {MAX_DOCUMENTS} documents"
@@ -157,7 +175,9 @@ class EvidenceMatrixService:
         await self.repo.save()
         return await self.get(matrix_id)
 
-    async def remove_documents(self, matrix_id: int, document_ids: list[int]) -> EvidenceMatrixRead:
+    async def remove_documents(
+        self, matrix_id: int, document_ids: list[int]
+    ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
         for document_id in document_ids:
             document = await self.repo.get_document(matrix_id, document_id)
@@ -168,7 +188,9 @@ class EvidenceMatrixService:
         await self.repo.save()
         return await self.get(matrix_id)
 
-    async def update_document(self, matrix_id: int, document_id: int, update: MatrixDocumentUpdate) -> EvidenceMatrixRead:
+    async def update_document(
+        self, matrix_id: int, document_id: int, update: MatrixDocumentUpdate
+    ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
         document = await self._require_document(matrix_id, document_id)
         if update.user_notes is not None:
@@ -184,7 +206,9 @@ class EvidenceMatrixService:
         return await self.get(matrix_id)
 
     # -------------------------------------------------------------- fields
-    async def add_field(self, matrix_id: int, field_key: str, field_label: str) -> EvidenceMatrixRead:
+    async def add_field(
+        self, matrix_id: int, field_key: str, field_label: str
+    ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
         existing = await self.repo.get_field(matrix_id, field_key)
         if existing is not None and existing.active:
@@ -213,7 +237,9 @@ class EvidenceMatrixService:
 
     async def _backfill_field_cells(self, matrix_id: int, field_key: str) -> None:
         for document in await self.repo.list_documents(matrix_id):
-            existing = await self.repo.get_cell(matrix_id, document.document_id, field_key)
+            existing = await self.repo.get_cell(
+                matrix_id, document.document_id, field_key
+            )
             if existing is not None:
                 continue
             generated = await self._evidence_value(document.document_id, field_key)
@@ -224,7 +250,9 @@ class EvidenceMatrixService:
                         document_id=document.document_id,
                         field_key=field_key,
                         cell_value=generated.cell_value,
-                        sources=json.dumps([item.model_dump() for item in generated.sources]),
+                        sources=json.dumps(
+                            [item.model_dump() for item in generated.sources]
+                        ),
                         generated_value=generated.generated_value,
                         user_value=None,
                         status=generated.status.value,
@@ -242,7 +270,9 @@ class EvidenceMatrixService:
         return await self.get(matrix_id)
 
     # --------------------------------------------------------------- cells
-    async def edit_cell(self, matrix_id: int, edit: MatrixCellEdit) -> EvidenceMatrixRead:
+    async def edit_cell(
+        self, matrix_id: int, edit: MatrixCellEdit
+    ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
         await self._require_document(matrix_id, edit.document_id)
         await self._require_field(matrix_id, edit.field_key)
@@ -272,21 +302,29 @@ class EvidenceMatrixService:
     async def regenerate(self, matrix_id: int) -> EvidenceMatrixRead:
         """只更新 generated/missing 单元格；user_edited 单元格原样保留。"""
         matrix = await self._require_matrix(matrix_id)
-        fields = [field for field in await self.repo.list_fields(matrix_id) if field.active]
+        fields = [
+            field for field in await self.repo.list_fields(matrix_id) if field.active
+        ]
         documents = await self.repo.list_documents(matrix_id)
         for field in fields:
             for document in documents:
-                cell = await self.repo.get_cell(matrix_id, document.document_id, field.field_key)
+                cell = await self.repo.get_cell(
+                    matrix_id, document.document_id, field.field_key
+                )
                 if cell is not None and cell.status == CellStatus.USER_EDITED.value:
                     continue
-                generated = await self._evidence_value(document.document_id, field.field_key)
+                generated = await self._evidence_value(
+                    document.document_id, field.field_key
+                )
                 if cell is None:
                     cell = MatrixCell(
                         matrix_id=matrix_id,
                         document_id=document.document_id,
                         field_key=field.field_key,
                         cell_value=generated.cell_value,
-                        sources=json.dumps([item.model_dump() for item in generated.sources]),
+                        sources=json.dumps(
+                            [item.model_dump() for item in generated.sources]
+                        ),
                         generated_value=generated.generated_value,
                         user_value=None,
                         status=generated.status.value,
@@ -295,7 +333,9 @@ class EvidenceMatrixService:
                 else:
                     cell.cell_value = generated.cell_value
                     cell.generated_value = generated.generated_value
-                    cell.sources = json.dumps([item.model_dump() for item in generated.sources])
+                    cell.sources = json.dumps(
+                        [item.model_dump() for item in generated.sources]
+                    )
                     cell.status = generated.status.value
                     await self.repo.save()
         matrix.version += 1
@@ -326,7 +366,9 @@ class EvidenceMatrixService:
                             document_id=document_id,
                             field_key=field_key,
                             cell_value=generated.cell_value,
-                            sources=json.dumps([item.model_dump() for item in generated.sources]),
+                            sources=json.dumps(
+                                [item.model_dump() for item in generated.sources]
+                            ),
                             generated_value=generated.generated_value,
                             user_value=None,
                             status=generated.status.value,
@@ -338,7 +380,9 @@ class EvidenceMatrixService:
         fields = await self.repo.list_fields(matrix_id)
         return [field.field_key for field in fields if field.active]
 
-    async def _evidence_value(self, document_id: int, field_key: str) -> MatrixCellGenerated:
+    async def _evidence_value(
+        self, document_id: int, field_key: str
+    ) -> MatrixCellGenerated:
         """从 library_item + paper_analysis 聚合证据；缺失显式置 missing。
 
         与 WP11 同一语义：document_id 指向本地文档（documents.id），通过
@@ -347,7 +391,9 @@ class EvidenceMatrixService:
         直接返回 missing；来源只绑定真实 PMID/DOI。
         """
         field = (
-            ComparisonField(field_key) if field_key in {item.value for item in ComparisonField} else None
+            ComparisonField(field_key)
+            if field_key in {item.value for item in ComparisonField}
+            else None
         )
         if field is None:
             return MatrixCellGenerated(document_id=document_id, field_key=field_key)
@@ -360,7 +406,13 @@ class EvidenceMatrixService:
                 document_id=document_id,
                 field_key=field_key,
                 generated_value=library_item.title or MISSING_VALUE,
-                sources=[SourceRef(pmid=library_item.pmid, doi=library_item.doi, locator="library_item")],
+                sources=[
+                    SourceRef(
+                        pmid=library_item.pmid,
+                        doi=library_item.doi,
+                        locator="library_item",
+                    )
+                ],
             )
         analysis = await self.analyses.latest_for_document(document_id)
         if analysis is None or not analysis.structured_result or library_item is None:
@@ -420,7 +472,9 @@ class EvidenceMatrixService:
             raise NotFoundError(f"Evidence matrix not found: {matrix_id}")
         return matrix
 
-    async def _require_document(self, matrix_id: int, document_id: int) -> MatrixDocument:
+    async def _require_document(
+        self, matrix_id: int, document_id: int
+    ) -> MatrixDocument:
         document = await self.repo.get_document(matrix_id, document_id)
         if document is None:
             raise NotFoundError(f"Document not in matrix: {document_id}")
@@ -462,7 +516,9 @@ class EvidenceMatrixService:
             document_id=cell.document_id,
             field_key=cell.field_key,
             cell_value=cell.cell_value or MISSING_VALUE,
-            sources=[SourceRef.model_validate(item) for item in json.loads(cell.sources)],
+            sources=[
+                SourceRef.model_validate(item) for item in json.loads(cell.sources)
+            ],
             generated_value=cell.generated_value,
             user_value=cell.user_value,
             status=CellStatus(cell.status),

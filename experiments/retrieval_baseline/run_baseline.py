@@ -41,7 +41,9 @@ def read_questions(path: Path) -> list[dict[str, object]]:
         if not isinstance(item, dict) or not isinstance(item.get("query"), str):
             raise ValueError("every question must contain a string query")
         relevant_ids = item.get("relevant_chunk_ids")
-        if not isinstance(relevant_ids, list) or not all(isinstance(value, str) for value in relevant_ids):
+        if not isinstance(relevant_ids, list) or not all(
+            isinstance(value, str) for value in relevant_ids
+        ):
             raise ValueError("every question must contain string relevant_chunk_ids")
     return payload
 
@@ -62,13 +64,19 @@ def load_chunks(notes_dir: Path) -> list[Chunk]:
     return chunks
 
 
-def calculate_metrics(results: list[RetrievalResult], relevant_ids: set[str]) -> dict[str, float]:
+def calculate_metrics(
+    results: list[RetrievalResult], relevant_ids: set[str]
+) -> dict[str, float]:
     """计算 Recall@K 与 MRR；以人工 chunk 标注代替主观判断。"""
     returned_ids = [result.chunk_id for result in results]
     relevant_returned = sum(chunk_id in relevant_ids for chunk_id in returned_ids)
     recall = relevant_returned / len(relevant_ids) if relevant_ids else 0.0
     first_rank = next(
-        (index + 1 for index, chunk_id in enumerate(returned_ids) if chunk_id in relevant_ids),
+        (
+            index + 1
+            for index, chunk_id in enumerate(returned_ids)
+            if chunk_id in relevant_ids
+        ),
         None,
     )
     return {"recall_at_k": recall, "mrr": 1 / first_rank if first_rank else 0.0}
@@ -90,9 +98,12 @@ async def run_experiment(args: argparse.Namespace) -> dict[str, object]:
     vector_store.build(chunks, vectors)
     bm25_store = BM25Store()
     bm25_store.build(chunks)
-    query_vectors = await embedding.embed([str(question["query"]) for question in questions])
+    query_vectors = await embedding.embed(
+        [str(question["query"]) for question in questions]
+    )
     vectors_by_query = {
-        str(question["query"]): vector for question, vector in zip(questions, query_vectors)
+        str(question["query"]): vector
+        for question, vector in zip(questions, query_vectors)
     }
     vector_retriever = VectorRetriever(
         index_store=vector_store,
@@ -103,7 +114,11 @@ async def run_experiment(args: argparse.Namespace) -> dict[str, object]:
         bm25_retriever=bm25_store,
         log_path=args.output.with_suffix(".retrieval.jsonl"),
     )
-    strategy_metrics: dict[str, list[dict[str, float]]] = {"vector": [], "bm25": [], "hybrid": []}
+    strategy_metrics: dict[str, list[dict[str, float]]] = {
+        "vector": [],
+        "bm25": [],
+        "hybrid": [],
+    }
     records: list[dict[str, object]] = []
     for question in questions:
         query = str(question["query"])
@@ -130,7 +145,8 @@ async def run_experiment(args: argparse.Namespace) -> dict[str, object]:
         "question_count": len(questions),
         "metrics": {
             name: {
-                "mean_recall_at_k": sum(item["recall_at_k"] for item in values) / len(values),
+                "mean_recall_at_k": sum(item["recall_at_k"] for item in values)
+                / len(values),
                 "mean_mrr": sum(item["mrr"] for item in values) / len(values),
             }
             for name, values in strategy_metrics.items()
@@ -139,8 +155,11 @@ async def run_experiment(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
-def _make_query_vector_provider(vectors_by_query: dict[str, list[float]]) -> Callable[[str], list[float]]:
+def _make_query_vector_provider(
+    vectors_by_query: dict[str, list[float]],
+) -> Callable[[str], list[float]]:
     """将预先异步生成的测试查询向量作为同步 FAISS 适配器依赖注入。"""
+
     def embed_query(query: str) -> list[float]:
         try:
             return vectors_by_query[query]
@@ -159,7 +178,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"experiment failed: {error}")
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    args.output.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"saved comparison metrics to {args.output}")
     return 0
 

@@ -22,9 +22,13 @@ class AIDisclosureService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def add_event(self, project_id: int, payload: AIUsageEventCreate) -> AIUsageEventRead:
+    async def add_event(
+        self, project_id: int, payload: AIUsageEventCreate
+    ) -> AIUsageEventRead:
         await self._require_project(project_id)
-        entity = AIUsageEvent(project_id=project_id, event_id=uuid4().hex, **payload.model_dump())
+        entity = AIUsageEvent(
+            project_id=project_id, event_id=uuid4().hex, **payload.model_dump()
+        )
         self.session.add(entity)
         await self.session.flush()
         await self.session.refresh(entity)
@@ -33,7 +37,9 @@ class AIDisclosureService:
     async def list_events(self, project_id: int) -> list[AIUsageEventRead]:
         await self._require_project(project_id)
         result = await self.session.execute(
-            select(AIUsageEvent).where(AIUsageEvent.project_id == project_id).order_by(AIUsageEvent.id)
+            select(AIUsageEvent)
+            .where(AIUsageEvent.project_id == project_id)
+            .order_by(AIUsageEvent.id)
         )
         return [AIUsageEventRead.model_validate(item) for item in result.scalars()]
 
@@ -52,7 +58,9 @@ class AIDisclosureService:
             include_notice=settings.DISCLOSURE_NOTICE_ENABLED,
         )
         now = datetime.now(UTC)
-        entity = DisclosureDraft(project_id=project_id, content=content, created_at=now, updated_at=now)
+        entity = DisclosureDraft(
+            project_id=project_id, content=content, created_at=now, updated_at=now
+        )
         self.session.add(entity)
         await self.session.flush()
         await self.session.refresh(entity)
@@ -85,7 +93,11 @@ class AIDisclosureService:
         # 导出边界只允许暴露范围占位，保留用户编辑的其他披露措辞。
         import re
 
-        return re.sub(r"输入范围：[^；。\n]*(?:；|。|$)", "输入范围：[confidential]；", entity.content)
+        return re.sub(
+            r"输入范围：[^；。\n]*(?:；|。|$)",
+            "输入范围：[confidential]；",
+            entity.content,
+        )
 
     async def _require_project(self, project_id: int) -> WritingProject:
         project = await self.session.get(WritingProject, project_id)

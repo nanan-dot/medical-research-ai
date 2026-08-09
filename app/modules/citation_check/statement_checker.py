@@ -11,11 +11,15 @@ class StatementCheckResult:
     notes: list[str]
 
 
-def check_statement(statement: str, citation_ids: list[str], *, topic: str = "") -> StatementCheckResult:
+def check_statement(
+    statement: str, citation_ids: list[str], *, topic: str = ""
+) -> StatementCheckResult:
     if not citation_ids:
         return StatementCheckResult("no_citation", [], False, ["请人工补充或核验引用"])
     if topic and not _has_topic_overlap(statement, topic):
-        return StatementCheckResult("topic_mismatch", citation_ids, False, ["引用主题需人工核验"])
+        return StatementCheckResult(
+            "topic_mismatch", citation_ids, False, ["引用主题需人工核验"]
+        )
     return StatementCheckResult("ok", citation_ids, False, [])
 
 

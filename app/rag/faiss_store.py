@@ -57,7 +57,9 @@ def _load_manifest(index_dir: Path) -> tuple[str, int]:
             f"index manifest is missing or unreadable at {manifest_path}; rebuild the index"
         ) from error
     if not isinstance(payload, dict):
-        raise IndexCorruptError("index manifest must be a JSON object; rebuild the index")
+        raise IndexCorruptError(
+            "index manifest must be a JSON object; rebuild the index"
+        )
     format_version = payload.get("format_version")
     dimension = payload.get("dimension")
     embedding_model = payload.get("embedding_model")
@@ -66,9 +68,13 @@ def _load_manifest(index_dir: Path) -> tuple[str, int]:
             f"unsupported index format {format_version!r}; rebuild the index"
         )
     if not isinstance(dimension, int) or dimension <= 0:
-        raise IndexCorruptError("index manifest has an invalid dimension; rebuild the index")
+        raise IndexCorruptError(
+            "index manifest has an invalid dimension; rebuild the index"
+        )
     if not isinstance(embedding_model, str) or not embedding_model:
-        raise IndexCorruptError("index manifest is missing the embedding model; rebuild the index")
+        raise IndexCorruptError(
+            "index manifest is missing the embedding model; rebuild the index"
+        )
     return embedding_model, dimension
 
 
@@ -84,7 +90,9 @@ def _write_json_atomic(path: Path, payload: Any) -> None:
     """先写临时文件再原子替换，避免进程中断留下半截 JSON。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     temporary.replace(path)
 
 
@@ -165,7 +173,9 @@ class FaissIndexStore:
             chunk_count=len(chunks),
         )
 
-    def search(self, query_vector: list[float], top_k: int = 5) -> list[RetrievalResult]:
+    def search(
+        self, query_vector: list[float], top_k: int = 5
+    ) -> list[RetrievalResult]:
         """L2 最近邻检索并回查元数据。
 
         :param query_vector: 查询文本的向量
@@ -214,9 +224,15 @@ class FaissIndexStore:
         self._require_loaded()
         target_dir = self.index_dir if index_dir is None else Path(index_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
-        _write_json_atomic(target_dir / MANIFEST_FILE, _manifest_payload(self.embedding_model, self.dimension))
+        _write_json_atomic(
+            target_dir / MANIFEST_FILE,
+            _manifest_payload(self.embedding_model, self.dimension),
+        )
         np.save(target_dir / VECTORS_FILE, self._extract_vectors())
-        np.save(target_dir / VECTOR_IDS_FILE, np.asarray(list(self._metadata.keys()), dtype="int64"))
+        np.save(
+            target_dir / VECTOR_IDS_FILE,
+            np.asarray(list(self._metadata.keys()), dtype="int64"),
+        )
         self._save_metadata_records(target_dir)
         logger.info("saved faiss index to %s with %d vectors", target_dir, self.size)
         return target_dir
@@ -294,7 +310,9 @@ class FaissIndexStore:
                 "index is not loaded; call build() or load() before adding/searching"
             )
 
-    def _ensure_matching_vectors(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:
+    def _ensure_matching_vectors(
+        self, chunks: list[Chunk], vectors: list[list[float]]
+    ) -> None:
         if len(chunks) != len(vectors):
             raise NotesRAGError(
                 f"chunk count {len(chunks)} does not match vector count {len(vectors)}"
@@ -333,11 +351,15 @@ class FaissIndexStore:
                 f"metadata file is missing or unreadable at {metadata_path}; rebuild the index"
             ) from error
         if not isinstance(payload, list):
-            raise IndexCorruptError("metadata file must contain a JSON list; rebuild the index")
+            raise IndexCorruptError(
+                "metadata file must contain a JSON list; rebuild the index"
+            )
         records: dict[int, VectorChunkRecord] = {}
         for item in payload:
             if not isinstance(item, dict):
-                raise IndexCorruptError("metadata file contains a non-object record; rebuild the index")
+                raise IndexCorruptError(
+                    "metadata file contains a non-object record; rebuild the index"
+                )
             try:
                 record = VectorChunkRecord.model_validate(item)
             except ValidationError as error:

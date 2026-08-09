@@ -26,7 +26,9 @@ class LiteratureSearchRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_records(self, offset: int = 0, limit: int = 20) -> list[LiteratureSearch]:
+    async def list_records(
+        self, offset: int = 0, limit: int = 20
+    ) -> list[LiteratureSearch]:
         result = await self.session.execute(
             select(LiteratureSearch).offset(offset).limit(limit)
         )
@@ -46,7 +48,9 @@ class LiteratureSearchRepository:
     # 检索结果持久化（WP03.5）
     # ------------------------------------------------------------------
 
-    async def create_result(self, entity: LiteratureSearchResult) -> LiteratureSearchResult:
+    async def create_result(
+        self, entity: LiteratureSearchResult
+    ) -> LiteratureSearchResult:
         """保存一次检索结果并返回带 id 的实体。
 
         设计说明：flush 后 refresh 以拿到自增主键与 created_at，保证路由返回
@@ -95,7 +99,9 @@ class LiteratureSearchRepository:
         total = int(count_result.scalar_one())
         result = await self.session.execute(
             select(LiteratureSearchTask)
-            .order_by(LiteratureSearchTask.created_at.desc(), LiteratureSearchTask.id.desc())
+            .order_by(
+                LiteratureSearchTask.created_at.desc(), LiteratureSearchTask.id.desc()
+            )
             .offset(offset)
             .limit(limit)
         )
@@ -115,7 +121,9 @@ class LiteratureSearchRepository:
         )
         return list(result.scalars().all())
 
-    async def get_latest_version(self, task_id: int) -> LiteratureSearchResultVersion | None:
+    async def get_latest_version(
+        self, task_id: int
+    ) -> LiteratureSearchResultVersion | None:
         """返回任务最近一个结果版本（用于重跑时对比变化）。"""
         result = await self.session.execute(
             select(LiteratureSearchResultVersion)
@@ -147,7 +155,9 @@ class LiteratureSearchRepository:
     # 检索结果用户态（R2-WP05，manage-refs 融合）
     # ------------------------------------------------------------------
 
-    async def get_item_states(self, result_id: int) -> dict[str, LiteratureSearchItemState]:
+    async def get_item_states(
+        self, result_id: int
+    ) -> dict[str, LiteratureSearchItemState]:
         """返回某结果快照下全部用户态记录（按 PMID 索引）。
 
         设计说明：结果页每次展示最多 page_size（≤100）条，这里一次性读取
@@ -205,7 +215,10 @@ class LiteratureSearchRepository:
         """返回每个任务的当前结果快照，以便跨任务识别重复且不扫描历史版本。"""
         result = await self.session.execute(
             select(LiteratureSearchTask.id, LiteratureSearchResult)
-            .join(LiteratureSearchResult, LiteratureSearchTask.latest_result_id == LiteratureSearchResult.id)
+            .join(
+                LiteratureSearchResult,
+                LiteratureSearchTask.latest_result_id == LiteratureSearchResult.id,
+            )
             .where(LiteratureSearchTask.latest_result_id.is_not(None))
         )
         return [(row[0], row[1]) for row in result.all()]
@@ -213,11 +226,15 @@ class LiteratureSearchRepository:
     async def delete_groups_for_task(self, task_id: int) -> None:
         """重跑去重时仅替换该任务触发的旧决策，不影响其他任务的审计记录。"""
         await self.session.execute(
-            delete(LiteratureDuplicateGroup).where(LiteratureDuplicateGroup.trigger_task_id == task_id)
+            delete(LiteratureDuplicateGroup).where(
+                LiteratureDuplicateGroup.trigger_task_id == task_id
+            )
         )
         await self.session.flush()
 
-    async def create_duplicate_group(self, entity: LiteratureDuplicateGroup) -> LiteratureDuplicateGroup:
+    async def create_duplicate_group(
+        self, entity: LiteratureDuplicateGroup
+    ) -> LiteratureDuplicateGroup:
         self.session.add(entity)
         await self.session.flush()
         await self.session.refresh(entity)
@@ -230,11 +247,16 @@ class LiteratureSearchRepository:
                 selectinload(LiteratureDuplicateGroup.members),
                 selectinload(LiteratureDuplicateGroup.resolution),
             )
-            .order_by(LiteratureDuplicateGroup.created_at.desc(), LiteratureDuplicateGroup.id.desc())
+            .order_by(
+                LiteratureDuplicateGroup.created_at.desc(),
+                LiteratureDuplicateGroup.id.desc(),
+            )
         )
         return list(result.scalars().all())
 
-    async def get_duplicate_group(self, group_id: int) -> LiteratureDuplicateGroup | None:
+    async def get_duplicate_group(
+        self, group_id: int
+    ) -> LiteratureDuplicateGroup | None:
         result = await self.session.execute(
             select(LiteratureDuplicateGroup)
             .where(LiteratureDuplicateGroup.id == group_id)
@@ -245,7 +267,9 @@ class LiteratureSearchRepository:
         )
         return result.scalar_one_or_none()
 
-    async def save_duplicate_group(self, entity: LiteratureDuplicateGroup) -> LiteratureDuplicateGroup:
+    async def save_duplicate_group(
+        self, entity: LiteratureDuplicateGroup
+    ) -> LiteratureDuplicateGroup:
         await self.session.flush()
         await self.session.refresh(entity)
         return entity
@@ -267,7 +291,9 @@ class LiteratureSearchRepository:
         await self.session.refresh(entity)
         return entity
 
-    async def delete_duplicate_resolution(self, entity: LiteratureDuplicateResolution) -> None:
+    async def delete_duplicate_resolution(
+        self, entity: LiteratureDuplicateResolution
+    ) -> None:
         await self.session.delete(entity)
         await self.session.flush()
 

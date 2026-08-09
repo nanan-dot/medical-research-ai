@@ -97,13 +97,13 @@ def _has_any_keyword(publication_types: list[str], keywords: tuple[str, ...]) ->
     """
     lowered_types = [value.lower() for value in publication_types]
     return any(
-        keyword in type_value
-        for type_value in lowered_types
-        for keyword in keywords
+        keyword in type_value for type_value in lowered_types for keyword in keywords
     )
 
 
-def _matched_types(publication_types: list[str], keywords: tuple[str, ...]) -> list[str]:
+def _matched_types(
+    publication_types: list[str], keywords: tuple[str, ...]
+) -> list[str]:
     """返回命中的真实 PublicationType 值（原样，作为证据特征展示）。"""
     return [
         value
@@ -235,7 +235,10 @@ def classify_reading_item(
             year=item.year,
         )
 
-    if item.year is not None and item.year >= context.current_year - _FRONTIER_YEAR_SPAN:
+    if (
+        item.year is not None
+        and item.year >= context.current_year - _FRONTIER_YEAR_SPAN
+    ):
         features.append(f"frontier=recent_{_FRONTIER_YEAR_SPAN}年")
         return ClassifiedReadingItem(
             pmid=item.pmid,

@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import NotFoundError
-from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
+from app.modules.research_conditions.model import (
+    ResearchConditions,
+    ResearchConditionsVersion,
+)
 from app.modules.research_conditions.repository import ResearchConditionsRepository
 from app.modules.research_conditions.schema import (
     ResearchConditionsCreate,
@@ -55,21 +58,29 @@ class ResearchConditionsService:
             raise NotFoundError(f"Research conditions not found: {conditions_id}")
         return entity
 
-    async def _get_version(self, conditions_id: int, version: int) -> ResearchConditionsVersion:
+    async def _get_version(
+        self, conditions_id: int, version: int
+    ) -> ResearchConditionsVersion:
         entity = await self._repository.get_version(conditions_id, version)
         if entity is None:
-            raise NotFoundError(f"Research conditions version not found: {conditions_id}/{version}")
+            raise NotFoundError(
+                f"Research conditions version not found: {conditions_id}/{version}"
+            )
         return entity
 
     @staticmethod
     def _new_version(
         conditions_id: int, version: int, payload: ResearchConditionsInput
     ) -> ResearchConditionsVersion:
-        snapshot = payload.model_dump(exclude={"uncertain_notes"}, mode="json", exclude_none=True)
+        snapshot = payload.model_dump(
+            exclude={"uncertain_notes"}, mode="json", exclude_none=True
+        )
         return ResearchConditionsVersion(
             conditions_id=conditions_id,
             version=version,
-            conditions_json=json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")),
+            conditions_json=json.dumps(
+                snapshot, ensure_ascii=False, separators=(",", ":")
+            ),
             uncertain_notes=payload.uncertain_notes,
         )
 

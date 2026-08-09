@@ -74,7 +74,9 @@ def _rank_classic(item: CitationItem, current_year: int) -> tuple[int, int]:
     return score, year_sort
 
 
-def _classic_sort_key(entry: RankedCitationItem, current_year: int) -> tuple[int, int, int, str]:
+def _classic_sort_key(
+    entry: RankedCitationItem, current_year: int
+) -> tuple[int, int, int, str]:
     """classic 排序键：有年份优先 → 加权分降序 → 年份降序 → pmid 升序。
 
     取负值配合默认升序，避免 reverse=True 把 pmid 次级键也倒排导致同分

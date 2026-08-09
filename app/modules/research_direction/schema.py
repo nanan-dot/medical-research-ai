@@ -19,7 +19,15 @@ DETAIL_FIELDS = (
     "search_terms",
     "advisor_questions",
 )
-FORBIDDEN_CLAIMS = ("保证发表", "一定能", "最前沿", "首次", "首创", "空白领域", "没人做过")
+FORBIDDEN_CLAIMS = (
+    "保证发表",
+    "一定能",
+    "最前沿",
+    "首次",
+    "首创",
+    "空白领域",
+    "没人做过",
+)
 
 
 class EvidenceStatement(BaseModel):
@@ -51,7 +59,13 @@ class CandidateCore(BaseModel):
     @model_validator(mode="after")
     def prevent_overclaiming(self) -> "CandidateCore":
         content = " ".join(
-            (self.name, self.question, self.current_evidence.text, self.controversy.text, self.gap)
+            (
+                self.name,
+                self.question,
+                self.current_evidence.text,
+                self.controversy.text,
+                self.gap,
+            )
         )
         if any(word in content for word in FORBIDDEN_CLAIMS):
             raise ValueError("Candidate contains prohibited overclaiming language")
@@ -101,7 +115,9 @@ class ResearchDirectionPatch(BaseModel):
     gap: str | None = Field(default=None, min_length=1, max_length=2000)
     novelty_uncertainty: str | None = Field(default=None, min_length=1, max_length=1200)
     priority: Priority | None = None
-    merge_source_ids: list[int] | None = Field(default=None, min_length=1, max_length=20)
+    merge_source_ids: list[int] | None = Field(
+        default=None, min_length=1, max_length=20
+    )
 
 
 class ResearchDirectionRead(CandidateCore):

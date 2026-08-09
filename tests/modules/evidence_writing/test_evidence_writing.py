@@ -1,6 +1,9 @@
 import pytest
 
-from app.modules.evidence_writing.polish_guard import extract_protected_tokens, validate_polish
+from app.modules.evidence_writing.polish_guard import (
+    extract_protected_tokens,
+    validate_polish,
+)
 from app.modules.evidence_writing.sentence_marker import validate_segments
 from app.modules.evidence_writing.state_machine import transition
 
@@ -17,11 +20,16 @@ def test_sentence_markers_require_citation_for_evidence_and_pending_item() -> No
     valid = [
         {"text": "用户数据", "origin": "user_provided", "citation_ids": []},
         {"text": "论文结论", "origin": "paper_evidence", "citation_ids": ["pmid:1"]},
-        {"text": "待核实", "origin": "pending", "citation_ids": [], "pending_item_id": "p1"},
+        {
+            "text": "待核实",
+            "origin": "pending",
+            "citation_ids": [],
+            "pending_item_id": "p1",
+        },
     ]
     assert len(validate_segments(valid, pending_item_ids={"p1"})) == 3
     with pytest.raises(ValueError):
-        validate_segments([{ "text": "无标记", "origin": "" }], pending_item_ids=set())
+        validate_segments([{"text": "无标记", "origin": ""}], pending_item_ids=set())
 
 
 def test_polish_guard_rejects_changed_numbers_and_citations() -> None:

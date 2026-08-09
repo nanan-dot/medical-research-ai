@@ -58,6 +58,7 @@ class ResearchConditionsInput(BaseModel):
     prohibited_content: ConditionField | None = None
     uncertain_notes: str | None = Field(default=None, max_length=2000)
 
+
 class ResearchConditionsCreate(ResearchConditionsInput):
     """创建一组研究条件，生成初始版本。"""
 

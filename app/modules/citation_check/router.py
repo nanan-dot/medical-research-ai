@@ -3,7 +3,11 @@
 from fastapi import APIRouter, HTTPException
 from uuid import uuid4
 
-from app.modules.citation_check.schema import CitationCheckRequest, CitationCheckResult, CitationVerificationRequest
+from app.modules.citation_check.schema import (
+    CitationCheckRequest,
+    CitationCheckResult,
+    CitationVerificationRequest,
+)
 from app.modules.citation_check.service import CitationCheckService
 
 router = APIRouter(prefix="/citation-check", tags=["Citation check"])

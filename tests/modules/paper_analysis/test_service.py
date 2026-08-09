@@ -7,7 +7,11 @@ from app.common.exceptions import ConflictError
 from app.integrations.paperqa2 import PaperQAAnswer, PaperSource
 from app.integrations.paperqa2.exceptions import PaperQA2OperationError
 from app.modules.paper_analysis.prompts import FIELD_NAMES
-from app.modules.paper_analysis.schema import AnalysisStatus, ClaimKind, PaperAnalysisCorrection
+from app.modules.paper_analysis.schema import (
+    AnalysisStatus,
+    ClaimKind,
+    PaperAnalysisCorrection,
+)
 from app.modules.paper_analysis.service import PaperAnalysisService
 from tests.modules.document.conftest import create_document
 
@@ -17,10 +21,26 @@ def result_payload(*, bad_source: bool = False):
         name: {"value": "未找到", "kind": "not_found", "source_indices": []}
         for name in FIELD_NAMES
     }
-    payload["sample_size"] = {"value": "120 participants", "kind": "fact", "source_indices": [0]}
-    payload["study_type"] = {"value": "randomized trial", "kind": "fact", "source_indices": [0]}
-    payload["statistical_methods"] = {"value": "Cox regression", "kind": "fact", "source_indices": [0]}
-    payload["main_results"] = {"value": "HR 0.80 (95% CI 0.70–0.91)", "kind": "fact", "source_indices": [2 if bad_source else 0]}
+    payload["sample_size"] = {
+        "value": "120 participants",
+        "kind": "fact",
+        "source_indices": [0],
+    }
+    payload["study_type"] = {
+        "value": "randomized trial",
+        "kind": "fact",
+        "source_indices": [0],
+    }
+    payload["statistical_methods"] = {
+        "value": "Cox regression",
+        "kind": "fact",
+        "source_indices": [0],
+    }
+    payload["main_results"] = {
+        "value": "HR 0.80 (95% CI 0.70–0.91)",
+        "kind": "fact",
+        "source_indices": [2 if bad_source else 0],
+    }
     return payload
 
 
@@ -51,10 +71,14 @@ async def indexed_document(session, tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_structured_analysis_extracts_methods_results_and_sources(session, tmp_path: Path):
+async def test_structured_analysis_extracts_methods_results_and_sources(
+    session, tmp_path: Path
+):
     document = await indexed_document(session, tmp_path)
     client = FakeClient()
-    analysis = await PaperAnalysisService(session, client_factory=lambda: client).create(document.id)
+    analysis = await PaperAnalysisService(
+        session, client_factory=lambda: client
+    ).create(document.id)
 
     assert analysis.analysis_status == AnalysisStatus.SUCCEEDED
     assert analysis.structured_result.sample_size.value == "120 participants"
@@ -71,7 +95,9 @@ async def test_structured_analysis_extracts_methods_results_and_sources(session,
 @pytest.mark.asyncio
 async def test_source_mismatch_sets_failed_status(session, tmp_path: Path):
     document = await indexed_document(session, tmp_path)
-    service = PaperAnalysisService(session, client_factory=lambda: FakeClient(bad_source=True))
+    service = PaperAnalysisService(
+        session, client_factory=lambda: FakeClient(bad_source=True)
+    )
     with pytest.raises(ConflictError, match="failed"):
         await service.create(document.id)
     entity = await service.repo.latest_for_document(document.id)
@@ -80,7 +106,9 @@ async def test_source_mismatch_sets_failed_status(session, tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_regenerate_increments_version_and_correction_is_saved(session, tmp_path: Path):
+async def test_regenerate_increments_version_and_correction_is_saved(
+    session, tmp_path: Path
+):
     document = await indexed_document(session, tmp_path)
     service = PaperAnalysisService(session, client_factory=FakeClient)
     created = await service.create(document.id)
@@ -98,7 +126,9 @@ async def test_regenerate_increments_version_and_correction_is_saved(session, tm
 
 
 @pytest.mark.asyncio
-async def test_markdown_export_preserves_key_number_and_reference(session, tmp_path: Path):
+async def test_markdown_export_preserves_key_number_and_reference(
+    session, tmp_path: Path
+):
     document = await indexed_document(session, tmp_path)
     service = PaperAnalysisService(session, client_factory=FakeClient)
     created = await service.create(document.id)
@@ -109,9 +139,13 @@ async def test_markdown_export_preserves_key_number_and_reference(session, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_external_failure_is_persisted_without_response_content(session, tmp_path: Path):
+async def test_external_failure_is_persisted_without_response_content(
+    session, tmp_path: Path
+):
     document = await indexed_document(session, tmp_path)
-    service = PaperAnalysisService(session, client_factory=lambda: FakeClient(fail=True))
+    service = PaperAnalysisService(
+        session, client_factory=lambda: FakeClient(fail=True)
+    )
     with pytest.raises(ConflictError):
         await service.create(document.id)
     entity = await service.repo.latest_for_document(document.id)

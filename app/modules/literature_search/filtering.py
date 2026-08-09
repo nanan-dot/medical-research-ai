@@ -80,13 +80,20 @@ def apply_filters(
             item.publication_types, params.publication_type
         ):
             return False
-        if params.journal is not None and not _matches_journal(item.journal, params.journal):
+        if params.journal is not None and not _matches_journal(
+            item.journal, params.journal
+        ):
             return False
-        if params.author is not None and not _matches_author(item.authors, params.author):
+        if params.author is not None and not _matches_author(
+            item.authors, params.author
+        ):
             return False
         # has_abstract 用真值判断而非 is：False 与 None 在旧快照中含义一致
         # （未知即视为无摘要），避免 None 永远无法匹配 has_abstract=false。
-        if params.has_abstract is not None and bool(item.has_abstract) is not params.has_abstract:
+        if (
+            params.has_abstract is not None
+            and bool(item.has_abstract) is not params.has_abstract
+        ):
             return False
         saved, read_status, tags = state_by_pmid(item.pmid)
         if params.saved is not None and saved is not params.saved:

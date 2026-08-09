@@ -32,8 +32,12 @@ def _remove_repeated_margins(page_texts: list[str]) -> list[str]:
             first_lines[lines[0]] += 1
             last_lines[lines[-1]] += 1
     threshold = max(2, (len(page_texts) + 1) // 2)
-    headers = {line for line, count in first_lines.items() if line and count >= threshold}
-    footers = {line for line, count in last_lines.items() if line and count >= threshold}
+    headers = {
+        line for line, count in first_lines.items() if line and count >= threshold
+    }
+    footers = {
+        line for line, count in last_lines.items() if line and count >= threshold
+    }
     cleaned: list[str] = []
     for lines in split_pages:
         if lines and lines[0] in headers:
@@ -49,7 +53,9 @@ class PDFParser:
         validate_file_size(path)
         try:
             reader = PdfReader(path)
-            raw_pages = [_clean_text(page.extract_text() or "") for page in reader.pages]
+            raw_pages = [
+                _clean_text(page.extract_text() or "") for page in reader.pages
+            ]
         except DocumentParserError:
             raise
         except Exception as exc:
@@ -58,14 +64,22 @@ class PDFParser:
         full_text = "\n\n".join(text for text in page_texts if text)
         validate_extracted_size(full_text)
         if full_text.count("�") > max(5, len(full_text) // 100):
-            raise DocumentEncodingError("PDF text layer contains invalid character encoding")
-        metadata_title = getattr(reader.metadata, "title", None) if reader.metadata else None
-        first_line = next((line for text in page_texts for line in text.splitlines() if line), None)
+            raise DocumentEncodingError(
+                "PDF text layer contains invalid character encoding"
+            )
+        metadata_title = (
+            getattr(reader.metadata, "title", None) if reader.metadata else None
+        )
+        first_line = next(
+            (line for text in page_texts for line in text.splitlines() if line), None
+        )
         title = str(metadata_title).strip() if metadata_title else first_line
         if title and len(title) > 500:
             title = title[:500]
         non_whitespace = sum(not char.isspace() for char in full_text)
-        is_scanned = bool(reader.pages) and non_whitespace < max(20, len(reader.pages) * 10)
+        is_scanned = bool(reader.pages) and non_whitespace < max(
+            20, len(reader.pages) * 10
+        )
         return ParsedDocument(
             source_path=str(path),
             title=title,

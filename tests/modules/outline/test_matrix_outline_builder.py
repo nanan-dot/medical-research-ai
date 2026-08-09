@@ -26,7 +26,13 @@ def _cell(text: str = "Observed result", sources: str | None = None) -> MatrixCe
 def test_review_has_seven_sections_and_traceable_matrix_claim() -> None:
     sections = build_outline("review", [_cell()], [])
     assert [section.title for section in sections] == [
-        "背景", "主题分类", "主要机制", "研究证据", "争议", "局限", "未来方向"
+        "背景",
+        "主题分类",
+        "主要机制",
+        "研究证据",
+        "争议",
+        "局限",
+        "未来方向",
     ]
     claim = sections[3].claims[0]
     assert claim.evidence[0].pmid == "12345"
@@ -69,7 +75,9 @@ class _OutlineRepo:
 
 class _MatrixRepo:
     def __init__(self) -> None:
-        self.matrix = SimpleNamespace(version=2, updated_at=datetime(2026, 8, 8, tzinfo=UTC))
+        self.matrix = SimpleNamespace(
+            version=2, updated_at=datetime(2026, 8, 8, tzinfo=UTC)
+        )
 
     async def get_matrix(self, _id: int):
         return self.matrix

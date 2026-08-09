@@ -20,7 +20,12 @@ WritingType = Literal[
 ]
 
 WorkflowState = Literal[
-    "drafting", "outline_pending", "outline_confirmed", "user_editing", "polishing", "done"
+    "drafting",
+    "outline_pending",
+    "outline_confirmed",
+    "user_editing",
+    "polishing",
+    "done",
 ]
 
 

@@ -19,8 +19,11 @@ from app.modules.advisor_workflow.schema import (
 from app.modules.advisor_workflow.state_machine import status_for_decision
 from app.modules.research_direction.model import ResearchDirection
 
+
 class AdvisorWorkflowService:
-    def __init__(self, session, mock_generator: MockReviewGenerator | None = None) -> None:
+    def __init__(
+        self, session, mock_generator: MockReviewGenerator | None = None
+    ) -> None:
         self._repository = AdvisorWorkflowRepository(session)
         self._mock_generator = mock_generator or MockReviewGenerator(session)
 
@@ -59,7 +62,8 @@ class AdvisorWorkflowService:
     async def list_notes(self, direction_id: int) -> list[AdvisorReviewRead]:
         await self._direction(direction_id)
         return [
-            self._to_review(review) for review in await self._repository.list_reviews(direction_id)
+            self._to_review(review)
+            for review in await self._repository.list_reviews(direction_id)
         ]
 
     async def revise(self, direction_id: int, review_id: int) -> DirectionVersionRead:
@@ -102,13 +106,17 @@ class AdvisorWorkflowService:
             )
             for item in revisions
         ]
-        result.append(self._current_version(direction, revisions[-1].id if revisions else None))
+        result.append(
+            self._current_version(direction, revisions[-1].id if revisions else None)
+        )
         return result
 
     async def export_markdown(self, direction_id: int) -> str:
         direction = await self._direction(direction_id)
         reviews = await self.list_notes(direction_id)
-        reviewed = "Pending advisor confirmation" if not reviews else reviews[-1].decision
+        reviewed = (
+            "Pending advisor confirmation" if not reviews else reviews[-1].decision
+        )
         return f"# Advisor discussion report\n\nGenerated at: {datetime.now(UTC).isoformat()}\nVersion: {direction.version}\n\n## Candidate\n\n- Name: {direction.name}\n- Question: {direction.question}\n- Evidence: {direction.current_evidence}\n- Risks: {direction.ethics_risk or direction.resource_risk or 'Not specified'}\n- Advisor status: {reviewed}\n"
 
     async def _direction(self, direction_id: int) -> ResearchDirection:

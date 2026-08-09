@@ -43,7 +43,9 @@ class FeasibilityRepository:
 
     async def get_default_profile(self) -> FeasibilityWeightProfile | None:
         result = await self._session.execute(
-            select(FeasibilityWeightProfile).where(FeasibilityWeightProfile.is_default.is_(True))
+            select(FeasibilityWeightProfile).where(
+                FeasibilityWeightProfile.is_default.is_(True)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -53,7 +55,9 @@ class FeasibilityRepository:
         await self._session.refresh(entity)
         return entity
 
-    async def create_profile(self, entity: FeasibilityWeightProfile) -> FeasibilityWeightProfile:
+    async def create_profile(
+        self, entity: FeasibilityWeightProfile
+    ) -> FeasibilityWeightProfile:
         self._session.add(entity)
         await self._session.flush()
         await self._session.refresh(entity)

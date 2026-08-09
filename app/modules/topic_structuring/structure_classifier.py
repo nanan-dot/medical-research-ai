@@ -23,7 +23,13 @@ def classify_structuring_status(
 
     if requested_status == "pico" and has_population and has_exposure and has_outcome:
         return "pico"
-    if requested_status == "peco" and has_population and has_exposure and comparator and has_outcome:
+    if (
+        requested_status == "peco"
+        and has_population
+        and has_exposure
+        and comparator
+        and has_outcome
+    ):
         return "peco"
     if requested_status == "mechanism" and has_mechanism:
         return "mechanism"

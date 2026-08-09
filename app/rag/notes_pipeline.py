@@ -126,7 +126,9 @@ class NotesRAG:
             dimension=embedding.dimension,
         )
 
-    async def search(self, query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievalResult]:
+    async def search(
+        self, query: str, top_k: int = DEFAULT_TOP_K
+    ) -> list[RetrievalResult]:
         """对查询文本嵌入后做 Top-K 检索，返回带来源的引用结果。"""
         if not query.strip():
             raise NotesRAGError("search query must not be empty")
@@ -172,13 +174,17 @@ class NotesRAG:
     def _require_embedding(self) -> EmbeddingClient:
         """返回注入的 embedding 客户端；缺失时抛错（mypy 收窄 Optional）。"""
         if self._embedding is None:
-            raise NotesRAGError("an embedding client is required; inject one or load an index")
+            raise NotesRAGError(
+                "an embedding client is required; inject one or load an index"
+            )
         return self._embedding
 
     def _require_store(self) -> FaissIndexStore:
         """返回已加载的索引存储；未加载时抛错（mypy 收窄 Optional）。"""
         if self._store is None:
-            raise NotesRAGError("no index is available; call index() or load_index() first")
+            raise NotesRAGError(
+                "no index is available; call index() or load_index() first"
+            )
         return self._store
 
 

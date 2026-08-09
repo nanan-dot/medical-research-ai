@@ -5,7 +5,11 @@ from datetime import UTC, datetime
 import pytest
 
 from app.modules.comparison.shared import SourceRef
-from app.modules.paper_analysis.schema import AnalysisField, ClaimKind, StructuredPaperResult
+from app.modules.paper_analysis.schema import (
+    AnalysisField,
+    ClaimKind,
+    StructuredPaperResult,
+)
 from app.modules.presentation.model import Presentation
 from app.modules.presentation.outline_builder import build_single_outline
 from app.modules.presentation.schema import OutlineSection, PresentationPatch
@@ -13,8 +17,12 @@ from app.modules.presentation.service import PresentationService
 
 
 def _result() -> StructuredPaperResult:
-    field = AnalysisField(value="Evidence-backed statement", kind=ClaimKind.FACT, source_indices=[0])
-    return StructuredPaperResult(**{name: field for name in StructuredPaperResult.model_fields})
+    field = AnalysisField(
+        value="Evidence-backed statement", kind=ClaimKind.FACT, source_indices=[0]
+    )
+    return StructuredPaperResult(
+        **{name: field for name in StructuredPaperResult.model_fields}
+    )
 
 
 def test_single_outline_is_complete_and_evidence_bound() -> None:
@@ -46,7 +54,8 @@ def test_missing_identifier_marks_claim_as_missing_evidence() -> None:
     assert all(
         section.missing_evidence
         for section in sections
-        if section.title not in {"Figures to review", "Relation to current research topic"}
+        if section.title
+        not in {"Figures to review", "Relation to current research topic"}
     )
 
 
@@ -78,7 +87,11 @@ async def test_edit_increments_version_and_markdown_exports_current_content() ->
     updated = await service.patch(
         1,
         PresentationPatch(
-            sections=[OutlineSection(title="Main results", content="Updated", missing_evidence=True)]
+            sections=[
+                OutlineSection(
+                    title="Main results", content="Updated", missing_evidence=True
+                )
+            ]
         ),
     )
     markdown = await service.export(1)

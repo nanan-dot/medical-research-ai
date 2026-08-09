@@ -35,15 +35,30 @@ def upgrade() -> None:
         )
 
     with op.batch_alter_table("documents") as batch_op:
-        batch_op.add_column(sa.Column("knowledge_source_id", sa.Integer(), nullable=False))
-        batch_op.add_column(sa.Column("file_path", sa.Text(), nullable=False))
-        batch_op.add_column(sa.Column("normalized_file_path", sa.Text(), nullable=False))
-        batch_op.add_column(sa.Column("file_hash", sa.String(length=64), nullable=False))
-        batch_op.add_column(sa.Column("file_size", sa.BigInteger(), nullable=False))
-        batch_op.add_column(sa.Column("modified_time", sa.DateTime(timezone=True), nullable=False))
-        batch_op.add_column(sa.Column("modified_time_ns", sa.BigInteger(), nullable=False))
         batch_op.add_column(
-            sa.Column("scan_state", sa.String(length=32), server_default="pending", nullable=False)
+            sa.Column("knowledge_source_id", sa.Integer(), nullable=False)
+        )
+        batch_op.add_column(sa.Column("file_path", sa.Text(), nullable=False))
+        batch_op.add_column(
+            sa.Column("normalized_file_path", sa.Text(), nullable=False)
+        )
+        batch_op.add_column(
+            sa.Column("file_hash", sa.String(length=64), nullable=False)
+        )
+        batch_op.add_column(sa.Column("file_size", sa.BigInteger(), nullable=False))
+        batch_op.add_column(
+            sa.Column("modified_time", sa.DateTime(timezone=True), nullable=False)
+        )
+        batch_op.add_column(
+            sa.Column("modified_time_ns", sa.BigInteger(), nullable=False)
+        )
+        batch_op.add_column(
+            sa.Column(
+                "scan_state",
+                sa.String(length=32),
+                server_default="pending",
+                nullable=False,
+            )
         )
         batch_op.create_foreign_key(
             "fk_documents_knowledge_source_id",
@@ -52,7 +67,9 @@ def upgrade() -> None:
             ["id"],
             ondelete="CASCADE",
         )
-        batch_op.create_index("ix_documents_knowledge_source_id", ["knowledge_source_id"])
+        batch_op.create_index(
+            "ix_documents_knowledge_source_id", ["knowledge_source_id"]
+        )
         batch_op.create_unique_constraint(
             "uq_documents_source_path", ["knowledge_source_id", "normalized_file_path"]
         )

@@ -17,7 +17,9 @@ def test_ten_empty_retrieval_cases_are_refused(question_number):
 
 
 def test_low_relevance_source_is_refused_even_if_model_is_confident():
-    decision = evaluate_answer([answer(sources=[PaperSource(citation="Paper", score=0.1)])])
+    decision = evaluate_answer(
+        [answer(sources=[PaperSource(citation="Paper", score=0.1)])]
+    )
     assert decision.status == "insufficient_evidence"
     assert "low_relevance" in decision.reason_codes
 
@@ -36,6 +38,8 @@ def test_partial_or_uncertain_answer_is_refused():
 
 
 def test_supported_answer_is_not_over_refused():
-    decision = evaluate_answer([answer(sources=[PaperSource(citation="Paper", score=0.8)])])
+    decision = evaluate_answer(
+        [answer(sources=[PaperSource(citation="Paper", score=0.8)])]
+    )
     assert decision.status == "answered"
     assert decision.reason_codes == []

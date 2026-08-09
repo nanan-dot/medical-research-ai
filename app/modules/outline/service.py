@@ -8,7 +8,12 @@ from app.modules.research_direction.repository import ResearchDirectionRepositor
 from app.modules.outline.model import Outline
 from app.modules.outline.outline_builder import build_outline
 from app.modules.outline.repository import OutlineRepository
-from app.modules.outline.schema import OutlineCreate, OutlineKind, OutlineRead, OutlineUpdate
+from app.modules.outline.schema import (
+    OutlineCreate,
+    OutlineKind,
+    OutlineRead,
+    OutlineUpdate,
+)
 
 
 class OutlineService:
@@ -59,7 +64,9 @@ class OutlineService:
         if matrix is None:
             raise NotFoundError("Evidence matrix not found")
         if matrix.version != e.based_on_matrix_version:
-            raise ConflictError("Evidence matrix version changed; regenerate the outline")
+            raise ConflictError(
+                "Evidence matrix version changed; regenerate the outline"
+            )
         e.claims_json = json.dumps([section.model_dump() for section in p.sections])
         e.version += 1
         e.confirmed_by_user = False

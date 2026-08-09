@@ -29,9 +29,7 @@ def upgrade():
         sa.Column(
             "result_id",
             sa.Integer(),
-            sa.ForeignKey(
-                "literature_search_results.id", ondelete="CASCADE"
-            ),
+            sa.ForeignKey("literature_search_results.id", ondelete="CASCADE"),
             primary_key=True,
         ),
         sa.Column("pmid", sa.Text(), primary_key=True),

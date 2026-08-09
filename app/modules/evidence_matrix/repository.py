@@ -27,12 +27,17 @@ class EvidenceMatrixRepository:
     async def list_matrices(self, offset: int, limit: int) -> list[EvidenceMatrix]:
         """分页列出矩阵（按 id 倒序）。"""
         result = await self.session.execute(
-            select(EvidenceMatrix).order_by(EvidenceMatrix.id.desc()).offset(offset).limit(limit)
+            select(EvidenceMatrix)
+            .order_by(EvidenceMatrix.id.desc())
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.scalars())
 
     async def count_matrices(self) -> int:
-        result = await self.session.execute(select(func.count()).select_from(EvidenceMatrix))
+        result = await self.session.execute(
+            select(func.count()).select_from(EvidenceMatrix)
+        )
         return result.scalar_one()
 
     async def delete_matrix(self, entity: EvidenceMatrix) -> None:
@@ -60,7 +65,9 @@ class EvidenceMatrixRepository:
         )
         return list(result.scalars())
 
-    async def get_document(self, matrix_id: int, document_id: int) -> MatrixDocument | None:
+    async def get_document(
+        self, matrix_id: int, document_id: int
+    ) -> MatrixDocument | None:
         result = await self.session.execute(
             select(MatrixDocument).where(
                 MatrixDocument.matrix_id == matrix_id,
@@ -78,7 +85,9 @@ class EvidenceMatrixRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_cell(self, matrix_id: int, document_id: int, field_key: str) -> MatrixCell | None:
+    async def get_cell(
+        self, matrix_id: int, document_id: int, field_key: str
+    ) -> MatrixCell | None:
         result = await self.session.execute(
             select(MatrixCell).where(
                 MatrixCell.matrix_id == matrix_id,

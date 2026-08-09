@@ -29,6 +29,10 @@ class InvalidDocumentMetadataError(DocumentParserError):
     code = "invalid_document_metadata"
 
 
+class LegacyDocumentConverterUnavailableError(DocumentParserError):
+    code = "legacy_document_converter_unavailable"
+
+
 class DocumentParser(Protocol):
     def parse(self, path: Path) -> ParsedDocument: ...
 

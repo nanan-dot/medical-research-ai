@@ -10,10 +10,24 @@ from app.modules.literature_search.query_model import SearchIntentCandidate
 from app.modules.topic_structuring.structure_classifier import StructuringStatus
 
 ClarifiesField = Literal[
-    "disease", "target", "intervention", "mechanism", "comparator", "outcome", "study_type", "general"
+    "disease",
+    "target",
+    "intervention",
+    "mechanism",
+    "comparator",
+    "outcome",
+    "study_type",
+    "general",
 ]
 EditableField = Literal[
-    "disease", "target", "intervention", "mechanism", "comparator", "outcome", "study_type", "focus_points"
+    "disease",
+    "target",
+    "intervention",
+    "mechanism",
+    "comparator",
+    "outcome",
+    "study_type",
+    "focus_points",
 ]
 
 
@@ -40,7 +54,9 @@ class TopicStructureCandidate(BaseModel):
     outcome: str | None = Field(default=None, max_length=200)
     study_type: str | None = Field(default=None, max_length=100)
     focus_points: list[str] = Field(default_factory=list, max_length=10)
-    clarification_questions: list[ClarificationQuestion] = Field(default_factory=list, max_length=10)
+    clarification_questions: list[ClarificationQuestion] = Field(
+        default_factory=list, max_length=10
+    )
     known_fields: dict[EditableField, bool] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -75,12 +91,18 @@ class TopicStructuringPatchRequest(BaseModel):
     @model_validator(mode="after")
     def validate_patch_mode(self) -> "TopicStructuringPatchRequest":
         has_field_update = self.field is not None
-        has_answer = self.clarification_question_id is not None or self.answer is not None
+        has_answer = (
+            self.clarification_question_id is not None or self.answer is not None
+        )
         if has_field_update == has_answer:
-            raise ValueError("send either field/value or clarification_question_id/answer")
+            raise ValueError(
+                "send either field/value or clarification_question_id/answer"
+            )
         if has_field_update and self.value is None:
             raise ValueError("field updates require value")
-        if has_answer and (self.clarification_question_id is None or self.answer is None):
+        if has_answer and (
+            self.clarification_question_id is None or self.answer is None
+        ):
             raise ValueError("clarification updates require question id and answer")
         return self
 

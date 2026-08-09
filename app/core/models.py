@@ -44,9 +44,16 @@ from app.modules.writing_project.model import (  # noqa: F401
     WritingVersion,
 )
 from app.modules.ai_disclosure.model import AIUsageEvent, DisclosureDraft  # noqa: F401
-from app.modules.research_conditions.model import ResearchConditions, ResearchConditionsVersion
-from app.modules.topic_structuring.model import TopicStructuring, TopicStructuringVersion
+from app.modules.research_conditions.model import (
+    ResearchConditions,
+    ResearchConditionsVersion,
+)
+from app.modules.topic_structuring.model import (
+    TopicStructuring,
+    TopicStructuringVersion,
+)
 from app.modules.writing.model import Writing
+from app.modules.task.model import TaskRecord
 
 __all__ = [
     "Conversation",
@@ -74,4 +81,5 @@ __all__ = [
     "TopicStructuring",
     "TopicStructuringVersion",
     "Writing",
+    "TaskRecord",
 ]

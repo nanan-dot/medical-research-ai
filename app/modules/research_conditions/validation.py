@@ -12,13 +12,21 @@ class ResearchConditionsValidationError(ValueError):
 def validate_field_state(*, known: bool, source: str, value: object | None) -> None:
     """校验字段值、已知标记与来源的一致性。"""
     if known and source != "user":
-        raise ResearchConditionsValidationError("known=true fields must use source=user")
+        raise ResearchConditionsValidationError(
+            "known=true fields must use source=user"
+        )
     if not known and source != "unknown":
-        raise ResearchConditionsValidationError("known=false fields must use source=unknown")
+        raise ResearchConditionsValidationError(
+            "known=false fields must use source=unknown"
+        )
     if not known and value is not None:
-        raise ResearchConditionsValidationError("unknown fields must not contain a value")
+        raise ResearchConditionsValidationError(
+            "unknown fields must not contain a value"
+        )
     if known and _is_blank_value(value):
-        raise ResearchConditionsValidationError("known=true fields require a non-empty value")
+        raise ResearchConditionsValidationError(
+            "known=true fields require a non-empty value"
+        )
 
 
 def validate_feasible_research_types(values: list[str]) -> None:

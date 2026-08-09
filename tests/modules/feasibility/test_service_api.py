@@ -83,7 +83,9 @@ def _assessment(score: float) -> list[UserAssessment]:
 
 @pytest.fixture
 async def session(tmp_path):
-    engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'feasibility.db').as_posix()}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'feasibility.db').as_posix()}"
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
@@ -92,7 +94,9 @@ async def session(tmp_path):
     await engine.dispose()
 
 
-async def test_service_persists_default_profile_versions_and_rank_change(session) -> None:
+async def test_service_persists_default_profile_versions_and_rank_change(
+    session,
+) -> None:
     first, second = await _seed_directions(session)
     service = FeasibilityService(session)
 
@@ -175,7 +179,9 @@ def test_router_creates_score_and_exposes_versions(client) -> None:
         f"/api/v1/research-directions/{direction_id}/feasibility/weights",
         json={"weights": {"sample_availability": 3}},
     )
-    versions = test_client.get(f"/api/v1/research-directions/{direction_id}/feasibility/versions")
+    versions = test_client.get(
+        f"/api/v1/research-directions/{direction_id}/feasibility/versions"
+    )
     rejected = test_client.post(
         f"/api/v1/research-directions/{direction_id}/feasibility",
         json={

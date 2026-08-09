@@ -78,10 +78,18 @@ class InterpretationLayerRead(BaseModel):
     @model_validator(mode="after")
     def prevent_overclaiming(self) -> "InterpretationLayerRead":
         forbidden_words = ("没人做过", "空白领域", "首次")
-        all_items = [*self.consistencies, *self.conflicts, *self.limitations, *self.gaps, *self.search_questions]
+        all_items = [
+            *self.consistencies,
+            *self.conflicts,
+            *self.limitations,
+            *self.gaps,
+            *self.search_questions,
+        ]
         for item in all_items:
             if any(word in item.statement for word in forbidden_words):
-                raise ValueError("Interpretation contains prohibited overclaiming language")
+                raise ValueError(
+                    "Interpretation contains prohibited overclaiming language"
+                )
         return self
 
 

@@ -11,7 +11,9 @@ class ModelConfigRepository:
         return await self.session.get(ModelConfig, id)
 
     async def list(self):
-        result = await self.session.execute(select(ModelConfig).order_by(ModelConfig.id))
+        result = await self.session.execute(
+            select(ModelConfig).order_by(ModelConfig.id)
+        )
         return list(result.scalars())
 
     async def create(self, entity):

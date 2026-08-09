@@ -10,15 +10,11 @@ class HealthRepository:
         self.session = session
 
     async def get(self, id: int) -> Health | None:
-        result = await self.session.execute(
-            select(Health).where(Health.id == id)
-        )
+        result = await self.session.execute(select(Health).where(Health.id == id))
         return result.scalar_one_or_none()
 
     async def list(self, offset: int = 0, limit: int = 20) -> list[Health]:
-        result = await self.session.execute(
-            select(Health).offset(offset).limit(limit)
-        )
+        result = await self.session.execute(select(Health).offset(offset).limit(limit))
         return list(result.scalars().all())
 
     async def create(self, entity: Health) -> Health:

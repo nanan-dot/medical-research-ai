@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.modules.feasibility.schema import FeasibilityRead, FeasibilityRequest, WeightPatch
+from app.modules.feasibility.schema import (
+    FeasibilityRead,
+    FeasibilityRequest,
+    WeightPatch,
+)
 from app.modules.feasibility.service import FeasibilityService
 
 router = APIRouter(prefix="/research-directions", tags=["feasibility"])
@@ -33,7 +37,9 @@ async def patch_feasibility_weights(
     )
 
 
-@router.get("/{direction_id}/feasibility/versions", response_model=list[FeasibilityRead])
+@router.get(
+    "/{direction_id}/feasibility/versions", response_model=list[FeasibilityRead]
+)
 async def list_feasibility_versions(
     direction_id: int,
     session: AsyncSession = Depends(get_session),

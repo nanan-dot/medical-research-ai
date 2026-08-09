@@ -53,7 +53,9 @@ class RecommendationQueryBuilder:
         groups: dict[str, list[str]] = {}
         sources: dict[str, str] = {}
         lower = cleaned.casefold()
-        for alias, (group_name, mapped_term) in sorted(_TERM_ALIASES.items(), key=lambda pair: -len(pair[0])):
+        for alias, (group_name, mapped_term) in sorted(
+            _TERM_ALIASES.items(), key=lambda pair: -len(pair[0])
+        ):
             if alias.casefold() not in lower:
                 continue
             expansion = expand_term(mapped_term)
@@ -76,7 +78,9 @@ class RecommendationQueryBuilder:
                 name=name,
                 core_term=terms[0],
                 terms=list(dict.fromkeys(terms)),
-                field_tag="Publication Type" if name == "study_type" else "Title/Abstract",
+                field_tag="Publication Type"
+                if name == "study_type"
+                else "Title/Abstract",
                 source=sources[name],
             )
             for name, terms in groups.items()

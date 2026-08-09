@@ -164,7 +164,9 @@ async def test_cloud_and_local_results_have_identical_structure(tmp_path: Path):
 
 def test_main_returns_model_configuration_error(tmp_path: Path, monkeypatch):
     pdf = make_pdf(tmp_path)
-    monkeypatch.setattr("app.cli.r0_demo.Settings", lambda: SimpleNamespace(OLLAMA_MODEL=""))
+    monkeypatch.setattr(
+        "app.cli.r0_demo.Settings", lambda: SimpleNamespace(OLLAMA_MODEL="")
+    )
     exit_code = main(
         [
             "--pdf",
