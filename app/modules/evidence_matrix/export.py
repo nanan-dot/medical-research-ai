@@ -8,8 +8,8 @@
 import csv
 import io
 
-from app.modules.export.markdown_renderer import escape_markdown
 from app.modules.evidence_matrix.schema import EvidenceMatrixRead
+from app.modules.export.markdown_renderer import escape_markdown
 
 
 def to_csv(matrix: EvidenceMatrixRead) -> str:

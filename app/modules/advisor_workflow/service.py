@@ -5,16 +5,16 @@ from datetime import UTC, datetime
 from typing import cast
 
 from app.common.exceptions import ConflictError, NotFoundError
-from app.modules.advisor_workflow.model import AdvisorReview, DirectionRevision
 from app.modules.advisor_workflow.mock_reviewer import MockReviewGenerator
+from app.modules.advisor_workflow.model import AdvisorReview, DirectionRevision
 from app.modules.advisor_workflow.repository import AdvisorWorkflowRepository
 from app.modules.advisor_workflow.schema import (
     AdvisorNoteCreate,
     AdvisorReviewRead,
-    DirectionVersionRead,
     Decision,
-    ReviewerType,
+    DirectionVersionRead,
     MockReviewRequest,
+    ReviewerType,
 )
 from app.modules.advisor_workflow.state_machine import status_for_decision
 from app.modules.research_direction.model import ResearchDirection

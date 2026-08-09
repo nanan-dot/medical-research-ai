@@ -1,6 +1,7 @@
 """Add advisor review records and immutable direction revision snapshots."""
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "b7c8d9e0f1a2"

@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.core import database, models  # noqa: F401 - register all models
 from app.core.database import Base
 
-
 EXPECTED_TABLES = {
     "conversations",
     "messages",
@@ -56,6 +55,9 @@ EXPECTED_TABLES = {
     "topic_structurings",
     "topic_structuring_versions",
     "task_records",
+    "evaluation_runs",
+    "evaluation_run_results",
+    "literature_status_records",
     "writings",
 }
 

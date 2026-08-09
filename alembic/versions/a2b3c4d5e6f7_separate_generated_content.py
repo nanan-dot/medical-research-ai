@@ -5,6 +5,7 @@ must treat downgrade as a destructive schema operation and back up the database.
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "a2b3c4d5e6f7"

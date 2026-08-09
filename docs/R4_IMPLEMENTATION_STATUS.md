@@ -121,3 +121,71 @@
 - Vite `/recommendations`：HTTP 200；
 - 浏览器渲染检查：通过，控制台无错误。
 
+## R4-WP12 — LangGraph State 与工作流
+
+状态：已完成（受限的内部 LangGraph 编排基础）。
+
+### 已交付
+
+- `app/agents/state.py`：可 JSON 序列化的 `AgentState` 与 LangGraph `AgentGraphState` 契约，覆盖任务类型、文档、证据、检索历史、候选方向、草稿、引用、人工确认、错误和步数。
+- `app/agents/graph.py`：任务分类、规划、本地检索、外部检索、证据检查、方向、写作、引用检查、人工确认、错误和完成节点；所有条件边只读取显式状态字段，并限制最大步骤数。
+- `app/agents/checkpointer.py`：进程内 `MemorySaver` 检查点，可通过 `thread_id` 和 `get_state` 读取运行快照。
+- `docs/AGENT_GRAPH.md`：图结构、调用方式、边界和恢复说明。
+
+### 验证
+
+- `pytest tests/agents -q`：8 passed。
+- 全量 `pytest -q`：476 passed，13 skipped，1 个第三方弃用警告。
+- `ruff check app/agents tests/agents tests/test_database.py`：通过。
+- `mypy app/agents --ignore-missing-imports`：通过。
+- `pip check`：通过。
+
+### 边界与下一步
+
+- 本工作包不执行真实网络检索、模型调用、医学决策或内容生成；没有证据时明确失败，不伪造内容。
+- 检查点目前仅在进程内保存，服务重启后不保留。
+- 人工确认节点只停止在 `awaiting_confirmation`；R4-WP14 再实现 `interrupt/resume` 和确认策略。
+- 无数据库迁移。
+
+## R4-WP13 — Agent 任务分类与路由
+
+状态：已完成（规则优先、复杂任务可注入分类器的安全路由）。
+
+### 已交付
+
+- `TaskDecision` 已补全任务类型、置信度、受控工具、Agent 使用标记、澄清标记与理由。
+- `POST /api/v1/agent/tasks` 只返回分类和路由计划，不执行工具、模型或网络请求。
+- 固定任务不启用 Agent；多工作流请求才启用 Agent；模糊任务要求用户澄清。
+- `data/evaluation/agent_routing.jsonl` 与 `tests/agents/test_routing.py` 提供最小分类集和 API/安全降级回归测试。
+
+### 验证
+
+- `pytest tests/agents -q`：17 passed，1 个第三方弃用警告。
+- `ruff check app/agents tests/agents app/api/v1/__init__.py`：通过。
+- `mypy app/agents --ignore-missing-imports`：通过。
+
+### 边界与下一步
+
+- 默认实现不调用 LLM；复杂模型分类仅允许以注入依赖提供，并会拒绝低置信或非复杂任务建议。
+- 分类结果不是工具执行授权，执行层仍需通过 `ToolRegistry` 校验。
+- 无数据库迁移。
+- 下一工作包为 R4-WP14：Agent 限制与人工确认。
+
+## R4-WP14 — Agent 限制与人工确认
+
+状态：已完成（受限审批与恢复基础）。
+
+- 使用 `interrupt()` 暂停确认，并仅用相同 `thread_id` 的 `Command(resume=...)` 恢复；批准继续、拒绝/取消终止。
+- 新增 `AgentLimits`，覆盖步骤、工具调用、资源单位和总时长限制的纯规则校验。
+- 新增进程内 `AgentRunService` 与启动、批准、取消 API；不执行实际工具或云端调用。
+- 无数据库迁移；检查点与运行记录仅在进程内保存，重启后失效。
+- 验证：全量 `pytest -q` 为 488 passed、13 skipped；Ruff、mypy、pip check 和 git diff --check 通过。
+
+## R4-WP15 — Agent 执行轨迹与可观测性
+
+状态：已完成（本地脱敏轨迹与导出）。
+
+- 记录运行开始和人工审批的节点、状态、摘要、耗时与审批信息；摘要会脱敏 API Key、Token、Password 和 `sk-` 密钥模式并截断。
+- 提供 `GET /agent/runs/{id}/trace` 与 `POST /agent/runs/{id}/export-trace`。
+- 运行轨迹默认仅保存在进程内；无数据库迁移，服务重启后不可恢复。
+- 验证：全量 `pytest -q` 为 491 passed、13 skipped；Ruff、mypy、pip check 和 git diff --check 通过。

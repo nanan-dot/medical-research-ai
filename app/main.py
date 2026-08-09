@@ -1,14 +1,15 @@
 """医学科研智能助手平台 — FastAPI 应用入口"""
 
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
-from app.core.database import engine
 from app.api.v1 import api_router
 from app.common.exception_handlers import app_error_handler
 from app.common.exceptions import AppError
+from app.core.config import settings
+from app.core.database import engine
 
 
 @asynccontextmanager

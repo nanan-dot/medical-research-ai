@@ -1,6 +1,8 @@
 from pathlib import Path
+
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from app.core import models  # noqa:F401
 from app.core.database import Base
 

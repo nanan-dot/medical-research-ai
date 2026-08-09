@@ -1,12 +1,14 @@
 import json
 from datetime import UTC, datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.comparison.service import ComparisonService
 from app.modules.comparison.shared import SourceRef
+from app.modules.library_item.repository import LibraryItemRepository
 from app.modules.paper_analysis.repository import PaperAnalysisRepository
 from app.modules.paper_analysis.schema import StructuredPaperResult
-from app.modules.library_item.repository import LibraryItemRepository
 from app.modules.presentation.model import Presentation
 from app.modules.presentation.outline_builder import (
     build_comparison_outline,

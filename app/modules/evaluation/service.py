@@ -1,8 +1,9 @@
 """evaluation — 业务逻辑"""
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.modules.evaluation.repository import EvaluationRepository
+
 from app.common.exceptions import NotFoundError
+from app.modules.evaluation.repository import EvaluationRepository
 
 
 class EvaluationService:

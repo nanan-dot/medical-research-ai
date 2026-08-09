@@ -18,8 +18,8 @@ import httpx
 
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
-from app.modules.citation_check.schema import CitationAuditItem
 from app.modules.citation_check.format_validator import validate_identifier
+from app.modules.citation_check.schema import CitationAuditItem
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class CitationVerifier:
         if self._owns_http:
             await self._http.aclose()
 
-    async def __aenter__(self) -> "CitationVerifier":
+    async def __aenter__(self) -> CitationVerifier:
         return self
 
     async def __aexit__(self, *_: object) -> None:

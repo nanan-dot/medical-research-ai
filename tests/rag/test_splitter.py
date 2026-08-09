@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 from app.rag.schemas import SplitStrategy
 from app.rag.splitter import split_markdown_document
 

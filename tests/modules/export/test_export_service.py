@@ -1,5 +1,7 @@
 from datetime import UTC, datetime
+
 import pytest
+
 from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.conversation.model import Citation, Conversation, Message
 from app.modules.conversation.service import ConversationService

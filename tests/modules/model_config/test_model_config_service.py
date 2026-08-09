@@ -1,5 +1,6 @@
 import pytest
 from cryptography.fernet import Fernet
+
 from app.common.exceptions import ConflictError
 from app.core.security import SecretCipher
 from app.modules.model_config.schema import ModelConfigCreate

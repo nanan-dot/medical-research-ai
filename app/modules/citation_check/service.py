@@ -13,8 +13,8 @@ from app.modules.citation_check.schema import (
     CitationCheckRequest,
     CitationCheckResult,
 )
-from app.modules.citation_check.verifier import CitationVerifier
 from app.modules.citation_check.statement_checker import check_statement
+from app.modules.citation_check.verifier import CitationVerifier
 
 
 class CitationCheckService:

@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol
 
 from app.integrations.paperqa2.exceptions import (
     PaperQA2DocumentError,
@@ -165,7 +166,7 @@ class PaperQA2Client:
         chunk_name = getattr(text, "name", None)
         if chunk_name is not None and not isinstance(chunk_name, str):
             chunk_name = None
-        page_match = re.search(r"\bpages?\s+(\d+)(?:-(\d+))?", chunk_name or "", re.I)
+        page_match = re.search(r"\bpages?\s+(\d+)(?:-(\d+))?", chunk_name or "", re.IGNORECASE)
 
         title = getattr(document, "title", None) or getattr(document, "docname", None)
         citation = getattr(document, "citation", None)

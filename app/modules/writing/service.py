@@ -1,8 +1,9 @@
 """writing — 业务逻辑"""
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.modules.writing.repository import WritingRepository
+
 from app.common.exceptions import NotFoundError
+from app.modules.writing.repository import WritingRepository
 
 
 class WritingService:

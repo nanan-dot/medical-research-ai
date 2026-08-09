@@ -5,10 +5,10 @@ from app.core.database import get_session
 from app.modules.conversation.schema import (
     ConversationCreate,
     ConversationRead,
+    ConversationSummary,
     FeedbackCreate,
     MessageCreate,
     MessageRead,
-    ConversationSummary,
 )
 from app.modules.conversation.service import ConversationService
 

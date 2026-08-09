@@ -1,7 +1,8 @@
 """knowledge_source — 数据库访问"""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.knowledge_source.model import KnowledgeSource
 
 

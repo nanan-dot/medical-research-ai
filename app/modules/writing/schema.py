@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict
 class WritingCreate(BaseModel):
     """创建请求"""
 
-    pass
 
 
 class WritingRead(BaseModel):

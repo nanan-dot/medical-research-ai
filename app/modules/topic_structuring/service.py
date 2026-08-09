@@ -4,8 +4,8 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import cast
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import AnyHttpUrl, SecretStr, ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import AIModelError, ConflictError, NotFoundError
 from app.core.security import SecretCipher

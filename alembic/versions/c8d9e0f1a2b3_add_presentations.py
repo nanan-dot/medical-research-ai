@@ -1,6 +1,7 @@
 """Add persisted presentation outlines."""
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "c8d9e0f1a2b3"

@@ -10,9 +10,9 @@ from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.feasibility.model import FeasibilityScore, FeasibilityWeightProfile
 from app.modules.feasibility.repository import FeasibilityRepository
 from app.modules.feasibility.schema import (
+    Confidence,
     DimensionName,
     DimensionScore,
-    Confidence,
     FeasibilityRead,
     FeasibilityRequest,
     UserAssessment,

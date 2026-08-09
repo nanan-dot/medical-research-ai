@@ -16,15 +16,11 @@ from app.integrations.llm.schemas import ChatMessage
 from app.integrations.ollama.client import OllamaClient
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
+from app.modules.library_item.repository import LibraryItemRepository
 from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
 from app.modules.literature_search.dedup import DedupRecord, find_duplicate_candidates
-from app.modules.literature_search.reading_order import (
-    ReadingContext,
-    apply_manual_order,
-    classify_reading_item,
-    rank_reading_order,
-)
+from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,
     LiteratureDuplicateGroupMember,
@@ -37,9 +33,16 @@ from app.modules.literature_search.model import (
 )
 from app.modules.literature_search.prompts import PROMPT_VERSION, build_candidate_prompt
 from app.modules.literature_search.pubmed_executor import PubMedExecutor
+from app.modules.literature_search.query_builder import build_boolean_query
 from app.modules.literature_search.query_model import (
     SearchIntentCandidate,
     relative_year_range,
+)
+from app.modules.literature_search.reading_order import (
+    ReadingContext,
+    apply_manual_order,
+    classify_reading_item,
+    rank_reading_order,
 )
 from app.modules.literature_search.repository import LiteratureSearchRepository
 from app.modules.literature_search.schema import (
@@ -48,8 +51,8 @@ from app.modules.literature_search.schema import (
     DuplicateGroupList,
     DuplicateGroupMemberRead,
     DuplicateGroupRead,
-    DuplicateResolveRequest,
     DuplicateResolutionRead,
+    DuplicateResolveRequest,
     ExpandTermsResponse,
     ItemStateRead,
     ItemStateUpdate,
@@ -63,28 +66,25 @@ from app.modules.literature_search.schema import (
     MeshCandidate,
     ParseQueryResponse,
     RankedCitationItem,
-    ReadStatus,
     ReadingOrderItem,
     ReadingOrderRead,
+    ReadStatus,
     ResultQueryParams,
+    SearchExecuteRequest,
     SearchResultChange,
     SearchStrategyExport,
     SearchTaskStatus,
     SearchTermGroup,
-    SearchExecuteRequest,
+)
+from app.modules.literature_search.term_expansion import (
+    expand_term,
+    is_ascii_search_term,
 )
 from app.modules.literature_search.user_state import (
     DEFAULT_READ_STATUS,
     deserialize_tags,
     serialize_tags,
 )
-from app.modules.literature_search.mesh_client import MeshClient
-from app.modules.literature_search.query_builder import build_boolean_query
-from app.modules.literature_search.term_expansion import (
-    expand_term,
-    is_ascii_search_term,
-)
-from app.modules.library_item.repository import LibraryItemRepository
 
 CandidateExtractor = Callable[[str], Awaitable[str]]
 

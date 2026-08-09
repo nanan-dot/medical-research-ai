@@ -1,8 +1,8 @@
 """literature_search — 数据库访问"""
 
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,

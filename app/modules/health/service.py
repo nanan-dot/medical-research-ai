@@ -1,8 +1,9 @@
 """health — 业务逻辑"""
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.modules.health.repository import HealthRepository
+
 from app.common.exceptions import NotFoundError
+from app.modules.health.repository import HealthRepository
 
 
 class HealthService:

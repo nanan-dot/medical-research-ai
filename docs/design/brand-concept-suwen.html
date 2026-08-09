@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>素问 Suwen — 品牌概念板</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --paper: #faf8f3;
+    --paper-deep: #f1ede3;
+    --vermilion: #9e2b25;      /* 朱砂 */
+    --vermilion-deep: #7c1f1a;
+    --indigo: #2b3a55;         /* 靛青 */
+    --jade: #3d5c4f;           /* 黛绿 */
+    --gold: #b08d57;           /* 金 */
+    --line: #d8d2c4;
+    --serif: "Noto Serif SC", "Songti SC", "SimSun", "STSong", Georgia, serif;
+    --sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --latin: "EB Garamond", "Cormorant Garamond", "Times New Roman", Georgia, serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    line-height: 1.7;
+    padding: 0 0 80px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 48px; }
+
+  /* ===== 头部 ===== */
+  header {
+    padding: 72px 0 48px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+  }
+  header .kicker {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.35em;
+    color: var(--vermilion);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  header h1 {
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+  header h1 em { font-style: normal; color: var(--vermilion); }
+  header .sub {
+    font-family: var(--latin);
+    font-size: 22px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+    font-style: italic;
+  }
+  header .meta {
+    text-align: right;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.15em;
+  }
+  header .meta div { margin-top: 6px; }
+
+  /* ===== 区块 ===== */
+  section { padding: 64px 0; border-bottom: 1px solid var(--line); }
+  .sec-label {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .sec-label::before { content: "—— "; color: var(--line); }
+
+  /* ===== Logo 概念网格 ===== */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+  .logo-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 0;
+    position: relative;
+  }
+  .logo-card .stage {
+    height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .logo-card .stage.tint-a { background: #fbf9f4; }
+  .logo-card .stage.tint-b { background: #f7f4ec; }
+  .logo-card .stage.tint-c { background: #faf7f2; }
+  .logo-card .stage.tint-d { background: #f6f3ec; }
+  .logo-card .no {
+    position: absolute;
+    top: 14px; left: 16px;
+    font-family: var(--latin);
+    font-size: 13px;
+    color: #b9b2a3;
+    letter-spacing: 0.2em;
+  }
+  .logo-card .name {
+    padding: 16px 20px 6px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .logo-card .name small {
+    font-family: var(--latin);
+    font-weight: 400;
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin-left: 10px;
+    font-style: italic;
+  }
+  .logo-card .desc {
+    padding: 0 20px 18px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    font-family: var(--sans);
+    line-height: 1.75;
+  }
+
+  /* ===== Slogan ===== */
+  .slogan-block {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+  .slogan-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 32px 32px 28px;
+  }
+  .slogan-card .lang {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    margin-bottom: 16px;
+  }
+  .slogan-card .zh {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .slogan-card .en {
+    font-family: var(--latin);
+    font-size: 20px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .slogan-card .note {
+    margin-top: 14px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    color: #8a8478;
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+  .slogan-card.feat { border-color: var(--vermilion); position: relative; }
+  .slogan-card.feat::after {
+    content: "推荐";
+    position: absolute;
+    top: -11px; right: 18px;
+    background: var(--vermilion);
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    padding: 3px 10px;
+  }
+
+  /* ===== 色彩系统 ===== */
+  .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .swatch { border: 1px solid var(--line); }
+  .swatch .chip { height: 84px; }
+  .swatch .info { padding: 10px 12px; font-family: var(--sans); font-size: 11.5px; }
+  .swatch .info .cn { font-size: 12.5px; font-family: var(--serif); font-weight: 600; margin-bottom: 2px; }
+  .swatch .info .hex { color: #8a8478; }
+
+  /* ===== 字体 ===== */
+  .type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .type-card { background: #fff; border: 1px solid var(--line); padding: 28px 32px; }
+  .type-card .label { font-family: var(--sans); font-size: 11px; color: var(--gold); letter-spacing: 0.3em; margin-bottom: 14px; }
+  .type-card .sample-zh { font-size: 30px; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .type-card .sample-en { font-family: var(--latin); font-size: 26px; font-style: italic; color: var(--ink-soft); }
+  .type-card .spec { margin-top: 12px; font-family: var(--sans); font-size: 12px; color: #8a8478; line-height: 1.8; }
+
+  footer {
+    padding-top: 48px;
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: #a29b8d;
+    letter-spacing: 0.2em;
+  }
+
+  /* ===== SVG Logo 绘制 ===== */
+
+  /* 概念 A：素问印章 */
+  .seal {
+    width: 128px; height: 128px;
+    border: 4px solid var(--vermilion);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: var(--vermilion);
+  }
+  .seal .char {
+    color: #f7f1e4;
+    font-size: 64px;
+    font-weight: 700;
+    font-family: var(--serif);
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .seal .qmark {
+    position: absolute;
+    right: -6px; top: -10px;
+    width: 30px; height: 30px;
+    background: #fff;
+    color: var(--vermilion);
+    border-radius: 50%;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+
+  /* 概念 B：问蛇杖（SVG） */
+  .logo-rod { width: 150px; height: 190px; }
+
+  /* 概念 C：双螺旋问号 */
+  .logo-helix { width: 150px; height: 190px; }
+
+  /* 概念 D：澄明之问 */
+  .logo-lens { width: 160px; height: 160px; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 0 24px; }
+    header { flex-direction: column; align-items: flex-start; }
+    header .meta { text-align: left; }
+    .logo-grid, .slogan-block, .type-row { grid-template-columns: 1fr; }
+    .swatches { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div>
+    <div class="kicker">Brand Concept Board · v1.0</div>
+    <h1>素问 <em>·</em> Suwen</h1>
+    <div class="sub">Veritas in Medicina — 医道求真</div>
+  </div>
+  <div class="meta">
+    <div>医学科研智能助手</div>
+    <div>Medical Research Companion</div>
+    <div>2026 · 概念板</div>
+  </div>
+</header>
+
+<!-- ===== Logo 概念 ===== -->
+<section class="wrap">
+  <div class="sec-label">Logo Concepts · 标志概念</div>
+  <div class="logo-grid">
+
+    <!-- A 素问印章 -->
+    <div class="logo-card">
+      <div class="stage tint-a">
+        <span class="no">01</span>
+        <div class="seal">
+          <div class="char">素</div>
+          <div class="qmark">?</div>
+        </div>
+      </div>
+      <div class="name">素问印章 <small>Seal Mark</small></div>
+      <div class="desc">朱砂印章形式——「素」字为主体，右上角一枚白色问号如落款。取古籍印章的庄重与「问」的灵动，红色呼应中医与东方医学传统。适合作为图标与应用角标。</div>
+    </div>
+
+    <!-- B 问蛇杖 -->
+    <div class="logo-card">
+      <div class="stage tint-b">
+        <span class="no">02</span>
+        <svg class="logo-rod" viewBox="0 0 150 190" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 问号点 = 蛇杖顶球 -->
+          <circle cx="75" cy="28" r="13" fill="#9e2b25"/>
+          <!-- 蛇杖之杖 -->
+          <path d="M75 38 V176" stroke="#1a1a1a" stroke-width="7" stroke-linecap="round"/>
+          <!-- 蛇身螺旋 -->
+          <path d="M75 40 C 105 60, 45 80, 75 100 C 105 120, 45 140, 75 160" stroke="#2b3a55" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+          <!-- 蛇头 -->
+          <path d="M75 36 C 82 30, 88 32, 90 38 C 84 44, 76 44, 75 36 Z" fill="#2b3a55"/>
+          <!-- 问号弯钩（融入杖底） -->
+          <path d="M75 166 C 105 168, 112 150, 100 138" stroke="#9e2b25" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <circle cx="97" cy="134" r="4" fill="#9e2b25"/>
+        </svg>
+      </div>
+      <div class="name">问蛇杖 <small>Question Rod</small></div>
+      <div class="desc">医学图腾「阿斯克勒庇俄斯之杖」与问号同构：蛇身盘绕成问号的上弧，杖顶一点朱红既是蛇杖之珠也是问号之点。寓意「以问探医道」。国际医学语境辨识度最高。</div>
+    </div>
+
+    <!-- C 双螺旋问号 -->
+    <div class="logo-card">
+      <div class="stage tint-c">
+        <span class="no">03</span>
+        <svg class="logo-helix" viewBox="0 0 150 190" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 双螺旋构成问号 -->
+          <path d="M75 14 C 110 40, 110 70, 75 95 C 40 120, 40 150, 75 176" stroke="#3d5c4f" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <path d="M75 14 C 40 40, 40 70, 75 95 C 110 120, 110 150, 75 176" stroke="#2b3a55" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="10 7"/>
+          <!-- 横杆 -->
+          <line x1="42" y1="95" x2="108" y2="95" stroke="#b08d57" stroke-width="3.5"/>
+          <!-- 问号点 -->
+          <circle cx="75" cy="14" r="9" fill="#9e2b25"/>
+        </svg>
+      </div>
+      <div class="name">双螺旋问号 <small>Double Helix</small></div>
+      <div class="desc">DNA 双螺旋的两条链交缠成一个问号，顶点朱红如生命起点。科学与疑问的相遇——现代生物医学气质，适合科研定位与学术传播。</div>
+    </div>
+
+    <!-- D 澄明之问 -->
+    <div class="logo-card">
+      <div class="stage tint-d">
+        <span class="no">04</span>
+        <svg class="logo-lens" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 透镜 / 明镜圆 -->
+          <circle cx="80" cy="80" r="66" stroke="#1a1a1a" stroke-width="3"/>
+          <circle cx="80" cy="80" r="66" stroke="#9e2b25" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.7"/>
+          <!-- 内圈 -->
+          <circle cx="80" cy="80" r="52" stroke="#d8d2c4" stroke-width="1.5" fill="none"/>
+          <!-- 问号 -->
+          <path d="M80 62 C 92 62, 98 72, 90 80 C 84 86, 80 88, 80 96" stroke="#2b3a55" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <circle cx="80" cy="112" r="5" fill="#9e2b25"/>
+        </svg>
+      </div>
+      <div class="name">澄明之问 <small>Lucent Q</small></div>
+      <div class="desc">一泓透镜般的圆，内嵌一问号——「澄明」即看清本质。极简几何风，留白充分，适合作为网页 favicon、App 图标与学术报告水印。英文标识可配 Veritas。</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===== Slogan ===== -->
+<section class="wrap">
+  <div class="sec-label">Slogan · 标语</div>
+  <div class="slogan-block">
+    <div class="slogan-card feat">
+      <div class="lang">中文 · 主标语</div>
+      <div class="zh">以问为舟，以证为桨</div>
+      <div class="en">Ask with rigor. Answer with evidence.</div>
+      <div class="note">「问」呼应素问之名与问答功能；「证」呼应证据核验的产品内核——检索、比对、核验、引用，皆以证据为桨。</div>
+    </div>
+    <div class="slogan-card">
+      <div class="lang">中文 · 备选</div>
+      <div class="zh">问出真理，循证而行</div>
+      <div class="en">Inquire into truth. Advance on evidence.</div>
+      <div class="note">更直白的学术宣言，强调「循证医学」基因，适合登录页主视觉。</div>
+    </div>
+    <div class="slogan-card">
+      <div class="lang">English · Primary</div>
+      <div class="en">Veritas in Medicina</div>
+      <div class="zh" style="font-size:16px; color:var(--ink-soft); font-weight:400;">医学中的真理</div>
+      <div class="note">拉丁语短句，国际学术气质，可作为英文品牌副题使用。</div>
+    </div>
+    <div class="slogan-card">
+      <div class="lang">English · Alternative</div>
+      <div class="en">Illuminate. Verify. Advance.</div>
+      <div class="zh" style="font-size:16px; color:var(--ink-soft); font-weight:400;">照亮 · 核验 · 前行</div>
+      <div class="note">三个动词完成科研闭环：检索照亮方向、核验保证真实、写作推动进步。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 视觉系统 ===== -->
+<section class="wrap">
+  <div class="sec-label">Visual System · 色彩</div>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background:#9e2b25;"></div><div class="info"><div class="cn">朱砂 Vermilion</div><div class="hex">#9E2B25 · 主色</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#2b3a55;"></div><div class="info"><div class="cn">靛青 Indigo</div><div class="hex">#2B3A55 · 辅助</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#3d5c4f;"></div><div class="info"><div class="cn">黛绿 Jade</div><div class="hex">#3D5C4F · 点缀</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#b08d57;"></div><div class="info"><div class="cn">鎏金 Gold</div><div class="hex">#B08D57 · 强调</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#faf8f3;"></div><div class="info"><div class="cn">宣纸 Rice Paper</div><div class="hex">#FAF8F3 · 底</div></div></div>
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="sec-label">Typography · 字体</div>
+  <div class="type-row">
+    <div class="type-card">
+      <div class="label">中文 · 标题字体</div>
+      <div class="sample-zh">素问医道求真</div>
+      <div class="spec">Noto Serif SC / 思源宋体 · 标题与正文<br>宋体的书卷气契合医学经典传承；避免黑体（微软雅黑）的「后台模板感」。</div>
+    </div>
+    <div class="type-card">
+      <div class="label">Latin · Display</div>
+      <div class="sample-en">Suwen · Veritas</div>
+      <div class="spec">EB Garamond / Cormorant Garamond · 英文标题<br>人文主义衬线，期刊封面气质，与中文宋体同源同构。</div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  素问 SUWEN · 品牌概念板 v1.0 — 医学科研智能助手
+</footer>
+
+</body>
+</html>

@@ -42,7 +42,8 @@ rag = [
     "litellm>=1.40.0",
 ]
 pubmed = ["biopython>=1.83"]
-full = ["rag-medicine[dev,rag,pubmed]"]
+agent = ["langgraph>=1.2.10,<2.0.0"]
+full = ["rag-medicine[dev,rag,pubmed,agent]"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -57,6 +58,10 @@ markers = [
 [tool.ruff]
 target-version = "py312"
 line-length = 88
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI 官方依赖注入与 Query 声明使用函数默认值；该规则不适用于路由层。
+"app/**/router.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"

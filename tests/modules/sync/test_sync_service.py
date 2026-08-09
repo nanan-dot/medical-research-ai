@@ -4,16 +4,16 @@ from pathlib import Path
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.common.exceptions import ConflictError
 from app.core import models  # noqa: F401
 from app.core.database import Base
-from app.common.exceptions import ConflictError
 from app.modules.document.repository import DocumentRepository
+from app.modules.knowledge_source.scanner import DirectoryScan
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
     KnowledgeSourceType,
 )
 from app.modules.knowledge_source.service import KnowledgeSourceService
-from app.modules.knowledge_source.scanner import DirectoryScan
 from app.modules.knowledge_source.sync_service import KnowledgeSourceSyncService
 
 

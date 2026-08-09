@@ -1,10 +1,10 @@
 """Office document parsers with explicit legacy DOC conversion boundaries."""
 
-from pathlib import Path
 import shutil
 import subprocess
-from tempfile import TemporaryDirectory
 from collections.abc import Iterable
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Protocol, cast
 
 from docx import Document as WordDocument

@@ -1,9 +1,9 @@
 """Document status, retry, and stale-task management."""
 
+import asyncio
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-import re
-import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

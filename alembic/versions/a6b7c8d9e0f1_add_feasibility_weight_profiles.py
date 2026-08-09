@@ -7,6 +7,7 @@ Revises: a5b6c7d8e9f0
 import json
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "a6b7c8d9e0f1"

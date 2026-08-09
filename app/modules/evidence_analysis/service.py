@@ -12,7 +12,6 @@ from app.integrations.llm.client import LLMClient
 from app.integrations.llm.schemas import ChatMessage, LLMConfig
 from app.integrations.ollama.client import OllamaClient
 from app.modules.comparison.shared import SourceRef
-from app.modules.evidence_matrix.model import MatrixCell, MatrixDocument
 from app.modules.evidence_analysis.interpretation import parse_grounded_interpretation
 from app.modules.evidence_analysis.prompts import build_interpretation_prompt
 from app.modules.evidence_analysis.repository import EvidenceAnalysisRepository
@@ -29,9 +28,10 @@ from app.modules.evidence_analysis.statistics import (
     calculate_research_type_distribution,
     calculate_topic_statistics,
 )
+from app.modules.evidence_matrix.model import MatrixCell, MatrixDocument
+from app.modules.library_item.model import LibraryItem
 from app.modules.model_config.model import ModelConfig
 from app.modules.model_config.repository import ModelConfigRepository
-from app.modules.library_item.model import LibraryItem
 
 InterpretationGenerator = Callable[[str, int | None, bool], Awaitable[str]]
 

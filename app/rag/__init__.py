@@ -6,6 +6,7 @@
 - 检索结果携带来源路径与标题，可解释引用（反幻觉协议延伸）。
 """
 
+from app.rag.bm25_store import BM25Store, tokenize_medical_text
 from app.rag.embeddings import (
     DummyEmbeddingClient,
     EmbeddingClient,
@@ -25,7 +26,6 @@ from app.rag.faiss_store import (
     VectorChunkRecord,
     read_index_metadata,
 )
-from app.rag.bm25_store import BM25Store, tokenize_medical_text
 from app.rag.hybrid_retriever import HybridRetriever, TextRetriever
 from app.rag.notes_pipeline import NotesRAG, build_pipeline, index_notes_directory
 from app.rag.rrf import RRF_K, fuse_ranked_results
@@ -40,8 +40,9 @@ from app.rag.splitter import split_markdown_document
 from app.rag.vector_retriever import VectorRetriever
 
 __all__ = [
-    "Chunk",
+    "RRF_K",
     "BM25Store",
+    "Chunk",
     "DummyEmbeddingClient",
     "EmbeddingClient",
     "EmbeddingDimensionMismatchError",
@@ -55,18 +56,17 @@ __all__ = [
     "NotesRAG",
     "NotesRAGError",
     "OllamaEmbeddingClient",
-    "RetrievalResult",
     "RetrievalContribution",
-    "RRF_K",
+    "RetrievalResult",
     "SplitStrategy",
+    "TextRetriever",
     "VectorChunkRecord",
     "VectorRetriever",
     "build_pipeline",
     "create_embedding_client",
-    "index_notes_directory",
     "fuse_ranked_results",
+    "index_notes_directory",
     "read_index_metadata",
     "split_markdown_document",
     "tokenize_medical_text",
-    "TextRetriever",
 ]

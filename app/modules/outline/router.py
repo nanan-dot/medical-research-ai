@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_session
 from app.modules.outline.schema import OutlineCreate, OutlineRead, OutlineUpdate
 from app.modules.outline.service import OutlineService

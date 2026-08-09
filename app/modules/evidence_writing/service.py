@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError
 from app.modules.evidence_writing.polish_guard import validate_polish
-from app.modules.evidence_writing.sentence_marker import validate_segments
-from app.modules.evidence_writing.state_machine import transition
 from app.modules.evidence_writing.schema import (
     DraftRequest,
     OutlineRequest,
     PolishRequest,
 )
+from app.modules.evidence_writing.sentence_marker import validate_segments
+from app.modules.evidence_writing.state_machine import transition
 from app.modules.writing_project.schema import WritingProjectRead, WritingProjectUpdate
 from app.modules.writing_project.service import WritingProjectService
 

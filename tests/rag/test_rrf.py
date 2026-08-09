@@ -1,7 +1,8 @@
 """RRF 融合的行为测试。"""
 
-import pytest
 from typing import Literal
+
+import pytest
 
 from app.rag.rrf import RRF_K, fuse_ranked_results
 from app.rag.schemas import RetrievalResult

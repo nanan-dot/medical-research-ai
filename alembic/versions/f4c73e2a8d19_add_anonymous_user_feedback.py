@@ -5,8 +5,10 @@ Revises: e9b42c1d6f08
 """
 
 from collections.abc import Sequence
-from alembic import op
+
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = "f4c73e2a8d19"
 down_revision: str | None = "e9b42c1d6f08"

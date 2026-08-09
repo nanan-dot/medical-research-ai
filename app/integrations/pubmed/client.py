@@ -108,7 +108,7 @@ class PubMedClient:
         self._cache = cache if cache is not None else TTLCache()
 
     @classmethod
-    def from_settings(cls, app_settings: Any = None) -> "PubMedClient":
+    def from_settings(cls, app_settings: Any = None) -> PubMedClient:
         """从应用 Settings 构建客户端。
 
         缺省时使用 app.core.config.settings 的单例；字段缺失时退化为空配置。
@@ -235,7 +235,7 @@ class PubMedClient:
         if self._owns_http_client:
             await self._http_client.aclose()
 
-    async def __aenter__(self) -> "PubMedClient":
+    async def __aenter__(self) -> PubMedClient:
         return self
 
     async def __aexit__(self, *_: object) -> None:

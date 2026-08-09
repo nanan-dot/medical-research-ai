@@ -1,6 +1,7 @@
 """Add confidential project flag and AI disclosure records."""
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "b3c4d5e6f7a8"

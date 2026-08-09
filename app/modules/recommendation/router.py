@@ -11,17 +11,17 @@ from app.integrations.ollama.client import OllamaClient
 from app.integrations.ollama.exceptions import OllamaError
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
+from app.modules.literature_search.pubmed_executor import PubMedExecutor
 from app.modules.recommendation.orchestrator import RecommendationService
 from app.modules.recommendation.reason_fusion import (
-    RecommendationReasonService,
     ReasonLLM,
+    RecommendationReasonService,
 )
 from app.modules.recommendation.schema import (
     RecommendationRequest,
     RecommendationResponse,
 )
 from app.modules.recommendation.service import RecommendationExecutor
-from app.modules.literature_search.pubmed_executor import PubMedExecutor
 
 router = APIRouter(prefix="/recommendations", tags=["recommendation"])
 

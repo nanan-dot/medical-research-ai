@@ -1,6 +1,7 @@
 """Add matrix-grounded outline snapshots."""
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "d9e0f1a2b3c4"

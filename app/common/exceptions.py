@@ -42,5 +42,3 @@ class TemporarilyUnavailableError(AppError):
 
 class AIModelError(AppError):
     """AI 模型调用错误"""
-
-    pass

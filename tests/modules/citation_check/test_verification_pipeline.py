@@ -1,7 +1,7 @@
 from app.modules.citation_check.consistency_checker import compare_metadata
+from app.modules.citation_check.extractor import extract_references
 from app.modules.citation_check.format_validator import validate_identifier
 from app.modules.citation_check.statement_checker import check_statement
-from app.modules.citation_check.extractor import extract_references
 
 
 def test_l1_rejects_bad_identifiers_without_network() -> None:

@@ -1,10 +1,11 @@
 import json
 from datetime import UTC, datetime
 from typing import cast
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.evidence_matrix.repository import EvidenceMatrixRepository
-from app.modules.research_direction.repository import ResearchDirectionRepository
 from app.modules.outline.model import Outline
 from app.modules.outline.outline_builder import build_outline
 from app.modules.outline.repository import OutlineRepository
@@ -14,6 +15,7 @@ from app.modules.outline.schema import (
     OutlineRead,
     OutlineUpdate,
 )
+from app.modules.research_direction.repository import ResearchDirectionRepository
 
 
 class OutlineService:

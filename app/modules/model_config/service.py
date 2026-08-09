@@ -1,8 +1,10 @@
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from urllib.parse import urlparse
+
 from pydantic import AnyHttpUrl, SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.security import SecretCipher
 from app.integrations.llm.client import LLMClient

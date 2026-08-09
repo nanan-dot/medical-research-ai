@@ -76,7 +76,6 @@ async def delete_matrix(
     matrix_service: EvidenceMatrixService = Depends(service),
 ) -> None:
     await matrix_service.delete(matrix_id)
-    return None
 
 
 @router.post("/{matrix_id}/documents", response_model=EvidenceMatrixRead)

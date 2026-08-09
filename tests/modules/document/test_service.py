@@ -5,7 +5,7 @@ import pytest
 
 from app.common.exceptions import ConflictError
 from app.modules.document.schema import ParseStatus
-from app.modules.document.service import DocumentService, MAX_ERROR_MESSAGE_LENGTH
+from app.modules.document.service import MAX_ERROR_MESSAGE_LENGTH, DocumentService
 from tests.modules.document.conftest import create_document
 
 

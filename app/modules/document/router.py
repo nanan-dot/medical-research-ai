@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.modules.document.index_service import DocumentIndexService
+from app.modules.document.parsers.schemas import ParsedContentSummary
 from app.modules.document.schema import (
     BatchIndexRequest,
     BatchIndexResult,
@@ -13,9 +15,7 @@ from app.modules.document.schema import (
     IndexStatus,
     ParseStatus,
 )
-from app.modules.document.index_service import DocumentIndexService
 from app.modules.document.service import DocumentService
-from app.modules.document.parsers.schemas import ParsedContentSummary
 
 router = APIRouter(prefix="/documents", tags=["文档"])
 

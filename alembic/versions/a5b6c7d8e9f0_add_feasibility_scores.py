@@ -1,7 +1,8 @@
 """add feasibility score snapshots"""
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "a5b6c7d8e9f0"
 down_revision = "a3d4e5f6a7b8"

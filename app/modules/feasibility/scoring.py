@@ -1,10 +1,10 @@
 """Pure feasibility scoring and cross-candidate ranking sensitivity."""
 
 from app.modules.feasibility.schema import (
+    USER_DIMENSIONS,
     Confidence,
     DimensionName,
     DimensionScore,
-    USER_DIMENSIONS,
 )
 
 

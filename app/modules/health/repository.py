@@ -1,7 +1,8 @@
 """health — 数据库访问"""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.modules.health.model import Health
 
 

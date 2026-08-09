@@ -1,6 +1,7 @@
 """Add versioned writing projects and isolated user materials."""
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "f1a2b3c4d5e6"

@@ -1,7 +1,9 @@
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.common.exceptions import ConflictError, NotFoundError
 from app.core.config import settings
 from app.modules.conversation.service import ConversationService

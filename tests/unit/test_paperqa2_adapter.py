@@ -16,8 +16,10 @@ from app.integrations.paperqa2.exceptions import (
     PaperQA2OperationError,
     PaperQA2ResponseError,
 )
-from app.integrations.paperqa2.factory import create_paperqa2_client
-from app.integrations.paperqa2.factory import _OfficialPaperQA2Backend
+from app.integrations.paperqa2.factory import (
+    _OfficialPaperQA2Backend,
+    create_paperqa2_client,
+)
 from app.integrations.paperqa2.schemas import PaperQA2Config
 
 

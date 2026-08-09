@@ -5,9 +5,9 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 
 from app.modules.comparison.shared import (
+    DEFAULT_FIELDS,
     CellStatus,
     ComparisonField,
-    DEFAULT_FIELDS,
     SourceRef,
 )
 

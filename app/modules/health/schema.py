@@ -14,7 +14,6 @@ class HealthStatus(BaseModel):
 class HealthCreate(BaseModel):
     """创建请求"""
 
-    pass
 
 
 class HealthRead(BaseModel):

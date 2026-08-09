@@ -1,9 +1,11 @@
 from pathlib import Path
+
 import pytest
+
 from app.common.exceptions import ConflictError
 from app.integrations.paperqa2 import PaperQAAnswer, PaperSource
 from app.integrations.paperqa2.exceptions import PaperQA2OperationError
-from app.modules.conversation.service import ConversationService, MAX_EVIDENCE_LENGTH
+from app.modules.conversation.service import MAX_EVIDENCE_LENGTH, ConversationService
 from tests.modules.document.conftest import create_document
 
 

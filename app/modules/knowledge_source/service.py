@@ -12,8 +12,8 @@ from app.common.exceptions import (
     PermissionDeniedError,
     TemporarilyUnavailableError,
 )
-from app.modules.knowledge_source.repository import KnowledgeSourceRepository
 from app.modules.knowledge_source.model import KnowledgeSource
+from app.modules.knowledge_source.repository import KnowledgeSourceRepository
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
     KnowledgeSourceSyncStatus,

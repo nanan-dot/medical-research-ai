@@ -1,8 +1,9 @@
 """Pure assembly of outlines from matrix values only."""
 
 import json
-from app.modules.outline.schema import OutlineClaim, OutlineKind, OutlineSection
+
 from app.modules.evidence_matrix.model import MatrixCell
+from app.modules.outline.schema import OutlineClaim, OutlineKind, OutlineSection
 
 FORBIDDEN = ("将证明", "已证实", "必然")
 
