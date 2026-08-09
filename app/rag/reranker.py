@@ -47,7 +47,7 @@ class RerankerService:
             if elapsed > self.timeout_seconds * 1000: return self._fallback(selected, elapsed)
             ordered = sorted(zip(selected, scores, strict=True), key=lambda item: (-item[1], item[0].original_rank))[: self.output_limit]
             return [RerankResult(item, score, index + 1, self.scorer.model_version, elapsed, False) for index, (item, score) in enumerate(ordered)]
-        except (RuntimeError, TimeoutError, ValueError):
+        except Exception:  # noqa: BLE001 — 网络/超时/分数异常一律回退，不让重排崩溃上层
             return self._fallback(selected, round((monotonic() - started) * 1000))
 
     def _fallback(self, candidates: list[RerankCandidate], latency_ms: int) -> list[RerankResult]:

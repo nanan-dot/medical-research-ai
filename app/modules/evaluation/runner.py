@@ -44,7 +44,10 @@ def execute(run: EvaluationRun, questions: list[EvaluationQuestion], executor: Q
     """Run unprocessed questions; individual failures are retained and do not stop a batch."""
     if run.status in {"completed", "cancelled"}:
         return run
-    completed_ids = {record.question_id for record in run.records}
+    # 仅已完成记录跳过；failed 记录允许在恢复执行时重试（不永久丢弃失败题目）。
+    completed_ids = {
+        record.question_id for record in run.records if record.status == "completed"
+    }
     run.status = "running"
     for question in questions:
         if question.question_id in completed_ids:
@@ -56,7 +59,7 @@ def execute(run: EvaluationRun, questions: list[EvaluationQuestion], executor: Q
         try:
             output = executor(question)
             run.records.append(QuestionRun(question.question_id, "completed", output, round((perf_counter() - started) * 1000)))
-        except (RuntimeError, ValueError, TimeoutError) as error:
+        except Exception as error:  # noqa: BLE001 — 任何执行异常都收敛为 failed，避免状态卡死在 running
             run.records.append(QuestionRun(question.question_id, "failed", None, round((perf_counter() - started) * 1000), str(error)))
     run.status = "completed"
     return run

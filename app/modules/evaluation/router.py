@@ -1,7 +1,7 @@
 """Evaluation run HTTP endpoints; execution is deliberately out of request scope."""
 import json
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +38,21 @@ async def get_results(run_id: int, session: AsyncSession = Depends(get_session))
 @router.post("/{run_id}/results", response_model=EvaluationResultRead, status_code=status.HTTP_201_CREATED)
 async def append_result(run_id: int, payload: EvaluationResultCreate, session: AsyncSession = Depends(get_session)) -> EvaluationResultRead:
     """Internal runner write boundary; callers must supply raw execution output, never metrics."""
-    if await session.get(EvaluationRunRecord, run_id) is None: raise NotFoundError("Evaluation run not found")
+    run = await session.get(EvaluationRunRecord, run_id)
+    if run is None:
+        raise NotFoundError("Evaluation run not found")
+    # 已完成/已取消的 run 不再接受结果追加，防止事后篡改评测记录。
+    if run.status in {"completed", "cancelled"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Evaluation run is already finished")
+    # 同一 run 内 question_id 唯一，防止重复注入结果。
+    existing = await session.execute(
+        select(EvaluationRunResult).where(
+            EvaluationRunResult.run_id == run_id,
+            EvaluationRunResult.question_id == payload.question_id,
+        )
+    )
+    if existing.scalars().first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Question result already recorded")
     entity = EvaluationRunResult(run_id=run_id, **payload.model_dump())
     session.add(entity); await session.flush(); await session.refresh(entity)
     return EvaluationResultRead.model_validate(entity)

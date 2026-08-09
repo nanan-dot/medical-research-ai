@@ -236,11 +236,13 @@ class EvidenceMatrixService:
         return await self.get(matrix_id)
 
     async def _backfill_field_cells(self, matrix_id: int, field_key: str) -> None:
+        # 批量读取该矩阵全部单元格，内存判断存在性，避免每文档一次查询（N+1）。
+        existing_cells = {
+            (cell.document_id, cell.field_key)
+            for cell in await self.repo.list_cells(matrix_id)
+        }
         for document in await self.repo.list_documents(matrix_id):
-            existing = await self.repo.get_cell(
-                matrix_id, document.document_id, field_key
-            )
-            if existing is not None:
+            if (document.document_id, field_key) in existing_cells:
                 continue
             generated = await self._evidence_value(document.document_id, field_key)
             await self.repo.add_cells(

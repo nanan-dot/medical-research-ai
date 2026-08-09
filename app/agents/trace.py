@@ -5,7 +5,15 @@ from dataclasses import asdict, dataclass
 from time import time
 
 MAX_SUMMARY_LENGTH = 240
-_SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|token|password)\s*[:=]\s*\S+|sk-[A-Za-z0-9_-]+")
+# 脱敏覆盖三种形态：
+#  1) JSON 风格键值（带可选引号键 + 引号/非引号值）："api_key": "secret" / token = abc
+#  2) sk- 前缀的 OpenAI 风格密钥
+#  3) 常见密钥键名（authorization / secret / credential）
+_SECRET_PATTERN = re.compile(
+    r"(?i)([\"']?(?:api[_-]?key|token|password|secret|authorization|credential)"
+    r"[\"']?\s*[:=]\s*(?:[\"'][^\"']*[\"']|[^\"'\s,}]+))"
+    r"|sk-[A-Za-z0-9_-]+"
+)
 
 
 def summarize(value: object) -> str:
