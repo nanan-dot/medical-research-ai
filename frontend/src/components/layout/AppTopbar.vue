@@ -1,19 +1,199 @@
-<script setup lang="ts">import { onMounted, onUnmounted, ref } from "vue";
-import Breadcrumbs from "./Breadcrumbs.vue";
-import ModelPrivacyStatus from "../system/ModelPrivacyStatus.vue";
-import { healthApi } from "../../api/health";
+<script setup lang="ts">
+// 顶部栏：左侧项目名 + 项目切换；右侧仅保留搜索与跳转、任务铃铛、账户头像。
+// 不含问候语、第二个内容搜索框或系统/模型状态展示。
+import { onMounted, onUnmounted, ref } from "vue";
+import { literatureSearchApi } from "../../api/literatureSearch";
+
+// 可替换的临时默认项目名：后续接入项目上下文后改为真实项目。
+// 不绑定任何具体病种或药物，保持通用科研语境。
+const projectName = "示例研究项目";
+
+// 任务铃铛数字：真实进行中（pending/running/failed）任务数。
+const activeTaskCount = ref(0);
+onMounted(async () => {
+  try {
+    const page = await literatureSearchApi.listTasks(0, 50);
+    activeTaskCount.value = page.items.filter((task) => ["pending", "running", "failed"].includes(task.status)).length;
+  } catch {
+    activeTaskCount.value = 0;
+  }
+});
+
 const emit = defineEmits<{ openSearch: []; openMenu: [] }>();
-const onKey = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); emit("openSearch"); } };
+const onKey = (event: KeyboardEvent) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    emit("openSearch");
+  }
+};
 onMounted(() => window.addEventListener("keydown", onKey));
 onUnmounted(() => window.removeEventListener("keydown", onKey));
-
-const hour = new Date().getHours();
-const greeting = hour < 6 ? "凌晨好" : hour < 12 ? "上午好" : hour < 18 ? "下午好" : "晚上好";
-
-const systemOk = ref<boolean | null>(null);
-onMounted(async () => {
-  try { const health = await healthApi.get(); systemOk.value = health.status === "ok" || health.status === "healthy"; }
-  catch (cause) { systemOk.value = false; console.warn("系统状态读取失败", cause); }
-});
 </script>
-<template><header class="topbar"><button class="mobile-menu" aria-label="打开导航" @click="emit('openMenu')">☰</button><div class="greeting"><p class="hello">{{ greeting }}，Researcher 👋 <span class="motto">专注医学文献，洞察研究本质</span></p></div><Breadcrumbs class="crumbs"/><div class="tools"><button class="search" @click="emit('openSearch')">⌕ <span>全局搜索</span><kbd>Ctrl K</kbd></button><span class="model-status" :class="systemOk === false ? 'down' : ''"><span class="dot"></span>{{ systemOk === null ? "连接中" : systemOk ? "系统正常" : "连接异常" }}</span><ModelPrivacyStatus/><span class="avatar" aria-label="Researcher 用户头像" title="Researcher">R</span></div></header></template><style scoped>.topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:64px;padding:.55rem 1.4rem;border-bottom:1px solid var(--border-subtle);background:rgba(255,255,255,.9);backdrop-filter:blur(12px)}.greeting{min-width:0}.hello{margin:0;font-size:.95rem;font-weight:700;color:var(--text-primary);white-space:nowrap}.motto{margin-left:.4rem;font-size:.8rem;font-weight:500;color:var(--text-faint)}.crumbs{display:none}.tools{display:flex;align-items:center;gap:.6rem;position:relative}.search{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--border-subtle);border-radius:8px;padding:.45rem .7rem;background:var(--surface);color:var(--text-muted);font-size:.82rem;transition:border-color .15s,box-shadow .15s}.search:hover{border-color:var(--color-primary)}.search kbd{font-size:.7rem;color:var(--text-faint)}.model-status{display:inline-flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.78rem;white-space:nowrap}.dot{width:.45rem;height:.45rem;border-radius:50%;background:var(--color-success)}.model-status.down .dot{background:var(--color-danger)}.avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--color-primary);color:#fff;font-size:.82rem;font-weight:800}.mobile-menu{display:none}@media(max-width:900px){.mobile-menu{display:block;border:1px solid var(--border-subtle);border-radius:7px;padding:.4rem .6rem;background:var(--surface);color:var(--text-primary)}.greeting{display:none}.crumbs{display:block;min-width:0}.search span{display:none}.search kbd{display:none}.model-status{display:none}}</style>
+
+<template>
+  <header class="topbar">
+    <button class="mobile-menu" aria-label="打开导航" @click="emit('openMenu')">☰</button>
+    <div class="project">
+      <span class="project-crumb">工作台 / {{ projectName }}</span>
+      <button class="switch-project" aria-label="切换项目">▾</button>
+    </div>
+    <div class="tools">
+      <button class="search" aria-label="搜索与跳转" @click="emit('openSearch')">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <span>搜索与跳转</span>
+        <kbd>Ctrl K</kbd>
+      </button>
+      <button class="bell" :aria-label="`任务通知，${activeTaskCount} 条进行中`" @click="emit('openMenu')">
+        <span class="bell-icon" aria-hidden="true">◷</span>
+        <span v-if="activeTaskCount > 0" class="bell-badge" aria-hidden="true">{{ activeTaskCount }}</span>
+      </button>
+      <span class="avatar" aria-label="研究者账户头像" title="研究者">R</span>
+    </div>
+  </header>
+</template>
+
+<style scoped>
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 64px;
+  padding: 0.55rem 1.4rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.92);
+}
+.project {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.project-crumb {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.switch-project {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+.switch-project:hover,
+.switch-project:focus-visible {
+  color: var(--color-primary);
+  outline: none;
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search:hover,
+.search:focus-visible {
+  border-color: var(--color-primary);
+  outline: none;
+}
+.search-icon {
+  color: var(--text-faint);
+}
+.search kbd {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 0.1rem 0.35rem;
+  background: var(--surface-muted);
+}
+.bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.bell:hover,
+.bell:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  outline: none;
+}
+.bell-badge {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.mobile-menu {
+  display: none;
+}
+@media (max-width: 760px) {
+  .mobile-menu {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .project-crumb {
+    font-size: 0.8rem;
+  }
+  .search span:not(.search-icon),
+  .search kbd {
+    display: none;
+  }
+}
+</style>
