@@ -13,6 +13,7 @@ from app.modules.literature_search.status_schema import (
     LiteratureStatusRead,
     LiteratureStatusRequest,
 )
+from app.modules.document.model import Document
 
 router = APIRouter(prefix="/literature-status", tags=["literature-status"])
 @router.post("/check", response_model=LiteratureStatusRead)
@@ -21,6 +22,9 @@ async def check_status(payload: LiteratureStatusRequest) -> LiteratureStatusRead
 
 @router.post("/check-and-save", response_model=LiteratureStatusRead)
 async def check_and_save(payload: LiteratureStatusPersistRequest, session: AsyncSession = Depends(get_session)) -> LiteratureStatusRead:
+    # 校验 document 存在，避免外键 IntegrityError 返回 500；不存在则 404。
+    if await session.get(Document, payload.document_id) is None:
+        raise NotFoundError(f"Document not found: {payload.document_id}")
     status_type = classify(**payload.model_dump(exclude={"document_id", "source", "notice_url_or_id"}))
     record = LiteratureStatusRecord(document_id=payload.document_id, status_type=status_type, source=payload.source, notice_url_or_id=payload.notice_url_or_id)
     session.add(record); await session.flush(); await session.refresh(record)

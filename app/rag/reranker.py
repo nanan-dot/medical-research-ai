@@ -44,6 +44,9 @@ class RerankerService:
                 if len(scores) != len(selected): raise ValueError("scorer returned an invalid score count")
                 self._cache[key] = scores
             elapsed = round((monotonic() - started) * 1000)
+            # 注意：scorer 是同步阻塞调用，此处的 elapsed 是调用返回后的测量值；
+            # 无法中断真正挂死的 scorer。该阈值语义为"可接受的最大延迟"——
+            # 超时后回退到检索序，但不保证提前终止阻塞调用。
             if elapsed > self.timeout_seconds * 1000: return self._fallback(selected, elapsed)
             ordered = sorted(zip(selected, scores, strict=True), key=lambda item: (-item[1], item[0].original_rank))[: self.output_limit]
             return [RerankResult(item, score, index + 1, self.scorer.model_version, elapsed, False) for index, (item, score) in enumerate(ordered)]

@@ -15,6 +15,8 @@ from app.agents.schemas import (
 )
 
 router = APIRouter(prefix="/agent", tags=["Agent 任务路由"])
+# 进程内单例：仅支持单 worker 部署（uvicorn --workers>1 时跨实例无法恢复
+# 审批中的运行）。真实多用户部署需换持久化 checkpointer 与运行存储。
 run_service = AgentRunService()
 
 

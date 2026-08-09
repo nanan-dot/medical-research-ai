@@ -257,7 +257,8 @@ def build_agent_graph() -> CompiledStateGraph[
     graph.add_conditional_edges("direction_analysis", _route_after_direct_task)
     graph.add_conditional_edges("writing", _route_after_direct_task)
     graph.add_conditional_edges("citation_check", _route_after_citation_check)
-    graph.add_edge("human_confirmation", END)
+    # human_confirmation 总是返回带 goto 的 Command（approve→citation_check /
+    # reject,cancel→cancelled / 无效决策→error），静态边永不生效，故不声明。
     graph.add_edge("prepare_confirmation", "human_confirmation")
     graph.add_edge("cancelled", END)
     graph.add_edge("error", END)
