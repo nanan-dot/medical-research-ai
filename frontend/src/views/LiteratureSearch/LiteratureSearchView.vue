@@ -1,33 +1,96 @@
 <script setup lang="ts">
-import { shallowRef } from "vue";
-import { useRouter } from "vue-router";
-import SearchTermsEditor from "../../components/SearchTermsEditor/SearchTermsEditor.vue";
+// 文献检索工作空间：从临床问题建立可追溯检索策略。
+// 真实管线：parse-query（解析研究问题→候选条件）→ expand-terms（关键词扩展）
+// → build-query（构建检索式）→ createTask（执行检索）。所有数据来自真实后端，
+// 不伪造检索完成/论文数量/进度。空态与禁用态诚实表达能力边界。
+import { computed, reactive, shallowRef } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useQueryIntent } from "../../composables/useQueryIntent";
 import { useSearchTerms } from "../../composables/useSearchTerms";
-import QueryBuilder from "./QueryBuilder.vue";
+import LiteratureWorkspaceTabs from "./LiteratureWorkspaceTabs.vue";
+import SearchStrategyBuilder from "./SearchStrategyBuilder.vue";
+import SearchDraftPanel from "./SearchDraftPanel.vue";
+import SourceScopePanel from "./SourceScopePanel.vue";
+import SearchReadinessPanel from "./SearchReadinessPanel.vue";
 
+const route = useRoute();
 const router = useRouter();
-const rawTopic = shallowRef("");
+
 const { parsed, candidate, loading: intentLoading, error: intentError, parse, updateCandidate } = useQueryIntent();
 const { expanded, result, loading: termsLoading, error: termsError, taskLoading, taskError, expand, build, createTask } = useSearchTerms();
 
-async function submit() {
-  if (!rawTopic.value.trim()) return;
-  await parse(rawTopic.value);
+const topic = shallowRef("");
+// PICO 受控状态：reactive 保证子组件 emit 后响应式更新。
+const pico = reactive({ population: "", intervention: "", comparison: "", outcome: "" });
+const selectedSources = shallowRef<string[]>(["pubmed"]);
+
+const loading = computed(() => intentLoading.value || termsLoading.value);
+const error = computed(() => intentError.value || termsError.value);
+
+// 顶部栏/工作台跳转时携带的 raw_topic 预填（仅当路由可用时）。
+const routeQuery = route?.query;
+if (routeQuery && typeof routeQuery.raw_topic === "string" && routeQuery.raw_topic) {
+  topic.value = routeQuery.raw_topic;
 }
 
-function saveDraft() {
-  if (result.value) window.localStorage.setItem("rag-medicine-search-draft", result.value.boolean_query);
+async function handleSubmit(rawTopic: string): Promise<void> {
+  topic.value = rawTopic;
+  await parse(rawTopic);
+  // parse 完成后重新读取候选（composable 的 candidate 是 computed，依赖 parsed 更新）。
+  const cand = parsed.value?.candidate;
+  // parse-query 成功后：真实候选回填 PICO 四个条件（仅当解析成功且有数据时）。
+  // candidate 字段是后端真实产物；无对应数据时保持空，不生成虚构内容。
+  if (!cand) return;
+  pico.population = cand.disease ?? "";
+  pico.intervention = cand.intervention ?? "";
+  pico.comparison = "";
+  pico.outcome = "";
+  // 解析成功后立即扩展关键词（真实 expand-terms 调用）。
+  // candidate 为只读类型，展开为可变对象传给 expand（composable 需要可变 SearchIntentCandidate）。
+  await expand({
+    ...cand,
+    study_types: [...(cand.study_types ?? [])],
+    language: [...(cand.language ?? [])],
+    exclusions: [...(cand.exclusions ?? [])],
+    date_range: cand.date_range ? { ...cand.date_range } : null,
+  });
+  // 仅当扩展出可检索的英文词条时才构建检索式；中文词被后端省略时
+  // （warnings 提示"保留编辑但省略出查询"）保持空态，不把空组发往后端。
+  const groups = expanded.value?.term_groups ?? [];
+  if (groups.some((group) => group.terms.length > 0)) {
+    await build(groups);
+  }
 }
 
-async function copyQuery() {
-  if (result.value) await window.navigator.clipboard?.writeText(result.value.boolean_query);
+function handlePicoChange(next: { population: string; intervention: string; comparison: string; outcome: string }): void {
+  pico.population = next.population;
+  pico.intervention = next.intervention;
+  pico.comparison = next.comparison;
+  pico.outcome = next.outcome;
 }
 
-// 执行检索：把已构建的检索式提交为检索任务（立即真实检索 PubMed），
-// 成功后跳转到结果页。original_query 用用户在第一步输入的原始主题，
-// 保证检索历史可回溯；structured_query/filters 为输入快照，供重跑复现。
-async function runSearch() {
+function handleSourceChange(selected: string[]): void {
+  selectedSources.value = selected;
+}
+
+function handleBuild(groups: unknown[]): void {
+  void build(groups as Parameters<typeof build>[0]);
+}
+
+function saveDraft(): void {
+  // 本地草稿边界：仅保存在浏览器 localStorage，不伪称已保存到后端。
+  if (result.value) {
+    window.localStorage.setItem("rag-medicine-search-draft", result.value.boolean_query);
+  }
+}
+
+function copyQuery(): void {
+  if (result.value) void window.navigator.clipboard?.writeText(result.value.boolean_query);
+}
+
+// 执行检索：真实 createTask（调用后端 PubMed 检索），成功后跳转结果页。
+// 与工作台研究起点的四步流程一致：解析→扩展→构建→创建。
+async function runSearch(): Promise<void> {
   if (!result.value || !parsed.value) return;
   const task = await createTask({
     original_query: parsed.value.raw_topic,
@@ -42,39 +105,90 @@ async function runSearch() {
     await router.push(`/literature-search/results/${task.latest_result_id}`);
   }
 }
+
+const topicFilled = computed(() => topic.value.trim().length > 0);
+const picoFilled = computed(() =>
+  [pico.population, pico.intervention, pico.comparison, pico.outcome].some((v) => v.trim().length > 0),
+);
+const sourceSelected = computed(() => selectedSources.value.length > 0);
+const draftReady = computed(() => Boolean(result.value?.boolean_query));
 </script>
 
 <template>
-  <main class="literature-search">
+  <main class="literature-workspace">
     <header class="page-header">
-      <p class="eyebrow">LITERATURE SEARCH</p>
-      <h1 class="page-title">确认检索需求，再构建检索词</h1>
-      <p class="page-copy">系统先给出候选条件，再提供可编辑的英文关键词、同义词和来源标注的 MeSH 候选。</p>
+      <h1 class="page-title">文献检索</h1>
+      <p class="page-copy">从临床问题出发，建立可复用、可追溯的检索策略。</p>
     </header>
-    <form class="topic-form" @submit.prevent="submit">
-      <label class="topic-label">研究主题<input v-model="rawTopic" maxlength="1000" required /></label>
-      <button :disabled="intentLoading">{{ intentLoading ? "解析中…" : "生成候选条件" }}</button>
-    </form>
-    <p v-if="intentError" class="request-error" role="alert">{{ intentError }}</p>
-    <section v-if="parsed" class="result-meta"><p>原始主题：{{ parsed.raw_topic }}</p><p>候选来源：{{ parsed.candidate_source === "rule_fallback" ? "规则候选" : "模型候选" }}</p></section>
-    <QueryBuilder v-if="candidate" :candidate="candidate" @update-candidate="updateCandidate" />
-    <button v-if="candidate" class="expand-button" :disabled="termsLoading" @click="expand(candidate)">{{ termsLoading ? "处理中…" : "扩展关键词与 MeSH" }}</button>
-    <p v-if="termsError" class="request-error" role="alert">{{ termsError }}</p>
-    <SearchTermsEditor v-if="expanded" :expanded="expanded" :result="result" :loading="termsLoading" @build="build" />
-    <section v-if="result" class="execute-boundary" aria-label="PubMed result availability">
-      <p class="eyebrow">PUBMED EXECUTE</p>
-      <h2>执行 PubMed 检索</h2>
-      <p>确认上面的检索式后，创建检索任务会立即调用 PubMed 检索并将结果保存到历史。</p>
-      <div class="draft-actions">
-        <button type="button" @click="saveDraft">保存本地草稿</button>
-        <button type="button" @click="copyQuery">复制检索式</button>
-        <button type="button" class="execute-button" :disabled="taskLoading" @click="runSearch">{{ taskLoading ? "检索中…" : "执行检索" }}</button>
-      </div>
-      <p v-if="taskError" class="request-error" role="alert">{{ taskError }}</p>
-    </section>
+
+    <LiteratureWorkspaceTabs />
+
+    <SearchStrategyBuilder
+      :loading="loading"
+      :error="error"
+      :has-candidate="Boolean(candidate)"
+      :pico="pico"
+      @submit="handleSubmit"
+      @pico-change="handlePicoChange"
+    />
+
+    <div class="workspace-columns">
+      <SearchDraftPanel
+        :expanded="expanded"
+        :result="result"
+        :loading="termsLoading"
+        @build="handleBuild"
+        @copy="copyQuery"
+      />
+      <SourceScopePanel @change="handleSourceChange" />
+    </div>
+
+    <SearchReadinessPanel
+      :topic-filled="topicFilled"
+      :pico-filled="picoFilled"
+      :source-selected="sourceSelected"
+      :draft-ready="draftReady"
+      :task-loading="taskLoading"
+      :task-error="taskError"
+      :has-candidate="Boolean(candidate)"
+      @save-draft="saveDraft"
+      @run-search="runSearch"
+    />
   </main>
 </template>
 
 <style scoped>
-.literature-search { max-width:1100px; margin:auto; padding:2rem 1.2rem 3rem; display:grid; gap:1rem; }.eyebrow { margin:0; color:var(--color-primary); font-weight:800; letter-spacing:.12em; font-size:.72rem; }.page-title { margin:.25rem 0; color:var(--text-primary); font-size:clamp(2rem,4vw,3.2rem); line-height:1.1; }.page-copy { max-width:720px; color:var(--text-muted); }.topic-form { display:flex; gap:.75rem; padding:1rem; background:var(--paper); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); }.topic-label { flex:1; display:grid; gap:.35rem; font-weight:700; color:var(--text-primary); }.topic-label input { padding:.75rem; border:1px solid var(--border-strong); border-radius:8px; font:inherit; }.topic-form button,.expand-button,.draft-actions button { align-self:end; padding:.7rem 1rem; border:0; border-radius:8px; background:var(--color-primary); color:#fff; font-weight:700; }.expand-button { justify-self:start; }.request-error { margin:0; padding:.8rem; color:var(--color-danger); background:var(--color-danger-soft); border-radius:10px; }.result-meta { padding:1rem; border-left:4px solid var(--color-primary); background:var(--color-primary-soft); }.execute-boundary { display:grid; gap:.45rem; padding:1rem; border:1px dashed var(--border-strong); border-radius:var(--radius-md); background:var(--surface-muted); }.execute-boundary h2,.execute-boundary p { margin:0; }.execute-boundary p:not(.eyebrow){color:var(--text-muted)}.draft-actions{display:flex;gap:.6rem}.execute-button:disabled{opacity:.6;cursor:wait}@media (max-width:640px){.topic-form{display:grid;}}
+.literature-workspace {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.4rem 1.2rem 2.6rem;
+  display: grid;
+  gap: 1rem;
+}
+.page-header {
+  display: grid;
+  gap: 0.2rem;
+}
+.page-title {
+  margin: 0;
+  color: var(--text-primary, #0f2a43);
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+.page-copy {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  font-size: 0.9rem;
+}
+.workspace-columns {
+  display: grid;
+  grid-template-columns: 8fr 4fr;
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .workspace-columns {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

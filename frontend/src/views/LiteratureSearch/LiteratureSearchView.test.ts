@@ -6,7 +6,7 @@ import LiteratureSearchView from "./LiteratureSearchView.vue";
 
 afterEach(() => vi.restoreAllMocks());
 
-// 完整解析/扩展/构建/执行检索的响应链，供“执行检索”测试复用。
+// 完整解析/扩展/构建/执行检索的响应链，供"执行检索"测试复用。
 function stubSearchChain(router: ReturnType<typeof createRouter>) {
   const fetchMock = vi
     .fn()
@@ -74,35 +74,27 @@ function stubSearchChain(router: ReturnType<typeof createRouter>) {
   return fetchMock;
 }
 
-test("shows raw topic, rule fallback, and editable candidate", async () => {
+test("shows workspace title, tabs, and empty strategy state", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        raw_topic: "胃癌",
-        candidate_source: "rule_fallback",
-        prompt_version: "search-intent-v1",
-        clarification_questions: ["需要限定发表时间范围吗？"],
-        candidate: {
-          topic: "胃癌", disease: "胃癌", intervention: null, target: null, mechanism: null,
-          date_range: null, study_types: [], language: [], exclusions: [], retmax: 50,
-        },
-      }),
-    }),
+    vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ items: [], total: 0 }) }),
   );
-  const wrapper = mount(LiteratureSearchView);
-  await wrapper.get("input[required]").setValue("胃癌");
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-
-  expect(wrapper.text()).toContain("原始主题：胃癌");
-  expect(wrapper.text()).toContain("规则候选");
-  expect(wrapper.text()).toContain("可编辑检索条件");
+  const router = createRouter({
+    history: createWebHistory(),
+    routes: [{ path: "/literature-search", component: { template: "<div>ls</div>" } }],
+  });
+  router.push("/literature-search");
+  await router.isReady();
+  const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
+  expect(wrapper.text()).toContain("文献检索");
+  expect(wrapper.text()).toContain("检索中心");
+  expect(wrapper.text()).toContain("历史");
+  expect(wrapper.text()).toContain("推荐阅读");
+  // 未生成检索式时显示诚实空状态
+  expect(wrapper.text()).toContain("完善研究问题后生成检索式草案");
 });
 
-test("executes a search task from the built query and navigates to the results page", async () => {
+test("parses topic, fills PICO, builds query, and runs a real search task", async () => {
   const router = createRouter({
     history: createWebHistory(),
     routes: [{ path: "/literature-search/results/:id", component: { template: "<div>results</div>" } }],
@@ -113,25 +105,26 @@ test("executes a search task from the built query and navigates to the results p
   const fetchMock = stubSearchChain(router);
   const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
 
-  // 第一步：解析主题
-  await wrapper.get("input[required]").setValue("胃癌 EGFR 免疫治疗");
-  await wrapper.get("form").trigger("submit");
+  // 第一步：输入研究问题并生成检索式（parse-query → expand-terms → build-query 自动链）
+  const topicInput = wrapper.find("input[placeholder*='肝细胞癌']");
+  await topicInput.setValue("胃癌 EGFR 免疫治疗");
   await flushPromises();
-  expect(wrapper.text()).toContain("模型候选");
-
-  // 第二步：扩展关键词
-  await wrapper.get(".expand-button").trigger("click");
+  // jsdom 中点击 submit 按钮不触发 form submit，直接提交 form（等价于浏览器行为）。
+  await wrapper.find("form").trigger("submit");
   await flushPromises();
 
-  // 第三步：构建检索式（SearchTermsEditor 的"生成 PubMed 检索式"按钮）
-  const buildButton = wrapper.findAll("button").find((b) => b.text().includes("生成 PubMed 检索式"));
-  expect(buildButton).toBeTruthy();
-  await buildButton!.trigger("click");
-  await flushPromises();
-  expect(wrapper.text()).toContain("执行 PubMed 检索");
+  // 真实候选回填 PICO：人群=胃癌（来自后端 candidate.disease）
+  const picoInputs = wrapper.findAll(".pico-field input");
+  expect(picoInputs.length).toBe(4);
+  expect((picoInputs[0].element as HTMLInputElement).value).toContain("胃癌");
 
-  // 第四步：执行检索 → POST /literature-search → 跳转结果页
-  await wrapper.get(".execute-button").trigger("click");
+  // 检索式草案展示真实 build-query 结果
+  expect(wrapper.text()).toContain('"stomach neoplasms"[Title/Abstract]');
+
+  // 第二步：开始检索 → POST /literature-search → 跳转结果页
+  const searchButton = wrapper.findAll("button").find((b) => b.text().includes("开始检索"));
+  expect(searchButton).toBeTruthy();
+  await searchButton!.trigger("click");
   await flushPromises();
 
   expect(fetchMock).toHaveBeenLastCalledWith(
@@ -139,4 +132,20 @@ test("executes a search task from the built query and navigates to the results p
     expect.objectContaining({ method: "POST" }),
   );
   expect(router.currentRoute.value.path).toBe("/literature-search/results/201");
+});
+
+test("rejects empty topic without calling the API", async () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const router = createRouter({
+    history: createWebHistory(),
+    routes: [{ path: "/literature-search", component: { template: "<div>ls</div>" } }],
+  });
+  router.push("/literature-search");
+  await router.isReady();
+  const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
+  const generateButton = wrapper.findAll("button").find((b) => b.text().includes("生成检索式"));
+  expect((generateButton!.element as HTMLButtonElement).disabled).toBe(true);
+  await wrapper.find("form").trigger("submit");
+  expect(fetchMock).not.toHaveBeenCalled();
 });
