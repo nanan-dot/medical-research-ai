@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from "vue";
 import { literatureSearchApi, type LiteratureSearchTask, type SearchResultChange } from "../../api/literatureSearch";
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
 
 // 每页条数：后端分页默认 20，这里取 10 便于快速翻页。
 const PAGE_SIZE = 10;
@@ -83,7 +84,7 @@ onMounted(load);
 
 <template>
   <main class="history">
-    <header class="page-header">
+    <header v-if="!props.embedded" class="page-header">
       <p class="eyebrow">SEARCH HISTORY · LIVE</p>
       <h1 class="page-title">检索历史</h1>
       <p class="page-copy">已保存的可复现检索任务：主题、检索式、检索日期、结果数与执行状态。重跑会创建新版本，不覆盖旧结果；新旧版本的变化会明确提示。</p>

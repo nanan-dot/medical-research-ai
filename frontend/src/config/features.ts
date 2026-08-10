@@ -6,7 +6,7 @@ import type { FeatureDefinition } from "../types/feature";
 // 底部：后台任务、设置。未列入主导航的功能仍可通过路由直接访问。
 export const features: FeatureDefinition[] = [
   { id: "workbench", label: "工作台", path: "/", icon: "⌂", group: "研究空间", phase: "FE-02", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
-  { id: "literature", label: "文献检索", path: "/literature-search", icon: "⌕", group: "研究空间", phase: "FE-04", status: "LIVE", showInNavigation: true, requiresContextRail: true, mobileSupport: true },
+  { id: "literature", label: "文献检索", path: "/literature-search", icon: "⌕", group: "研究空间", phase: "FE-04", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "documents", label: "文档与知识", path: "/documents", icon: "▤", group: "研究空间", phase: "FE-02", status: "LIVE", showInNavigation: true, requiresContextRail: true, mobileSupport: true },
   { id: "analysis", label: "论文研究", path: "/analysis", icon: "◈", group: "研究空间", phase: "FE-03", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },
   { id: "comparison", label: "多论文证据", path: "/comparisons", icon: "≋", group: "研究空间", phase: "FE-05", status: "LIVE", showInNavigation: true, requiresContextRail: false, mobileSupport: true },

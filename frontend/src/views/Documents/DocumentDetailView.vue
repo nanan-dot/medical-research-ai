@@ -1,13 +1,91 @@
 <script setup lang="ts">
-import { onMounted, shallowRef } from "vue";
+import { onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { documentsApi, type ContentSummary, type DocumentRecord } from "../../api/documents";
+
+import DocumentDetailOverview from "../../components/document/DocumentDetailOverview.vue";
+import DocumentOcrPanel from "../../components/document/DocumentOcrPanel.vue";
+import DocumentPreviewPanel from "../../components/document/DocumentPreviewPanel.vue";
 import StatePanel from "../../components/ui/StatePanel.vue";
-const route = useRoute(); const document = shallowRef<DocumentRecord | null>(null); const summary = shallowRef<ContentSummary | null>(null); const loading = shallowRef(true); const error = shallowRef<string | null>(null); const actionLoading = shallowRef(false); const id = Number(route.params.id);
-async function load() { loading.value = true; error.value = null; try { document.value = await documentsApi.get(id); summary.value = document.value.parse_status === "succeeded" ? await documentsApi.contentSummary(id) : null; } catch (caught) { error.value = caught instanceof Error ? caught.message : "无法加载文档"; } finally { loading.value = false; } }
-async function retryParse() { actionLoading.value = true; try { await documentsApi.parse(id); await load(); } finally { actionLoading.value = false; } }
-async function retryIndex() { if (!document.value) return; actionLoading.value = true; try { await documentsApi.retryIndex(document.value.id); await load(); } finally { actionLoading.value = false; } }
+import { useDocumentDetail } from "../../composables/useDocumentDetail";
+
+const route = useRoute();
+const documentId = Number(route.params.id);
+const {
+  document,
+  summary,
+  preview,
+  loading,
+  previewLoading,
+  actionLoading,
+  error,
+  previewError,
+  load,
+  loadPreview,
+  retryParse,
+  retryIndex,
+} = useDocumentDetail(documentId);
+
 onMounted(load);
 </script>
-<template><main class="detail"><RouterLink class="back" to="/documents">← 返回文档库</RouterLink><StatePanel v-if="loading" title="正在读取文档状态" description="正在加载真实本地文档记录。" /><StatePanel v-else-if="error" title="文档不可用" :description="error"><button @click="load">重试</button></StatePanel><template v-else-if="document"><header class="detail-header"><div><p class="eyebrow">DOCUMENT DETAIL · LIVE</p><h1>{{ document.file_path }}</h1><p>原文件预览尚未接入；本页仅呈现系统已返回的元数据与解析摘要。</p></div><span class="unavailable">打开原文件 · UNAVAILABLE</span></header><section class="metadata"><div><span>解析状态</span><strong>{{ document.parse_status }}</strong></div><div><span>索引状态</span><strong>{{ document.index_status }}</strong></div><div><span>修改时间</span><strong>{{ document.modified_time }}</strong></div><div><span>重试次数</span><strong>{{ document.retry_count }}</strong></div></section><div class="actions"><button v-if="document.parse_status === 'failed'" :disabled="actionLoading" @click="retryParse">重试解析</button><button v-if="document.index_status === 'failed' || document.index_status === 'outdated'" :disabled="actionLoading" @click="retryIndex">重试索引</button></div><StatePanel v-if="summary" title="真实内容摘要" :description="`共 ${summary.page_count} 页，${summary.character_count} 个字符。`"><p v-if="summary.is_scanned">扫描件 PDF：暂不支持 OCR。</p><p v-else>章节：{{ summary.section_headings.join(' · ') || '未解析到章节' }}</p></StatePanel><StatePanel v-if="document.error_message" title="处理错误" :description="document.error_message"/><StatePanel title="原文件安全说明" description="删除索引或系统记录不会删除原始文件；“打开原文件”能力尚未接入。"/></template></main></template>
-<style scoped>.detail{max-width:1080px;margin:auto;padding:2.2rem 1.5rem}.back{color:var(--color-primary);font-weight:750;text-decoration:none}.detail-header{display:flex;justify-content:space-between;gap:1rem;margin:1.5rem 0}.eyebrow{margin:0;color:var(--color-primary);font-weight:900;font-size:.72rem;letter-spacing:.12em}.detail h1{max-width:760px;overflow-wrap:anywhere;color:var(--text-primary)}.detail-header p:not(.eyebrow){color:var(--text-muted)}.unavailable{align-self:start;padding:.35rem .55rem;border-radius:99px;background:var(--color-warning-soft);color:var(--color-warning);font-size:.75rem;font-weight:800;white-space:nowrap}.metadata{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:1.4rem 0;background:var(--border-subtle);border:1px solid var(--border-subtle)}.metadata div{display:grid;gap:.45rem;padding:1rem;background:var(--paper);color:var(--text-muted)}.metadata strong{color:var(--text-primary)}.actions{display:flex;gap:.6rem;margin-bottom:1rem}.actions button{border:0;border-radius:8px;padding:.6rem .85rem;background:var(--color-primary);color:#fff;font:inherit}@media(max-width:700px){.detail{padding:1rem}.detail-header{flex-direction:column}.metadata{grid-template-columns:repeat(2,1fr)}}</style>
+
+<template>
+  <main class="detail-page">
+    <RouterLink class="back-link" to="/documents">← 返回文档库</RouterLink>
+
+    <StatePanel
+      v-if="loading"
+      title="正在读取文档状态"
+      description="正在加载真实的本地文档记录。"
+    />
+    <StatePanel v-else-if="error" title="文档不可用" :description="error">
+      <button class="retry-button" @click="load">重试</button>
+    </StatePanel>
+    <div v-else-if="document" class="detail-layout">
+      <div class="primary-column">
+        <DocumentPreviewPanel
+          :preview="preview"
+          :document="document"
+          :loading="previewLoading"
+          :error-message="previewError"
+          @retry="loadPreview"
+        />
+      </div>
+      <aside class="sidebar">
+        <DocumentDetailOverview
+          :document="document"
+          :action-loading="actionLoading"
+          @retry-parse="retryParse"
+          @retry-index="retryIndex"
+        />
+        <DocumentOcrPanel
+          :document-id="document.id"
+          :is-scanned="document.parsed_is_scanned === true"
+          @completed="load"
+        />
+        <StatePanel
+          v-if="summary"
+          title="真实内容摘要"
+          :description="`共 ${summary.page_count} 页，${summary.character_count} 个字符。`"
+        >
+          <p v-if="summary.is_scanned">扫描件 PDF：可在支持时发起 OCR。</p>
+          <p v-else>章节：{{ summary.section_headings.join(' · ') || '未解析到章节' }}</p>
+        </StatePanel>
+        <StatePanel
+          v-if="document.error_message"
+          title="处理错误"
+          :description="document.error_message"
+        />
+      </aside>
+    </div>
+  </main>
+</template>
+
+<style scoped>
+.detail-page { width: min(100% - 2rem, 1280px); margin: 0 auto; padding: 2rem 0 2.8rem; }
+.back-link { color: var(--color-primary); font-weight: 750; text-decoration: none; }
+.detail-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr); gap: 1.25rem; margin-top: 1.25rem; align-items: start; }
+.primary-column, .sidebar { min-width: 0; }
+.sidebar { display: grid; gap: 1rem; }
+.retry-button { border: 1px solid var(--border-strong); border-radius: 7px; padding: .45rem .7rem; background: var(--paper); color: var(--text-primary); font: inherit; }
+@media (max-width: 860px) { .detail-page { width: min(100% - 1.5rem, 760px); padding-top: 1rem; }.detail-layout { grid-template-columns: 1fr; }.sidebar { order: -1; } }
+</style>

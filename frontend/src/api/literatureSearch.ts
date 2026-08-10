@@ -140,7 +140,7 @@ export interface DuplicateGroup { id: number; trigger_task_id: number; match_met
 export interface DuplicateGroupList { items: DuplicateGroup[]; }
 export interface DuplicateResolveRequest { action: DuplicateResolutionAction; canonical_result_id?: number; canonical_record_pmid?: string; resolved_by?: string; }
 export type FulltextStatus = "metadata_only" | "local_pdf_available" | "open_access_available" | "unavailable";
-export interface LibraryItem { id: number; pmid: string; doi: string | null; title: string | null; journal: string | null; year: number | null; document_id: number | null; source_search_id: number; fulltext_status: FulltextStatus; fulltext_status_reason: string; created_at: string; updated_at: string; }
+export interface LibraryItem { id: number; pmid: string; pmcid: string | null; doi: string | null; title: string | null; journal: string | null; year: number | null; document_id: number | null; source_search_id: number; fulltext_status: FulltextStatus; fulltext_status_reason: string; created_at: string; updated_at: string; }
 // ---------------------------------------------------------------------------
 // R2-WP08 推荐阅读顺序
 // ---------------------------------------------------------------------------

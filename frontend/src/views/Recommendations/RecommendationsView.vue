@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRecommendations } from "../../composables/useRecommendations";
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
 
 const query = ref("");
 const candidateCount = ref(5);
@@ -14,7 +15,7 @@ async function submit() {
 
 <template>
   <main class="recommendation-page">
-    <header class="recommendation-header">
+    <header v-if="!props.embedded" class="recommendation-header">
       <div>
         <p class="eyebrow">EVIDENCE-LED RECOMMENDATION</p>
         <h1>从真实文献开始，找到值得读的方向</h1>

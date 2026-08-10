@@ -1,12 +1,18 @@
 <script setup lang="ts">
 // 顶部栏：左侧项目名 + 项目切换；右侧仅保留搜索与跳转、任务铃铛、账户头像。
 // 不含问候语、第二个内容搜索框或系统/模型状态展示。
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import { literatureSearchApi } from "../../api/literatureSearch";
 
-// 可替换的临时默认项目名：后续接入项目上下文后改为真实项目。
-// 不绑定任何具体病种或药物，保持通用科研语境。
-const projectName = "示例研究项目";
+const route = useRoute();
+
+// 顶部上下文跟随当前一级工作空间。文献检索的中心、结果、历史页面
+// 共用同一份 route meta，因此不会再显示为“工作台”。
+const workspaceName = computed(() => {
+  const feature = route.meta.feature as { label?: string } | undefined;
+  return feature?.label ?? "工作台";
+});
 
 // 任务铃铛数字：真实进行中（pending/running/failed）任务数。
 const activeTaskCount = ref(0);
@@ -34,7 +40,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   <header class="topbar">
     <button class="mobile-menu" aria-label="打开导航" @click="emit('openMenu')">☰</button>
     <div class="project">
-      <span class="project-crumb">工作台 / {{ projectName }}</span>
+      <span class="project-crumb">{{ workspaceName }}</span>
       <button class="switch-project" aria-label="切换项目">▾</button>
     </div>
     <div class="tools">

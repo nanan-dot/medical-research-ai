@@ -68,6 +68,7 @@ class LibraryItemService:
             document_id = None
         item = LibraryItem(
             pmid=citation.pmid,
+            pmcid=None,
             doi=doi,
             title=citation.title,
             journal=citation.journal,

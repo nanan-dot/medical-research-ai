@@ -9,6 +9,10 @@ from app.modules.citation_check.router import router as citation_check_router
 from app.modules.comparison.router import router as comparison_router
 from app.modules.conversation.router import router as conversation_router
 from app.modules.document.router import router as document_router
+from app.modules.document_annotation.router import router as document_annotation_router
+from app.modules.document_ocr.router import router as document_ocr_router
+from app.modules.document_preview.router import router as document_preview_router
+from app.modules.document_upload.router import router as document_upload_router
 from app.modules.evaluation.router import router as evaluation_router
 from app.modules.evidence_analysis.router import router as evidence_analysis_router
 from app.modules.evidence_matrix.router import router as evidence_matrix_router
@@ -59,6 +63,10 @@ api_router.include_router(health_router, tags=["健康检查"])
 api_router.include_router(model_config_router, tags=["模型配置"])
 api_router.include_router(knowledge_source_router, tags=["知识源"])
 api_router.include_router(document_router, tags=["文档"])
+api_router.include_router(document_annotation_router)
+api_router.include_router(document_ocr_router)
+api_router.include_router(document_preview_router)
+api_router.include_router(document_upload_router)
 api_router.include_router(conversation_router, tags=["会话"])
 api_router.include_router(paper_analysis_router, tags=["论文分析"])
 api_router.include_router(literature_search_router, tags=["文献检索"])

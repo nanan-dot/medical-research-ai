@@ -4,7 +4,7 @@
 // → build-query（构建检索式）→ createTask（执行检索）。所有数据来自真实后端，
 // 不伪造检索完成/论文数量/进度。空态与禁用态诚实表达能力边界。
 import { computed, reactive, shallowRef } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { useQueryIntent } from "../../composables/useQueryIntent";
 import { useSearchTerms } from "../../composables/useSearchTerms";
 import LiteratureWorkspaceTabs from "./LiteratureWorkspaceTabs.vue";
@@ -12,9 +12,11 @@ import SearchStrategyBuilder from "./SearchStrategyBuilder.vue";
 import SearchDraftPanel from "./SearchDraftPanel.vue";
 import SourceScopePanel from "./SourceScopePanel.vue";
 import SearchReadinessPanel from "./SearchReadinessPanel.vue";
+import ResultsView from "./ResultsView.vue";
+import History from "./History.vue";
+import RecommendationsView from "../Recommendations/RecommendationsView.vue";
 
 const route = useRoute();
-const router = useRouter();
 
 const { parsed, candidate, loading: intentLoading, error: intentError, parse, updateCandidate } = useQueryIntent();
 const { expanded, result, loading: termsLoading, error: termsError, taskLoading, taskError, expand, build, createTask } = useSearchTerms();
@@ -23,6 +25,8 @@ const topic = shallowRef("");
 // PICO 受控状态：reactive 保证子组件 emit 后响应式更新。
 const pico = reactive({ population: "", intervention: "", comparison: "", outcome: "" });
 const selectedSources = shallowRef<string[]>(["pubmed"]);
+const activeTab = shallowRef<"center" | "results" | "history" | "recommendations">("center");
+const activeResult = shallowRef<{ resultId: number; taskId: number } | null>(null);
 
 const loading = computed(() => intentLoading.value || termsLoading.value);
 const error = computed(() => intentError.value || termsError.value);
@@ -88,8 +92,7 @@ function copyQuery(): void {
   if (result.value) void window.navigator.clipboard?.writeText(result.value.boolean_query);
 }
 
-// 执行检索：真实 createTask（调用后端 PubMed 检索），成功后跳转结果页。
-// 与工作台研究起点的四步流程一致：解析→扩展→构建→创建。
+// 执行检索：真实 createTask（调用后端 PubMed 检索），成功后在本页面切换至结果展示。
 async function runSearch(): Promise<void> {
   if (!result.value || !parsed.value) return;
   const task = await createTask({
@@ -102,7 +105,8 @@ async function runSearch(): Promise<void> {
     retmax: parsed.value.candidate.retmax || 20,
   });
   if (task !== null && task.latest_result_id !== null) {
-    await router.push(`/literature-search/results/${task.latest_result_id}`);
+    activeResult.value = { resultId: task.latest_result_id, taskId: task.id };
+    activeTab.value = "results";
   }
 }
 
@@ -121,18 +125,23 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query));
       <p class="page-copy">从临床问题出发，建立可复用、可追溯的检索策略。</p>
     </header>
 
-    <LiteratureWorkspaceTabs />
+    <LiteratureWorkspaceTabs
+      :active-tab="activeTab"
+      @select="activeTab = $event"
+      @select-result="activeResult = $event"
+    />
 
-    <SearchStrategyBuilder
+    <template v-if="activeTab === 'center'">
+      <SearchStrategyBuilder
       :loading="loading"
       :error="error"
       :has-candidate="Boolean(candidate)"
       :pico="pico"
       @submit="handleSubmit"
       @pico-change="handlePicoChange"
-    />
+      />
 
-    <div class="workspace-columns">
+      <div class="workspace-columns">
       <SearchDraftPanel
         :expanded="expanded"
         :result="result"
@@ -141,9 +150,9 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query));
         @copy="copyQuery"
       />
       <SourceScopePanel @change="handleSourceChange" />
-    </div>
+      </div>
 
-    <SearchReadinessPanel
+      <SearchReadinessPanel
       :topic-filled="topicFilled"
       :pico-filled="picoFilled"
       :source-selected="sourceSelected"
@@ -153,7 +162,18 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query));
       :has-candidate="Boolean(candidate)"
       @save-draft="saveDraft"
       @run-search="runSearch"
+      />
+    </template>
+
+    <ResultsView
+      v-else-if="activeTab === 'results' && activeResult"
+      :key="activeResult.resultId"
+      embedded
+      :result-id="activeResult.resultId"
+      :task-id="activeResult.taskId"
     />
+    <History v-else-if="activeTab === 'history'" embedded />
+    <RecommendationsView v-else-if="activeTab === 'recommendations'" embedded />
   </main>
 </template>
 

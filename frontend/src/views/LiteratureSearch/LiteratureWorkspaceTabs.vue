@@ -1,33 +1,46 @@
 <script setup lang="ts">
-// 文献检索工作空间内的局部二级导航：检索中心 / 结果 / 历史 / 推荐阅读。
-// 只作用于本工作空间，不进入左侧全局导航；结果页仅在存在有效结果时可用。
-import { useRoute, useRouter } from "vue-router";
+// 文献检索工作空间内的局部二级导航：检索中心 / 结果展示 / 历史记录 / 推荐阅读。
+// 只作用于本工作空间，不进入左侧全局导航；结果页只链接至真实已有的检索结果。
+import { onMounted, ref } from "vue";
+import { literatureSearchApi } from "../../api/literatureSearch";
 
-const route = useRoute();
-const router = useRouter();
+const props = defineProps<{ activeTab: "center" | "results" | "history" | "recommendations" }>();
+const emit = defineEmits<{
+  select: [tab: "center" | "results" | "history" | "recommendations"];
+  "select-result": [result: { resultId: number; taskId: number }];
+}>();
+const latestResult = ref<{ resultId: number; taskId: number } | null>(null);
 
 const tabs = [
-  { key: "center", label: "检索中心", to: "/literature-search", exact: true },
-  // 结果：无最近检索结果时禁用（跳转到检索中心引导先开始检索）
-  { key: "results", label: "结果", to: "", exact: false, requiresResult: true },
-  { key: "history", label: "历史", to: "/literature-search/history", exact: false },
-  { key: "recommendations", label: "推荐阅读", to: "/recommendations", exact: false },
+  { key: "center", label: "检索中心" },
+  { key: "results", label: "结果展示", requiresResult: true },
+  { key: "history", label: "历史记录" },
+  { key: "recommendations", label: "推荐阅读" },
 ] as const;
 
-function isActive(tab: (typeof tabs)[number]): boolean {
-  if (tab.key === "center") return route.path === "/literature-search";
-  if (tab.key === "history") return route.path.startsWith("/literature-search/history");
-  if (tab.key === "recommendations") return route.path.startsWith("/recommendations");
-  return route.path.startsWith("/literature-search/results");
-}
+onMounted(async () => {
+  try {
+    const page = await literatureSearchApi.listTasks(0, 50);
+    const task = page.items.find((item) => item.status === "succeeded" && item.latest_result_id !== null);
+    if (task?.latest_result_id !== null && task?.latest_result_id !== undefined) {
+      latestResult.value = { resultId: task.latest_result_id, taskId: task.id };
+    }
+  } catch {
+    // 保持不可用状态：不能在接口失败时伪造一个结果页地址。
+    latestResult.value = null;
+  }
+});
 
 function openTab(tab: (typeof tabs)[number]): void {
-  // 结果页需要有效结果；没有时安全引导回检索中心，不伪造结果入口。
+  // 在固定的文献检索工作区内切换内容；不跳转到另一张页面。
   if (tab.key === "results") {
-    router.push("/literature-search");
+    if (latestResult.value) {
+      emit("select-result", latestResult.value);
+      emit("select", "results");
+    }
     return;
   }
-  if (tab.to) router.push(tab.to);
+  emit("select", tab.key);
 }
 </script>
 
@@ -38,9 +51,10 @@ function openTab(tab: (typeof tabs)[number]): void {
       :key="tab.key"
       type="button"
       class="workspace-tab"
-      :class="{ active: isActive(tab) }"
-      :aria-current="isActive(tab) ? 'page' : undefined"
-      :aria-label="tab.key === 'results' ? '结果（需先完成一次检索）' : tab.label"
+      :class="{ active: props.activeTab === tab.key, disabled: tab.key === 'results' && !latestResult && props.activeTab !== 'results' }"
+      :aria-current="props.activeTab === tab.key ? 'page' : undefined"
+      :aria-disabled="tab.key === 'results' && !latestResult && props.activeTab !== 'results' ? 'true' : undefined"
+      :title="tab.key === 'results' && !latestResult && props.activeTab !== 'results' ? '完成一次检索后可查看结果展示' : undefined"
       @click="openTab(tab)"
     >
       {{ tab.label }}
@@ -78,5 +92,13 @@ function openTab(tab: (typeof tabs)[number]): void {
   background: var(--color-primary-soft, #eff6ff);
   color: var(--color-primary, #2563eb);
   font-weight: 600;
+}
+.workspace-tab.disabled {
+  color: var(--text-faint, #94a3b8);
+  cursor: not-allowed;
+}
+.workspace-tab.disabled:hover {
+  background: transparent;
+  color: var(--text-faint, #94a3b8);
 }
 </style>

@@ -10,7 +10,13 @@ afterEach(() => vi.restoreAllMocks());
 function stubSearchChain(router: ReturnType<typeof createRouter>) {
   const fetchMock = vi
     .fn()
-    // 1. parse-query
+    // 1. 文献检索二级导航读取最近结果（空列表表示不展示伪造结果入口）
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [], total: 0, offset: 0, limit: 50 }),
+    })
+    // 2. parse-query
     .mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -25,7 +31,7 @@ function stubSearchChain(router: ReturnType<typeof createRouter>) {
         },
       }),
     })
-    // 2. expand-terms
+    // 3. expand-terms
     .mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -36,7 +42,7 @@ function stubSearchChain(router: ReturnType<typeof createRouter>) {
         user_edits: {},
       }),
     })
-    // 3. build-query
+    // 4. build-query
     .mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -47,7 +53,7 @@ function stubSearchChain(router: ReturnType<typeof createRouter>) {
         user_edits: {},
       }),
     })
-    // 4. create-task（POST /literature-search）
+    // 5. create-task（POST /literature-search）
     .mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -88,7 +94,8 @@ test("shows workspace title, tabs, and empty strategy state", async () => {
   const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
   expect(wrapper.text()).toContain("文献检索");
   expect(wrapper.text()).toContain("检索中心");
-  expect(wrapper.text()).toContain("历史");
+  expect(wrapper.text()).toContain("结果展示");
+  expect(wrapper.text()).toContain("历史记录");
   expect(wrapper.text()).toContain("推荐阅读");
   // 未生成检索式时显示诚实空状态
   expect(wrapper.text()).toContain("完善研究问题后生成检索式草案");
@@ -127,11 +134,14 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
   await searchButton!.trigger("click");
   await flushPromises();
 
-  expect(fetchMock).toHaveBeenLastCalledWith(
+  expect(fetchMock).toHaveBeenCalledWith(
     "/api/v1/literature-search",
     expect.objectContaining({ method: "POST" }),
   );
-  expect(router.currentRoute.value.path).toBe("/literature-search/results/201");
+  // 成功后保留文件 3 的固定标题与页签，仅在下方切换至内嵌结果内容。
+  expect(wrapper.text()).toContain("文献检索");
+  expect(wrapper.text()).toContain("检索中心");
+  expect(wrapper.text()).toContain("结果展示");
 });
 
 test("rejects empty topic without calling the API", async () => {
@@ -147,5 +157,8 @@ test("rejects empty topic without calling the API", async () => {
   const generateButton = wrapper.findAll("button").find((b) => b.text().includes("生成检索式"));
   expect((generateButton!.element as HTMLButtonElement).disabled).toBe(true);
   await wrapper.find("form").trigger("submit");
-  expect(fetchMock).not.toHaveBeenCalled();
+  // 初始挂载会读取一次历史任务以确定“结果展示”的真实目标；空输入不会产生检索请求。
+  await flushPromises();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchMock).toHaveBeenCalledWith("/api/v1/literature-search?offset=0&limit=50", undefined);
 });

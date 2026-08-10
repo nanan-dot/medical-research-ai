@@ -17,6 +17,18 @@ class Settings(BaseSettings):
 
     DATA_DIR: Path = Path("./data")
     UPLOAD_DIR: Path = Path("./uploads")
+    MAX_UPLOAD_PDF_BYTES: int = 50 * 1024 * 1024
+    MAX_DOCX_PREVIEW_BYTES: int = 10 * 1024 * 1024
+    OCR_OUTPUT_DIR: Path = Path("./data/ocr")
+    OCR_LANGUAGE: str = "eng"
+    OCR_MAX_PAGES: int = 50
+    OCR_RENDER_SCALE: float = 2.0
+    TESSERACT_COMMAND: str = ""
+    OPEN_FULLTEXT_DIR: Path = Path("./data/open_fulltext")
+    MAX_OPEN_FULLTEXT_PDF_BYTES: int = 100 * 1024 * 1024
+    PMC_REQUEST_TIMEOUT_SECONDS: float = 30.0
+    PMC_DOWNLOAD_TIMEOUT_SECONDS: float = 90.0
+    PMC_CONTACT_EMAIL: str = ""
     PAPERQA_INDEX_DIR: Path = Path("./data/paperqa_index")
     NOTES_INDEX_DIR: Path = Path("./data/notes_index")
     EXPORT_DIR: Path = Path("./data/exports")

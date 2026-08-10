@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { shallowRef } from "vue";
 import { literatureSearchApi, type LibraryItem } from "../../api/literatureSearch";
+import OpenAccessFulltextPanel from "./OpenAccessFulltextPanel.vue";
 
 const props = defineProps<{ resultId: number; pmid: string; disabled: boolean }>();
 const emit = defineEmits<{ saved: [item: LibraryItem] }>();
 const saving = shallowRef(false);
 const error = shallowRef("");
+const savedItem = shallowRef<LibraryItem | null>(null);
 
 async function save(): Promise<void> {
   saving.value = true; error.value = "";
-  try { emit("saved", await literatureSearchApi.saveToLibrary(props.resultId, props.pmid)); }
+  try {
+    const item = await literatureSearchApi.saveToLibrary(props.resultId, props.pmid);
+    savedItem.value = item;
+    emit("saved", item);
+  }
   catch (caught) { error.value = caught instanceof Error ? caught.message : "保存到本地知识库失败"; }
   finally { saving.value = false; }
 }
@@ -19,6 +25,7 @@ async function save(): Promise<void> {
   <span class="save-library">
     <button class="button" :disabled="disabled || saving" @click="save">{{ saving ? "保存中…" : "加入知识库" }}</button>
     <small v-if="error" class="error" role="alert">{{ error }}</small>
+    <OpenAccessFulltextPanel v-if="savedItem" :item="savedItem" @updated="savedItem = $event" />
   </span>
 </template>
 

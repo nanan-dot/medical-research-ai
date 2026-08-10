@@ -35,7 +35,7 @@ function isSelected(documentId: number) {
         <tr v-for="document in documents" :key="document.id">
           <td><input :aria-label="`选择文档 ${document.id}`" type="checkbox" :checked="isSelected(document.id)" :disabled="disabled" @change="emit('toggleSelect', document.id, ($event.target as HTMLInputElement).checked)" /></td>
           <td>
-            <RouterLink class="file-name" :to="`/documents/${document.id}`">{{ document.file_path }}</RouterLink>
+            <RouterLink class="file-name" :to="`/documents/${document.id}`">{{ document.original_filename ?? document.file_path }}</RouterLink>
             <span class="file-meta">{{ document.file_size }} bytes · 已重试 {{ document.retry_count }} 次</span>
             <span v-if="document.error_message" class="error-text" role="alert">{{ document.error_code }} · {{ document.error_message }}</span>
           </td>

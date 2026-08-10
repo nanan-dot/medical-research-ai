@@ -9,13 +9,15 @@ import { useLiteratureResults } from "../../composables/useLiteratureResults";
 import LiteratureFilters from "../../components/LiteratureFilters/LiteratureFilters.vue";
 import PaperResults from "../../components/PaperResults/PaperResults.vue";
 
+const props = withDefaults(defineProps<{ resultId?: number; taskId?: number; embedded?: boolean }>(), { embedded: false });
 const route = useRoute();
-const resultId = Number(route.params.id);
+const resultId = props.resultId ?? Number(route.params.id);
 // 去重接口期望的是任务 id（task），而结果页 id 来自 latest_result_id（result）。
 // History 跳转时带 ?task= 参数，优先用它调去重；缺失时退回 resultId（兼容直接访问）。
-const taskId = route.query.task !== undefined && !Array.isArray(route.query.task)
+const routeTaskId = route.query.task !== undefined && !Array.isArray(route.query.task)
   ? Number(route.query.task)
   : resultId;
+const taskId = props.taskId ?? routeTaskId;
 const duplicateGroups = shallowRef<DuplicateGroup[]>([]);
 const deduplicating = shallowRef(false);
 const deduplicationError = shallowRef("");
@@ -90,7 +92,7 @@ const {
 
 <template>
   <main class="results-view">
-    <header class="page-header">
+    <header v-if="!props.embedded" class="page-header">
       <p class="eyebrow">LITERATURE RESULTS · LIVE</p>
       <h1 class="page-title">检索结果 · 任务 #{{ resultId }}</h1>
       <p v-if="page" class="page-copy">检索式：{{ page.query }}。结果来自真实 PubMed 检索快照；本页只展示服务端已返回的数据。</p>

@@ -46,6 +46,8 @@ class DocumentRead(BaseModel):
     id: int
     knowledge_source_id: int
     file_path: str
+    original_filename: str | None = None
+    media_type: str | None = None
     file_hash: str
     file_size: int
     modified_time: datetime
@@ -61,6 +63,7 @@ class DocumentRead(BaseModel):
     paperqa_version: str | None
     indexed_hash: str | None
     index_error: str | None
+    parsed_is_scanned: bool | None
 
 
 class DocumentPage(BaseModel):

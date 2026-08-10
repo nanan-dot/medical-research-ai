@@ -12,6 +12,9 @@ from app.modules.ai_disclosure.model import AIUsageEvent, DisclosureDraft  # noq
 from app.modules.comparison.model import ComparisonCell, ComparisonTask  # noqa: F401
 from app.modules.conversation.model import Conversation
 from app.modules.document.model import Document
+from app.modules.document_annotation.model import DocumentAnnotation
+from app.modules.document_ocr.model import DocumentOcrJob, DocumentOcrPage
+from app.modules.document_upload.model import DocumentAsset
 from app.modules.evaluation.model import (
     Evaluation,
     EvaluationRunRecord,
@@ -29,6 +32,7 @@ from app.modules.feedback.model import Feedback
 from app.modules.health.model import Health
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.library_item.model import LibraryItem
+from app.modules.library_item.open_fulltext_model import OpenFulltextAcquisition
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,
     LiteratureDuplicateGroupMember,
@@ -66,6 +70,10 @@ from app.modules.writing_project.model import (  # noqa: F401
 __all__ = [
     "Conversation",
     "Document",
+    "DocumentAnnotation",
+    "DocumentOcrJob",
+    "DocumentOcrPage",
+    "DocumentAsset",
     "Evaluation",
     "EvaluationRunRecord",
     "EvaluationRunResult",
@@ -74,6 +82,7 @@ __all__ = [
     "Health",
     "KnowledgeSource",
     "LibraryItem",
+    "OpenFulltextAcquisition",
     "LiteratureDuplicateGroup",
     "LiteratureDuplicateGroupMember",
     "LiteratureDuplicateResolution",

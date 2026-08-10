@@ -5,6 +5,8 @@ export interface DocumentRecord {
   id: number;
   knowledge_source_id: number;
   file_path: string;
+  original_filename: string | null;
+  media_type: string | null;
   file_hash: string;
   file_size: number;
   modified_time: string;
@@ -16,6 +18,7 @@ export interface DocumentRecord {
   retry_count: number;
   started_at: string | null;
   finished_at: string | null;
+  parsed_is_scanned: boolean | null;
 }
 
 export interface DocumentPage {

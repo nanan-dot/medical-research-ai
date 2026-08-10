@@ -2,14 +2,18 @@
 import { computed, onMounted, shallowRef } from "vue";
 import { documentsApi, type BatchIndexResult } from "../../api/documents";
 import { useDocuments } from "../../composables/useDocuments";
+import { useDocumentUpload } from "../../composables/useDocumentUpload";
 import DocumentFilters from "./DocumentFilters.vue";
 import DocumentTable from "./DocumentTable.vue";
+import DocumentUploadPanel from "./DocumentUploadPanel.vue";
 
 const { documents, filters, total, loading, error, pageNumber, hasPrevious, hasNext, load, applyFilters, retryParse, retryIndex, deleteIndex, previousPage, nextPage } = useDocuments();
 const selectedIds = shallowRef<number[]>([]);
 const batchResult = shallowRef<BatchIndexResult | null>(null);
 const batchError = shallowRef<string | null>(null);
+const { uploading, error: uploadError, uploadedFilename, upload } = useDocumentUpload();
 const canBatchIndex = computed(() => selectedIds.value.length > 0 && !loading.value);
+const requestError = computed(() => error.value ?? batchError.value ?? uploadError.value);
 
 function toggleSelect(documentId: number, selected: boolean) {
   selectedIds.value = selected ? [...new Set([...selectedIds.value, documentId])] : selectedIds.value.filter((id) => id !== documentId);
@@ -27,16 +31,21 @@ async function batchIndex() {
   }
 }
 
+async function uploadPdf(file: File): Promise<void> {
+  if (await upload(file)) await load();
+}
+
 onMounted(load);
 </script>
 
 <template>
   <section class="manager" aria-labelledby="documents-title">
     <header class="manager-header"><div><p class="eyebrow">DOCUMENT PIPELINE · LIVE</p><h2 id="documents-title">文档库</h2></div><p class="summary">{{ total }} 篇系统记录</p></header>
+    <DocumentUploadPanel :uploading="uploading" :error-message="uploadError" :uploaded-filename="uploadedFilename" @upload="uploadPdf" />
     <DocumentFilters :filters="filters" :disabled="loading" @change="applyFilters" />
     <div v-if="selectedIds.length" class="bulk-bar"><span>已选择 {{ selectedIds.length }} 篇</span><button :disabled="!canBatchIndex" @click="batchIndex">批量建立索引</button></div>
     <p v-if="batchResult" class="batch-result">批量请求完成：{{ batchResult.succeeded }} 成功，{{ batchResult.failed }} 失败。请以列表状态为准。</p>
-    <p v-if="error || batchError" class="request-error" role="alert">{{ error ?? batchError }}</p>
+    <p v-if="requestError" class="request-error" role="alert">{{ requestError }}</p>
     <DocumentTable :documents="documents" :disabled="loading" :selected-ids="selectedIds" @toggle-select="toggleSelect" @retry-parse="retryParse" @retry-index="retryIndex" @delete-index="deleteIndex" />
     <footer class="pagination"><button :disabled="loading || !hasPrevious" @click="previousPage">上一页</button><span>第 {{ pageNumber }} 页</span><button :disabled="loading || !hasNext" @click="nextPage">下一页</button></footer>
   </section>

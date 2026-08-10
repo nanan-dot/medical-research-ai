@@ -60,4 +60,68 @@ describe("DocumentManager", () => {
     await flushPromises();
     expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("parse_status=failed");
   });
+
+  it("uploads a PDF and reloads the document list", async () => {
+    const uploadedDocument = {
+      ...failedDocument,
+      id: 12,
+      file_path: "documents/managed.pdf",
+      original_filename: "uploaded.pdf",
+      media_type: "application/pdf",
+      parse_status: "pending",
+      index_status: "pending",
+      error_code: null,
+      error_message: null,
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [], total: 0, offset: 0, limit: 20 })),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            document: uploadedDocument,
+            asset: {
+              id: 1,
+              asset_kind: "upload",
+              original_filename: "uploaded.pdf",
+              stored_relative_path: "documents/managed.pdf",
+              media_type: "application/pdf",
+              byte_size: 512,
+              sha256: "a".repeat(64),
+              processing_status: "pending_parse",
+              created_at: "2026-08-10T00:00:00Z",
+            },
+            auto_parse_started: false,
+            parse_trigger_url: "/api/v1/documents/12/parse",
+          }),
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ items: [uploadedDocument], total: 1, offset: 0, limit: 20 }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const wrapper = mount(DocumentManager, {
+      global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
+    });
+    await flushPromises();
+
+    const input = wrapper.get(".upload-panel input[type=file]").element as HTMLInputElement;
+    const pdf = new File(["%PDF-1.7"], "uploaded.pdf", { type: "application/pdf" });
+    Object.defineProperty(input, "files", { configurable: true, value: [pdf] });
+    await wrapper.get(".upload-panel input[type=file]").trigger("change");
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/document-uploads",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/api/v1/documents?");
+    expect(wrapper.text()).toContain("uploaded.pdf");
+  });
 });

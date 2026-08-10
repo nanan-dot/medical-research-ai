@@ -19,6 +19,9 @@ class LibraryItem(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     pmid: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    pmcid: Mapped[str | None] = mapped_column(
+        Text, nullable=True, unique=True, index=True
+    )
     doi: Mapped[str | None] = mapped_column(
         Text, nullable=True, unique=True, index=True
     )

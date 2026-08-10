@@ -26,6 +26,7 @@ class LibraryItemRead(BaseModel):
 
     id: int
     pmid: str
+    pmcid: str | None
     doi: str | None
     title: str | None
     journal: str | None
