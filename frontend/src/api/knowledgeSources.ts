@@ -5,9 +5,17 @@ export interface SyncSummary {
   knowledge_source_id: number; sync_status: SyncStatus; last_sync_time: string | null;
   added: number; modified: number; deleted: number; skipped: number; failed: number; error_message: string | null;
 }
+export interface KnowledgeSourceStats {
+  total_files: number;
+  parsed: number;
+  indexed: number;
+  pending: number;
+  failed: number;
+}
 export interface KnowledgeSource {
   id: number; name: string; source_type: KnowledgeSourceType; root_path: string; enabled: boolean;
   sync_status: SyncStatus; last_sync_time: string | null; error_message: string | null;
+  stats: KnowledgeSourceStats;
 }
 export interface CreateKnowledgeSource { name: string; source_type: KnowledgeSourceType; root_path: string; enabled?: boolean; }
 

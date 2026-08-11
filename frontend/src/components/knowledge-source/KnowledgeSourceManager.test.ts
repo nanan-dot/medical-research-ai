@@ -12,6 +12,7 @@ const source = {
   sync_status: "idle",
   last_sync_time: null,
   error_message: null,
+  stats: { total_files: 3, parsed: 3, indexed: 2, pending: 1, failed: 0 },
 };
 
 afterEach(() => vi.unstubAllGlobals());

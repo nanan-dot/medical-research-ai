@@ -240,7 +240,7 @@ class FaissIndexStore:
     def load(self, index_dir: Path | None = None) -> None:
         """从目录加载索引；维度或格式不匹配时显式抛错提示重建。"""
         target_dir = self.index_dir if index_dir is None else Path(index_dir)
-        embedding_model, stored_dimension = _load_manifest(target_dir)
+        _embedding_model, stored_dimension = _load_manifest(target_dir)
         if stored_dimension != self.dimension:
             raise EmbeddingDimensionMismatchError(
                 f"stored index dimension {stored_dimension} != current embedding dimension "

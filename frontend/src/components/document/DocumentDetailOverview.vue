@@ -33,11 +33,11 @@ const emit = defineEmits<{
 
     <div class="actions">
       <button
-        v-if="props.document.parse_status === 'failed'"
+        v-if="props.document.parse_status === 'failed' || props.document.parse_status === 'pending'"
         :disabled="props.actionLoading"
         @click="emit('retryParse')"
       >
-        重试解析
+        {{ props.document.parse_status === 'pending' ? '开始解析' : '重试解析' }}
       </button>
       <button
         v-if="props.document.index_status === 'failed' || props.document.index_status === 'outdated'"

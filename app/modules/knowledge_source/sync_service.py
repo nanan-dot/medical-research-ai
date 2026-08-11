@@ -1,6 +1,7 @@
 """Incremental synchronization between an authorized directory and document records."""
 
 import asyncio
+import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from app.common.hashing import sha256_file
 from app.modules.document.model import Document
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import DocumentScanState, IndexStatus, ParseStatus
+from app.modules.document.service import DocumentService
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.knowledge_source.scanner import scan_directory
 from app.modules.knowledge_source.schema import (
@@ -20,9 +22,12 @@ from app.modules.knowledge_source.schema import (
 )
 from app.modules.knowledge_source.service import KnowledgeSourceService
 
+logger = logging.getLogger(__name__)
+
 
 class KnowledgeSourceSyncService:
     def __init__(self, session: AsyncSession):
+        self.session = session
         self.source_service = KnowledgeSourceService(session)
         self.document_repo = DocumentRepository(session)
 
@@ -49,6 +54,7 @@ class KnowledgeSourceSyncService:
             "skipped": scan.skipped_duplicates,
             "failed": scan.failures,
         }
+        documents_to_parse: list[int] = []
 
         for path_key, scanned in scan.files.items():
             document = existing.pop(path_key, None)
@@ -69,7 +75,7 @@ class KnowledgeSourceSyncService:
                 scanned.modified_time_ns / 1_000_000_000, UTC
             )
             if document is None:
-                await self.document_repo.create(
+                created = await self.document_repo.create(
                     Document(
                         knowledge_source_id=source.id,
                         file_path=scanned.relative_path,
@@ -83,6 +89,7 @@ class KnowledgeSourceSyncService:
                         index_status=IndexStatus.PENDING.value,
                     )
                 )
+                documents_to_parse.append(created.id)
                 counts["added"] += 1
             elif document.file_hash == file_hash:
                 document.file_size = scanned.file_size
@@ -105,6 +112,7 @@ class KnowledgeSourceSyncService:
                 document.finished_at = None
                 await self.document_repo.save(document)
                 counts["modified"] += 1
+                documents_to_parse.append(document.id)
 
         for path_key, document in existing.items():
             belongs_to_failed_directory = any(
@@ -134,7 +142,24 @@ class KnowledgeSourceSyncService:
             source.sync_status = KnowledgeSourceSyncStatus.COMPLETED.value
             source.error_message = None
         await self.source_service.repo.save(source)
-        return self._summary(source)
+        # 新旧记录必须先提交，解析器才能在独立处理阶段读取完整来源与文档状态。
+        # 顺序执行避免在同一个 AsyncSession 上并发 SQL 操作；单项失败由 parse() 落库，
+        # 不影响其余文件，也不计入同步 failed（failed 仅代表扫描/文件系统层失败，
+        # 解析失败体现在文档 parse_status=failed，由文档库与知识库 stats 呈现）。
+        await self.session.commit()
+        parser = DocumentService(self.session)
+        for document_id in documents_to_parse:
+            try:
+                await parser.parse(document_id)
+            except ConflictError:
+                # parse() 会把解析器错误转换为 ConflictError，同时先把失败详情落库。
+                # 重复触发导致的 pending/parsing 前置校验不是文件解析失败，忽略。
+                pass
+            except Exception:
+                # 非预期基础设施异常不应让同批文件停止；记录完整堆栈供运维排查。
+                logger.exception("knowledge_source_parse_unexpected_error document_id=%s", document_id)
+
+        return self._summary(await self.source_service.get(source_id))
 
     async def status(self, source_id: int) -> KnowledgeSourceSyncSummary:
         return self._summary(await self.source_service.get(source_id))

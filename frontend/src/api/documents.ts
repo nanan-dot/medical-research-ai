@@ -18,6 +18,7 @@ export interface DocumentRecord {
   retry_count: number;
   started_at: string | null;
   finished_at: string | null;
+  paperqa_index_key?: string | null;
   parsed_is_scanned: boolean | null;
 }
 
@@ -33,6 +34,10 @@ export interface ContentSummary { document_id:number; title:string|null; page_co
 export interface DocumentFilters {
   parseStatus: ParseStatus | "";
   indexStatus: IndexStatus | "";
+  knowledgeSourceId?: number | null;
+  query?: string;
+  researchReady?: boolean;
+  previewableOnly?: boolean;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -51,6 +56,10 @@ export const documentsApi = {
     const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
     if (filters.parseStatus) query.set("parse_status", filters.parseStatus);
     if (filters.indexStatus) query.set("index_status", filters.indexStatus);
+    if (filters.knowledgeSourceId != null) query.set("knowledge_source_id", String(filters.knowledgeSourceId));
+    if (filters.query?.trim()) query.set("query", filters.query.trim());
+    if (filters.researchReady) query.set("research_ready", "true");
+    if (filters.previewableOnly) query.set("previewable_only", "true");
     return request<DocumentPage>(`?${query.toString()}`);
   },
   retryParse: (id: number) => request<DocumentRecord>(`/${id}/retry-parse`, { method: "POST" }),

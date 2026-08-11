@@ -10,7 +10,8 @@ const PAGE_SIZE = 20;
 
 export function useDocuments() {
   const documents = ref<DocumentRecord[]>([]);
-  const filters = reactive<DocumentFilters>({ parseStatus: "", indexStatus: "" });
+  // 文档库默认展示知识源下的全部真实文件；证据问答可用性由用户显式筛选。
+  const filters = reactive<DocumentFilters>({ parseStatus: "", indexStatus: "", researchReady: false, knowledgeSourceId: null });
   const total = shallowRef(0);
   const offset = shallowRef(0);
   const loading = shallowRef(false);
@@ -42,6 +43,10 @@ export function useDocuments() {
   async function applyFilters(next: DocumentFilters): Promise<void> {
     filters.parseStatus = next.parseStatus;
     filters.indexStatus = next.indexStatus;
+    filters.knowledgeSourceId = next.knowledgeSourceId ?? null;
+    filters.query = next.query;
+    filters.researchReady = next.researchReady;
+    filters.previewableOnly = next.previewableOnly;
     offset.value = 0;
     await load();
   }
@@ -55,8 +60,16 @@ export function useDocuments() {
     });
   }
 
-  const retryParse = (document: DocumentRecord) =>
-    updateDocument(() => documentsApi.retryParse(document.id));
+  async function retryParse(document: DocumentRecord): Promise<void> {
+    if (document.parse_status !== "pending") {
+      await updateDocument(() => documentsApi.retryParse(document.id));
+      return;
+    }
+    await run(async () => {
+      await documentsApi.parse(document.id);
+      await load();
+    });
+  }
   const retryIndex = (document: DocumentRecord) =>
     updateDocument(() => documentsApi.retryIndex(document.id));
   const deleteIndex = (document: DocumentRecord) =>

@@ -15,7 +15,6 @@ from app.modules.document.parsers.schemas import ParsedDocument, ParsedPage
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import IndexStatus, ParseStatus
 from app.modules.document_ocr.engine import (
-    OcrEngineInfo,
     OcrEngineUnavailableError,
     OcrPageProcessingError,
     TesseractOcrEngine,
@@ -145,7 +144,9 @@ class DocumentOcrRunner:
             pdf_path = await self._previews.get_pdf_path(document.id)
             page_count = await asyncio.to_thread(self._engine.page_count, pdf_path)
             if page_count > settings.OCR_MAX_PAGES:
-                await self._mark_failed(job, "ocr_page_limit_exceeded", "PDF 页数超过 OCR 安全上限")
+                await self._mark_failed(
+                    job, "ocr_page_limit_exceeded", "PDF 页数超过 OCR 安全上限"
+                )
                 return
             job.page_count = page_count
             await self._jobs.save_job(job)
@@ -161,7 +162,9 @@ class DocumentOcrRunner:
             pages = await self._jobs.list_pages(job.id)
             successful_pages = [page for page in pages if page.text is not None]
             if not successful_pages:
-                await self._mark_failed(job, "ocr_no_page_succeeded", "没有页面成功完成 OCR")
+                await self._mark_failed(
+                    job, "ocr_no_page_succeeded", "没有页面成功完成 OCR"
+                )
                 return
             output_path, output_hash = await asyncio.to_thread(
                 persist_ocr_output,
@@ -198,7 +201,9 @@ class DocumentOcrRunner:
         await self._jobs.save_job(job)
         await self._session.commit()
 
-    async def _process_page(self, job: DocumentOcrJob, pdf_path, page_number: int) -> None:
+    async def _process_page(
+        self, job: DocumentOcrJob, pdf_path, page_number: int
+    ) -> None:
         try:
             result = await asyncio.to_thread(
                 self._engine.extract_page,
@@ -235,7 +240,10 @@ class DocumentOcrRunner:
             source_path=f"ocr://document/{document.id}",
             title=document.parsed_title,
             text="\n\n".join(page.text or "" for page in pages),
-            pages=[ParsedPage(page_number=page.page_number, text=page.text or "") for page in pages],
+            pages=[
+                ParsedPage(page_number=page.page_number, text=page.text or "")
+                for page in pages
+            ],
             is_scanned=True,
         )
         document.parsed_content = parsed.model_dump_json()

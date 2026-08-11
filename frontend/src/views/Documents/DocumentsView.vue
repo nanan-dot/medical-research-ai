@@ -9,5 +9,5 @@ import DocumentManager from "../../components/document/DocumentManager.vue";
 </template>
 
 <style scoped>
-.documents-page { width: min(100% - 3rem, 1440px); margin: 0 auto; padding: 1rem 0 2.75rem; display:grid; gap:1rem; }
+.documents-page{width:min(100% - 3rem,1280px);margin:0 auto;padding:10px 0 48px}@media(max-width:700px){.documents-page{width:min(100% - 2rem,1280px)}}
 </style>

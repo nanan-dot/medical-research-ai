@@ -63,7 +63,7 @@ class DocumentRepository:
             research_ready,
             previewable_only,
             knowledge_source_id,
-        ).with_only_columns(func.count()).order_by(None)
+        ).with_only_columns(func.count(Document.id)).order_by(None)
         result = await self.session.execute(statement)
         return result.scalar_one()
 

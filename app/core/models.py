@@ -61,6 +61,7 @@ from app.modules.topic_structuring.model import (
     TopicStructuringVersion,
 )
 from app.modules.writing.model import Writing
+from app.modules.writing_ai.model import WritingAiSuggestion  # noqa: F401
 from app.modules.writing_project.model import (  # noqa: F401
     WritingEvidenceReference,
     WritingGeneratedContent,
@@ -68,6 +69,7 @@ from app.modules.writing_project.model import (  # noqa: F401
     WritingUserMaterial,
     WritingVersion,
 )
+from app.modules.writing_review.model import WritingReview  # noqa: F401
 
 __all__ = [
     "Conversation",

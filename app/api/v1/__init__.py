@@ -10,6 +10,7 @@ from app.modules.comparison.router import router as comparison_router
 from app.modules.conversation.router import router as conversation_router
 from app.modules.document.router import router as document_router
 from app.modules.document_annotation.router import router as document_annotation_router
+from app.modules.document_navigation.router import router as document_navigation_router
 from app.modules.document_ocr.router import router as document_ocr_router
 from app.modules.document_preview.router import router as document_preview_router
 from app.modules.document_upload.router import router as document_upload_router
@@ -49,7 +50,10 @@ from app.modules.research_direction.router import router as research_direction_r
 from app.modules.task.router import router as task_router
 from app.modules.topic_structuring.router import router as topic_structuring_router
 from app.modules.writing.router import router as writing_router
+from app.modules.writing_ai.router import router as writing_ai_router
+from app.modules.writing_coverage.router import router as writing_coverage_router
 from app.modules.writing_project.router import router as writing_project_router
+from app.modules.writing_review.router import router as writing_review_router
 
 api_router = APIRouter()
 api_router.include_router(library_save_router)
@@ -65,6 +69,7 @@ api_router.include_router(health_router, tags=["健康检查"])
 api_router.include_router(model_config_router, tags=["模型配置"])
 api_router.include_router(knowledge_source_router, tags=["知识源"])
 api_router.include_router(document_router, tags=["文档"])
+api_router.include_router(document_navigation_router)
 api_router.include_router(document_annotation_router)
 api_router.include_router(document_ocr_router)
 api_router.include_router(document_preview_router)
@@ -82,6 +87,9 @@ api_router.include_router(advisor_workflow_router)
 api_router.include_router(presentation_router)
 api_router.include_router(outline_router)
 api_router.include_router(writing_project_router)
+api_router.include_router(writing_ai_router)
+api_router.include_router(writing_coverage_router)
+api_router.include_router(writing_review_router)
 api_router.include_router(evidence_writing_router)
 api_router.include_router(ai_disclosure_router)
 api_router.include_router(recommendation_router)
