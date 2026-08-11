@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import builtins
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.modules.document.model import Document
+from app.modules.document_upload.model import DocumentAsset
+
+PARSE_STATUS_SUCCEEDED = "succeeded"
+INDEX_STATUS_SUCCEEDED = "succeeded"
+PDF_MEDIA_TYPES = frozenset({"application/pdf", "application/x-pdf"})
 
 
 class DocumentRepository:
@@ -29,25 +34,65 @@ class DocumentRepository:
         limit: int = 20,
         parse_status: str | None = None,
         index_status: str | None = None,
+        query: str | None = None,
+        research_ready: bool = False,
+        previewable_only: bool = False,
     ) -> list[Document]:
-        statement = select(Document).order_by(Document.id).options(selectinload(Document.asset))
-        if parse_status is not None:
-            statement = statement.where(Document.parse_status == parse_status)
-        if index_status is not None:
-            statement = statement.where(Document.index_status == index_status)
+        statement = self._filtered_statement(
+            parse_status, index_status, query, research_ready, previewable_only
+        ).order_by(Document.id).options(selectinload(Document.asset))
         result = await self.session.execute(statement.offset(offset).limit(limit))
         return list(result.scalars().all())
 
     async def count(
-        self, parse_status: str | None = None, index_status: str | None = None
+        self, parse_status: str | None = None, index_status: str | None = None,
+        query: str | None = None, research_ready: bool = False,
+        previewable_only: bool = False,
     ) -> int:
-        statement = select(func.count()).select_from(Document)
+        statement = self._filtered_statement(
+            parse_status, index_status, query, research_ready, previewable_only
+        ).with_only_columns(func.count()).order_by(None)
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    @staticmethod
+    def _filtered_statement(
+        parse_status: str | None, index_status: str | None, query: str | None,
+        research_ready: bool, previewable_only: bool,
+    ):
+        statement = select(Document)
         if parse_status is not None:
             statement = statement.where(Document.parse_status == parse_status)
         if index_status is not None:
             statement = statement.where(Document.index_status == index_status)
-        result = await self.session.execute(statement)
-        return result.scalar_one()
+        if query is not None or previewable_only:
+            statement = statement.outerjoin(DocumentAsset)
+        if query is not None:
+            escaped_query = DocumentRepository._escape_like(query.casefold())
+            pattern = f"%{escaped_query}%"
+            statement = statement.where(
+                or_(
+                    func.lower(Document.file_path).like(pattern, escape="\\"),
+                    func.lower(DocumentAsset.original_filename).like(pattern, escape="\\"),
+                )
+            )
+        if research_ready:
+            statement = statement.where(
+                Document.parse_status == PARSE_STATUS_SUCCEEDED,
+                Document.index_status == INDEX_STATUS_SUCCEEDED,
+                Document.paperqa_index_key.is_not(None),
+                Document.paperqa_index_key != "",
+            )
+        if previewable_only:
+            # 上传模块只认可这两个 PDF MIME 类型；不按文件扩展名推断可预览性。
+            statement = statement.where(
+                DocumentAsset.media_type.in_(PDF_MEDIA_TYPES)
+            )
+        return statement
+
+    @staticmethod
+    def _escape_like(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
     async def list_by_source(self, knowledge_source_id: int) -> builtins.list[Document]:
         result = await self.session.execute(

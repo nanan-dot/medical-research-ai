@@ -5,6 +5,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+MAX_DOCUMENT_QUERY_LENGTH = 200
+
 
 class DocumentScanState(StrEnum):
     PENDING = "pending"

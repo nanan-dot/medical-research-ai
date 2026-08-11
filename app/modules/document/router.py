@@ -7,6 +7,7 @@ from app.core.database import get_session
 from app.modules.document.index_service import DocumentIndexService
 from app.modules.document.parsers.schemas import ParsedContentSummary
 from app.modules.document.schema import (
+    MAX_DOCUMENT_QUERY_LENGTH,
     BatchIndexRequest,
     BatchIndexResult,
     DocumentIndexResult,
@@ -26,10 +27,13 @@ async def list_document(
     limit: int = Query(default=20, ge=1, le=100),
     parse_status: ParseStatus | None = None,
     index_status: IndexStatus | None = None,
+    query: str | None = Query(default=None, max_length=MAX_DOCUMENT_QUERY_LENGTH),
+    research_ready: bool = False,
+    previewable_only: bool = False,
     session: AsyncSession = Depends(get_session),
 ) -> DocumentPage:
     service = DocumentService(session)
-    return await service.list(offset, limit, parse_status, index_status)
+    return await service.list(offset, limit, parse_status, index_status, query, research_ready, previewable_only)
 
 
 @router.post("/batch-index", response_model=BatchIndexResult)

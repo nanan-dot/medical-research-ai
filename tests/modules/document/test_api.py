@@ -108,3 +108,15 @@ def test_parse_and_content_summary_api(api_context):
     summary = client.get(f"/api/v1/documents/{document_id}/content-summary")
     assert summary.status_code == 200
     assert summary.json() == parsed.json()
+
+
+def test_current_paper_workflow_query_validation_and_missing_results(api_context):
+    client, document_id, _ = api_context
+    assert client.get("/api/v1/documents", params={"query": "x" * 201}).status_code == 422
+    assert client.get("/api/v1/paper-analysis/latest", params={"document_id": 0}).status_code == 422
+    assert client.get("/api/v1/conversations/latest", params={"document_id": 0}).status_code == 422
+
+    analysis = client.get("/api/v1/paper-analysis/latest", params={"document_id": document_id})
+    conversation = client.get("/api/v1/conversations/latest", params={"document_id": document_id})
+    assert analysis.status_code == 404 and analysis.json()["error"]["code"] == "not_found"
+    assert conversation.status_code == 404 and conversation.json()["error"]["code"] == "not_found"

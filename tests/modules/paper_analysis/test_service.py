@@ -1,11 +1,13 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from app.common.exceptions import ConflictError
+from app.common.exceptions import ConflictError, NotFoundError
 from app.integrations.paperqa2 import PaperQAAnswer, PaperSource
 from app.integrations.paperqa2.exceptions import PaperQA2OperationError
+from app.modules.paper_analysis.model import PaperAnalysis
 from app.modules.paper_analysis.prompts import FIELD_NAMES
 from app.modules.paper_analysis.schema import (
     AnalysisStatus,
@@ -151,3 +153,18 @@ async def test_external_failure_is_persisted_without_response_content(
     entity = await service.repo.latest_for_document(document.id)
     assert entity.analysis_status == AnalysisStatus.FAILED.value
     assert entity.error_code == "paperqa2_operation_error"
+
+
+@pytest.mark.asyncio
+async def test_latest_analysis_is_scoped_to_document(session, tmp_path: Path):
+    one = await indexed_document(session, tmp_path)
+    two, _ = await create_document(session, tmp_path / "other", "other.pdf")
+    service = PaperAnalysisService(session)
+    now = datetime.now(UTC)
+    first = await service.repo.create(PaperAnalysis(document_id=one.id, analysis_status="pending", template_version="v1", model_version="test", generation=1, created_at=now, updated_at=now))
+    latest = await service.repo.create(PaperAnalysis(document_id=one.id, analysis_status="pending", template_version="v1", model_version="test", generation=2, created_at=now, updated_at=now))
+    await service.repo.create(PaperAnalysis(document_id=two.id, analysis_status="pending", template_version="v1", model_version="test", generation=1, created_at=now, updated_at=now))
+    assert (await service.latest_for_document(one.id)).id == latest.id
+    assert first.id != latest.id
+    with pytest.raises(NotFoundError):
+        await service.latest_for_document(99999)

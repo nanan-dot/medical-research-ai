@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -27,6 +27,14 @@ async def create_conversation(
     return await ConversationService(session).create(
         request.document_ids, request.title, request.research_context_id
     )
+
+
+@router.get("/latest", response_model=ConversationRead)
+async def get_latest_conversation(
+    document_id: int = Query(ge=1),
+    session: AsyncSession = Depends(get_session),
+) -> ConversationRead:
+    return await ConversationService(session).latest_for_document(document_id)
 
 
 @router.get("/{id}", response_model=ConversationRead)

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from app.common.exceptions import ConflictError
+from app.common.exceptions import ConflictError, NotFoundError
 from app.integrations.paperqa2 import PaperQAAnswer, PaperSource
 from app.integrations.paperqa2.exceptions import PaperQA2OperationError
 from app.modules.conversation.service import MAX_EVIDENCE_LENGTH, ConversationService
@@ -86,3 +86,17 @@ async def test_feedback_is_saved(session, tmp_path):
     answer = await service.ask(conversation.id, "Question")
     rated = await service.feedback(conversation.id, answer.id, 1)
     assert rated.feedback == 1
+
+
+@pytest.mark.asyncio
+async def test_latest_single_document_conversation_excludes_multi_document(session, tmp_path):
+    one = await indexed(session, tmp_path, "one")
+    two = await indexed(session, tmp_path, "two")
+    service = ConversationService(session, client_factory=FakeClient)
+    single = await service.create([one.id])
+    await service.create([one.id, two.id])
+    assert (await service.latest_for_document(one.id)).id == single.id
+    with pytest.raises(NotFoundError):
+        await service.latest_for_document(two.id)
+    with pytest.raises(NotFoundError):
+        await service.latest_for_document(99999)

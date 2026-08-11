@@ -6,6 +6,7 @@ import pytest
 from app.common.exceptions import ConflictError
 from app.modules.document.schema import ParseStatus
 from app.modules.document.service import MAX_ERROR_MESSAGE_LENGTH, DocumentService
+from app.modules.document_upload.model import DocumentAsset
 from tests.modules.document.conftest import create_document
 
 
@@ -98,6 +99,36 @@ async def test_filter_pagination_and_total_are_consistent(session, tmp_path: Pat
     assert page.total == 2
     assert len(page.items) == 1
     assert page.items[0].parse_status == ParseStatus.FAILED
+
+
+@pytest.mark.asyncio
+async def test_selector_filters_query_readiness_and_pdf_media_type(session, tmp_path: Path):
+    ready, _ = await create_document(
+        session, tmp_path / "ready", "Report_100%.pdf", "succeeded", "succeeded"
+    )
+    ready.paperqa_index_key = "ready-index"
+    pending, _ = await create_document(session, tmp_path / "pending", "Report_100x.pdf")
+    no_key, _ = await create_document(
+        session, tmp_path / "no-key", "other.pdf", "succeeded", "succeeded"
+    )
+    await session.flush()
+    session.add_all([
+        DocumentAsset(document_id=ready.id, original_filename="Clinical_Report_100%.pdf", stored_relative_path="ready.pdf", media_type="application/pdf", byte_size=1, sha256="b" * 64),
+        DocumentAsset(document_id=pending.id, original_filename="clinical report 100x.pdf", stored_relative_path="pending.pdf", media_type="application/x-pdf", byte_size=1, sha256="c" * 64),
+        DocumentAsset(document_id=no_key.id, original_filename="other.pdf", stored_relative_path="no-key.pdf", media_type="text/plain", byte_size=1, sha256="d" * 64),
+    ])
+    await session.commit()
+
+    service = DocumentService(session)
+    matched = await service.list(query=" CLINICAL_REPORT_100% ")
+    assert [item.id for item in matched.items] == [ready.id]
+    assert matched.total == 1
+    ready_only = await service.list(research_ready=True)
+    assert [item.id for item in ready_only.items] == [ready.id]
+    pdf_only = await service.list(previewable_only=True)
+    assert {item.id for item in pdf_only.items} == {ready.id, pending.id}
+    combined = await service.list(query="report", research_ready=True, previewable_only=True)
+    assert combined.total == 1 and combined.items[0].id == ready.id
 
 
 @pytest.mark.asyncio

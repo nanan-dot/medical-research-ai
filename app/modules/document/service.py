@@ -60,15 +60,21 @@ class DocumentService:
         limit: int = 20,
         parse_status: ParseStatus | None = None,
         index_status: IndexStatus | None = None,
+        query: str | None = None,
+        research_ready: bool = False,
+        previewable_only: bool = False,
     ) -> DocumentPage:
         parse_value = parse_status.value if parse_status else None
         index_value = index_status.value if index_status else None
+        normalized_query = query.strip() if query is not None else None
+        if not normalized_query:
+            normalized_query = None
         for entity in await self.repo.list_all():
             await self._reconcile(entity)
-        entities = await self.repo.list(offset, limit, parse_value, index_value)
+        entities = await self.repo.list(offset, limit, parse_value, index_value, normalized_query, research_ready, previewable_only)
         return DocumentPage(
             items=[DocumentRead.model_validate(entity) for entity in entities],
-            total=await self.repo.count(parse_value, index_value),
+            total=await self.repo.count(parse_value, index_value, normalized_query, research_ready, previewable_only),
             offset=offset,
             limit=limit,
         )

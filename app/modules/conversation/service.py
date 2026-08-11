@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 from collections.abc import Callable
@@ -7,6 +9,7 @@ from time import perf_counter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
+from app.common.logger import logger
 from app.core.config import settings
 from app.integrations.paperqa2 import (
     PaperQA2Client,
@@ -76,6 +79,13 @@ class ConversationService:
         if entity is None:
             raise NotFoundError(f"Conversation not found: {id}")
         return await self._read(entity)
+
+    async def latest_for_document(self, document_id: int) -> ConversationRead:
+        for entity in await self.repo.latest_candidates():
+            document_ids = self._decode_document_ids(entity)
+            if document_ids == [document_id]:
+                return await self._read(entity)
+        raise NotFoundError(f"Conversation not found for document: {document_id}")
 
     async def list(self):
         result = []
@@ -231,6 +241,21 @@ class ConversationService:
                 for item in await self.repo.messages(entity.id)
             ],
         )
+
+    @staticmethod
+    def _decode_document_ids(entity: Conversation) -> list[int] | None:
+        try:
+            parsed_ids = json.loads(entity.document_ids)
+        except json.JSONDecodeError:
+            logger.warning("Skipping conversation with invalid document_ids JSON: %s", entity.id)
+            return None
+        if not isinstance(parsed_ids, list) or not all(
+            isinstance(document_id, int) and not isinstance(document_id, bool)
+            for document_id in parsed_ids
+        ):
+            logger.warning("Skipping conversation with invalid document_ids value: %s", entity.id)
+            return None
+        return parsed_ids
 
     async def _message(self, entity):
         return MessageRead(

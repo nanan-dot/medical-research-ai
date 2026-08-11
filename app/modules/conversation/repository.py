@@ -50,6 +50,12 @@ class ConversationRepository:
         )
         return list(result.scalars())
 
+    async def latest_candidates(self):
+        result = await self.session.execute(
+            select(Conversation).order_by(Conversation.updated_at.desc())
+        )
+        return list(result.scalars())
+
     async def delete(self, entity):
         await self.session.delete(entity)
         await self.session.flush()

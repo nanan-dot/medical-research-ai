@@ -67,6 +67,12 @@ class PaperAnalysisService:
             raise NotFoundError(f"Paper analysis not found: {id}")
         return self._read(entity)
 
+    async def latest_for_document(self, document_id: int) -> PaperAnalysisRead:
+        entity = await self.repo.latest_for_document(document_id)
+        if entity is None:
+            raise NotFoundError(f"Paper analysis not found for document: {document_id}")
+        return self._read(entity)
+
     async def regenerate(self, id: int) -> PaperAnalysisRead:
         entity = await self.repo.get(id)
         if entity is None:
