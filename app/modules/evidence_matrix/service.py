@@ -43,6 +43,7 @@ from app.modules.evidence_matrix.schema import (
 from app.modules.library_item.repository import LibraryItemRepository
 from app.modules.paper_analysis.repository import PaperAnalysisRepository
 from app.modules.paper_analysis.schema import ClaimKind
+from app.modules.research_context.service import ResearchContextService
 
 
 class EvidenceMatrixService:
@@ -51,6 +52,7 @@ class EvidenceMatrixService:
         self.comparisons = ComparisonRepository(session)
         self.analyses = PaperAnalysisRepository(session)
         self.library = LibraryItemRepository(session)
+        self.research_contexts = ResearchContextService(session)
 
     # ---------------------------------------------------------------- CRUD
     async def create(
@@ -59,6 +61,7 @@ class EvidenceMatrixService:
         description: str,
         fields: list[str] | None,
         source_comparison_id: int | None,
+        research_context_id: int | None = None,
     ) -> EvidenceMatrixRead:
         if source_comparison_id is not None:
             source_task = await self.comparisons.get_task(source_comparison_id)
@@ -69,6 +72,8 @@ class EvidenceMatrixService:
         else:
             field_keys = fields if fields else [field.value for field in DEFAULT_FIELDS]
             document_ids = []
+        if research_context_id is not None:
+            await self.research_contexts.require(research_context_id)
         matrix = await self.repo.create(
             EvidenceMatrix(
                 name=name,
@@ -76,6 +81,7 @@ class EvidenceMatrixService:
                 status="draft",
                 version=1,
                 source_comparison_id=source_comparison_id,
+                research_context_id=research_context_id,
                 created_at=datetime.now(UTC),
                 updated_at=datetime.now(UTC),
             )
@@ -108,6 +114,7 @@ class EvidenceMatrixService:
             status=MatrixStatus(matrix.status),
             version=matrix.version,
             source_comparison_id=matrix.source_comparison_id,
+            research_context_id=matrix.research_context_id,
             created_at=matrix.created_at,
             updated_at=matrix.updated_at,
             fields=[self._read_field(field) for field in fields],
@@ -131,6 +138,7 @@ class EvidenceMatrixService:
         name: str | None,
         description: str | None,
         status: str | None,
+        research_context_id: int | None = None,
     ) -> EvidenceMatrixRead:
         matrix = await self._require_matrix(matrix_id)
         if name is not None:
@@ -139,6 +147,14 @@ class EvidenceMatrixService:
             matrix.description = description
         if status is not None:
             matrix.status = status
+        if research_context_id is not None:
+            await self.research_contexts.require(research_context_id)
+            existing_documents = await self.repo.list_documents(matrix_id)
+            await self.research_contexts.require_document_membership(
+                research_context_id,
+                [item.document_id for item in existing_documents],
+            )
+            matrix.research_context_id = research_context_id
         matrix.updated_at = datetime.now(UTC)
         await self.repo.save()
         return await self.get(matrix_id)
@@ -354,6 +370,11 @@ class EvidenceMatrixService:
 
     # ------------------------------------------------------------ internals
     async def _add_documents(self, matrix_id: int, document_ids: list[int]) -> None:
+        matrix = await self._require_matrix(matrix_id)
+        if matrix.research_context_id is not None:
+            await self.research_contexts.require_document_membership(
+                matrix.research_context_id, document_ids
+            )
         for document_id in document_ids:
             await self.repo.add_document(
                 MatrixDocument(matrix_id=matrix_id, document_id=document_id)

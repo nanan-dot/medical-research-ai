@@ -16,7 +16,7 @@ function apply(): void {
 </script>
 
 <template>
-  <form class="filters" @submit.prevent="apply">
+  <form class="filters" @submit.prevent="apply"><strong>筛选文档</strong>
     <label class="filter-field">
       <span>解析状态</span>
       <select v-model="draft.parseStatus">
@@ -43,8 +43,5 @@ function apply(): void {
 </template>
 
 <style scoped>
-.filters { display: flex; align-items: end; gap: 0.8rem; flex-wrap: wrap; }
-.filter-field { display: grid; gap: 0.35rem; color: #52626b; font-size: 0.78rem; font-weight: 700; }
-.filter-field select { min-width: 140px; border: 1px solid #c8d4d8; border-radius: 8px; padding: 0.55rem; background: #fff; }
-.filters button { border: 0; border-radius: 8px; padding: 0.62rem 0.9rem; background: #1f514e; color: #fff; font-weight: 700; }
+.filters{display:flex;align-items:end;gap:.8rem;flex-wrap:wrap;padding:1.1rem 1.25rem;border:1px solid var(--border-subtle);border-radius:12px;background:#fff}.filters strong{margin-right:1rem;color:#10213d;font-size:1rem}.filter-field{display:grid;gap:.35rem;color:var(--text-muted);font-size:.8rem;font-weight:700}.filter-field select{min-width:150px;border:1px solid var(--border-strong);border-radius:8px;padding:.58rem .7rem;background:#fff}.filters button{border:1px solid var(--border-strong);border-radius:8px;padding:.6rem .9rem;background:#fff;color:var(--color-primary);font-weight:700}
 </style>

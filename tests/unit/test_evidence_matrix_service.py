@@ -22,6 +22,8 @@ from app.modules.evidence_matrix.schema import (
     ReadingStatus,
 )
 from app.modules.evidence_matrix.service import EvidenceMatrixService
+from app.modules.research_context.schema import ResearchContextCreate
+from app.modules.research_context.service import ResearchContextService
 
 
 @pytest.fixture
@@ -73,6 +75,18 @@ async def test_document_boundary_3_to_10(service):
     # 11 篇（3+8）→ 拒绝（超过 10）
     with pytest.raises(ConflictError, match="10"):
         await service.add_documents(matrix_id, list(range(4, 12)))
+
+
+async def test_context_assignment_rejects_existing_documents_outside_context(service):
+    """关联上下文不能绕过矩阵已有关联文档的范围校验。"""
+    matrix = await _create_matrix(service)
+    await _seed_documents(service, matrix["id"], 3)
+    context = await ResearchContextService(service.repo.session).create(
+        ResearchContextCreate(name="空上下文")
+    )
+
+    with pytest.raises(ConflictError, match="not linked"):
+        await service.update(matrix["id"], None, None, None, context.id)
 
 
 async def test_add_field_backfills_cells(service):

@@ -4,7 +4,7 @@ import PaperAnalysisView from "./PaperAnalysisView.vue";
 
 afterEach(() => vi.restoreAllMocks());
 
-test("renders grounded values, missing markers and export", async () => {
+function mockAnalysisResponse() {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
@@ -17,34 +17,58 @@ test("renders grounded values, missing markers and export", async () => {
         model_version: "test",
         generation: 1,
         structured_result: {
-          sample_size: { value: "120 participants", kind: "fact", source_indices: [0] },
-          population: { value: "未找到", kind: "not_found", source_indices: [] },
+          basic_information: { value: "Current study title\nFirst Author", kind: "fact", source_indices: [0] },
+          study_type: { value: "Randomized trial", kind: "fact", source_indices: [0] },
+          sample_size: { value: "", kind: "not_found", source_indices: [] },
         },
-        sources: [{ citation: "Trial", title: null, page_start: 4, page_end: 5 }],
-        pending_confirmations: ["population"],
+        sources: [{ citation: "Trial", title: null, page_start: 4, page_end: 5, excerpt: "Source excerpt", score: 0.9 }],
+        pending_confirmations: ["sample_size"],
         error_code: null,
         error_message: null,
       }),
     }),
   );
+}
+
+test("shows only the implemented paper-analysis entry before an analysis is generated", () => {
   const wrapper = mount(PaperAnalysisView);
+
+  expect(wrapper.text()).toContain("PAPER RESEARCH · SINGLE-PAPER ANALYSIS");
+  expect(wrapper.text()).toContain("论文分析");
+  expect(wrapper.get('label[for="document-id"]').text()).toContain("已索引文档 ID");
+  expect(wrapper.find('[aria-label="论文研究二级导航"]').text()).toBe("论文分析");
+  expect(wrapper.text()).not.toContain("创建组会汇报");
+  expect(wrapper.text()).not.toContain("证据问答");
+  expect(wrapper.text()).not.toContain("笔记与标注");
+});
+
+test("renders only grounded analysis context, missing values, and derived evidence status", async () => {
+  mockAnalysisResponse();
+  const wrapper = mount(PaperAnalysisView);
+
   await wrapper.get("input").setValue("1");
   await wrapper.get("form").trigger("submit");
   await flushPromises();
 
-  // 中央报告区渲染真实字段值
-  expect(wrapper.text()).toContain("120 participants");
-  expect(wrapper.text()).toContain("未找到");
+  expect(wrapper.text()).toContain("Current study title");
+  expect(wrapper.text()).toContain("文档 ID 1");
+  expect(wrapper.text()).toContain("分析完成");
+  expect(wrapper.text()).toContain("原文证据 1 条");
+  expect(wrapper.text()).toContain("Randomized trial");
+  expect(wrapper.text()).toContain("未提供");
+  expect(wrapper.text()).toContain("直接证据");
+  expect(wrapper.find('a[href="/api/v1/paper-analysis/3/export"]').exists()).toBe(true);
+});
 
-  // 元数据条缺少数值显示"未提供"
-  expect(wrapper.text()).toContain("Publication Date");
-  expect(wrapper.text()).toContain("Citation Count");
+test("opens the evidence rail when a report source locator is selected", async () => {
+  mockAnalysisResponse();
+  const wrapper = mount(PaperAnalysisView);
 
-  // 导出沿用真实 exportUrl
-  const exportLink = wrapper.find('a[href="/api/v1/paper-analysis/3/export"]');
-  expect(exportLink.exists()).toBe(true);
+  await wrapper.get("input").setValue("1");
+  await wrapper.get("form").trigger("submit");
+  await flushPromises();
 
-  // 证据卡渲染真实来源（缺失 excerpt/score 显示"未提供"）
-  expect(wrapper.text()).toContain("原文摘录未提供");
-  expect(wrapper.text()).toContain("Score 未提供");
+  await wrapper.get('button[aria-label="定位到第 4 页来源"]').trigger("click");
+
+  expect(wrapper.find(".grid-rail").classes()).toContain("rail-open");
 });

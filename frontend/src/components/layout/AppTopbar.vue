@@ -13,6 +13,7 @@ const workspaceName = computed(() => {
   const feature = route.meta.feature as { label?: string } | undefined;
   return feature?.label ?? "工作台";
 });
+const isDocumentDetail = computed(() => /^\/documents\/[^/]+$/.test(route.path));
 
 // 任务铃铛数字：真实进行中（pending/running/failed）任务数。
 const activeTaskCount = ref(0);
@@ -39,7 +40,14 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
 <template>
   <header class="topbar">
     <button class="mobile-menu" aria-label="打开导航" @click="emit('openMenu')">☰</button>
-    <div class="project">
+    <nav v-if="isDocumentDetail" class="document-breadcrumb" aria-label="文档详情路径">
+      <span>文档与知识</span>
+      <span aria-hidden="true">/</span>
+      <RouterLink to="/documents">文档库</RouterLink>
+      <span aria-hidden="true">/</span>
+      <span>文档详情</span>
+    </nav>
+    <div v-else class="project">
       <span class="project-crumb">{{ workspaceName }}</span>
       <button class="switch-project" aria-label="切换项目">▾</button>
     </div>
@@ -83,6 +91,9 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   font-weight: 700;
   white-space: nowrap;
 }
+.document-breadcrumb { display: flex; align-items: center; gap: .45rem; min-width: 0; color: var(--text-muted); font-size: .88rem; white-space: nowrap; }
+.document-breadcrumb a { color: var(--color-primary); font-weight: 700; text-decoration: none; }
+.document-breadcrumb a:hover, .document-breadcrumb a:focus-visible { text-decoration: underline; outline: none; }
 .switch-project {
   border: 0;
   background: transparent;
@@ -197,6 +208,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   .project-crumb {
     font-size: 0.8rem;
   }
+  .document-breadcrumb { font-size: .8rem; overflow: hidden; text-overflow: ellipsis; }
   .search span:not(.search-icon),
   .search kbd {
     display: none;

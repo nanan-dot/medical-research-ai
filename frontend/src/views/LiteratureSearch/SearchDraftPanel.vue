@@ -1,179 +1,73 @@
 <script setup lang="ts">
-// 检索式草案：按三段（核心概念/同义词扩展/研究类型）展示系统生成的布尔检索式。
-// 仅展示真实 build-query 返回的检索式；无数据时显示诚实空状态。
-// 三段划分基于后端 explanations/term_groups 语义；检索式为真实后端产物。
 import { computed } from "vue";
-import type { BuiltQuery, ExpandedTerms } from "../../api/literatureSearch";
+import type { ExpandedTerms, SearchIntentCandidate } from "../../api/literatureSearch";
+import TermEvidencePanel from "./TermEvidencePanel.vue";
 
 const props = defineProps<{
-  expanded: ExpandedTerms | null;
-  result: BuiltQuery | null;
+  query: string;
   loading: boolean;
+  expanded: ExpandedTerms | null;
+  candidate: SearchIntentCandidate | null;
 }>();
 
 const emit = defineEmits<{
-  build: [groups: unknown[]];
+  queryChange: [query: string];
   copy: [];
 }>();
 
-// 从 term_groups 派生三段草稿；无真实数据时为 null（显示空状态）。
-const coreConcept = computed<string | null>(() => {
-  const group = props.expanded?.term_groups.find((g) => g.name === "disease" || g.name === "population");
-  return group && group.terms.length ? group.terms.join(" OR ") : null;
+const queryModel = computed({
+  get: () => props.query,
+  set: (value: string) => emit("queryChange", value),
 });
-const synonymExpansion = computed<string | null>(() => {
-  const groups = props.expanded?.term_groups.filter((g) => g.name !== "disease" && g.name !== "population") ?? [];
-  const parts = groups.filter((g) => g.terms.length).map((g) => g.terms.join(" OR "));
-  return parts.length ? parts.join(" AND ") : null;
-});
-const studyType = computed<string | null>(() => {
-  const group = props.expanded?.term_groups.find((g) => g.name === "study_type" || g.name === "study type");
-  return group && group.terms.length ? group.terms.join(" OR ") : null;
-});
-
-const hasDraft = computed(() => Boolean(props.result?.boolean_query));
-const fullQuery = computed(() => props.result?.boolean_query ?? "");
-const sections = computed(() => [
-  { label: "核心概念", value: coreConcept.value },
-  { label: "同义词扩展", value: synonymExpansion.value },
-  { label: "研究类型", value: studyType.value },
-]);
 </script>
 
 <template>
   <section class="draft-panel" aria-labelledby="draft-panel-title">
-    <header class="panel-head">
-      <h3 id="draft-panel-title" class="panel-title">检索式草案</h3>
-      <button
-        v-if="hasDraft"
-        type="button"
-        class="text-action"
-        aria-label="复制检索式"
-        @click="emit('copy')"
-      >
-        复制
-      </button>
+    <header class="panel-heading">
+      <span class="evidence-track" aria-hidden="true" />
+      <h2 id="draft-panel-title">2. 检索式草案</h2>
     </header>
-
-    <!-- 诚实空状态：未生成检索式时不展示任何虚构内容 -->
-    <p v-if="!hasDraft && !loading" class="empty-hint">完善研究问题后生成检索式草案。</p>
-    <p v-if="loading" class="empty-hint">正在生成检索式…</p>
-
-    <template v-if="hasDraft">
-      <div class="evidence-track" aria-hidden="true">
-        <span class="track-line" />
-        <span class="track-node" />
-        <span class="track-node" />
-        <span class="track-node" />
+    <TermEvidencePanel :expanded="props.expanded" :candidate="props.candidate" />
+    <div class="query-editor">
+      <label class="sr-only" for="search-query-draft">可编辑检索式草案</label>
+      <textarea
+        id="search-query-draft"
+        v-model="queryModel"
+        maxlength="2000"
+        rows="7"
+        :placeholder="props.loading ? '正在解析研究问题并生成检索式…' : '解析研究问题后，将在此生成可编辑的检索式。'"
+        aria-describedby="query-editor-note"
+      />
+      <div id="query-editor-note" class="editor-meta">
+        <button v-if="props.query" type="button" class="copy-action" @click="emit('copy')">复制</button>
+        <span v-else>生成后可编辑</span>
+        <span>{{ props.query.length }}/2000</span>
       </div>
-      <div class="draft-sections">
-        <div v-for="section in sections" :key="section.label" class="draft-section">
-          <span class="draft-section-label">{{ section.label }}</span>
-          <code v-if="section.value" class="draft-code">{{ section.value }}</code>
-          <span v-else class="draft-muted">—</span>
-        </div>
-        <div class="draft-section draft-full">
-          <span class="draft-section-label">完整检索式</span>
-          <code class="draft-code full">{{ fullQuery }}</code>
-        </div>
-      </div>
-    </template>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .draft-panel {
-  position: relative;
+  box-sizing: border-box;
   display: grid;
-  gap: 0.8rem;
-  padding: 1.25rem;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border-subtle, #e2e8f0);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-subtle, #dbe4f0);
   border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: 0 8px 24px rgb(15 42 67 / 5%);
 }
-.panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.panel-title {
-  margin: 0;
-  color: var(--text-primary, #0f2a43);
-  font-size: 1rem;
-}
-.text-action {
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--border-strong, #cbd5e1);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-primary, #2563eb);
-  font: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.empty-hint {
-  margin: 0;
-  color: var(--text-muted, #64748b);
-  font-size: 0.875rem;
-}
-.evidence-track {
-  position: absolute;
-  left: 0.55rem;
-  top: 3.4rem;
-  bottom: 3.4rem;
-  width: 2px;
-  background: transparent;
-}
-.track-line {
-  position: absolute;
-  inset: 0;
-  background: var(--color-primary, #2563eb);
-  opacity: 0.35;
-  border-radius: 1px;
-}
-.track-node {
-  position: absolute;
-  left: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-primary, #2563eb);
-}
-.track-node:nth-of-type(2) {
-  top: 33%;
-}
-.track-node:nth-of-type(3) {
-  top: 66%;
-}
-.draft-sections {
-  display: grid;
-  gap: 0.6rem;
-  margin-left: 1.1rem;
-}
-.draft-section {
-  display: grid;
-  gap: 0.3rem;
-}
-.draft-section-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary, #475569);
-}
-.draft-code {
-  padding: 0.5rem 0.7rem;
-  background: var(--surface-muted, #f1f5f9);
-  border: 1px solid var(--border-subtle, #e2e8f0);
-  border-radius: 6px;
-  font-size: 0.8rem;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  color: var(--text-primary, #0f2a43);
-}
-.draft-code.full {
-  background: var(--color-primary-soft, #eff6ff);
-}
-.draft-muted {
-  color: var(--text-muted, #64748b);
-  font-size: 0.85rem;
-}
+.panel-heading { display: flex; gap: .55rem; align-items: center; }
+.panel-heading h2 { margin: 0; color: var(--text-primary, #0f2a43); font-size: 1rem; line-height: 1.3; }
+.evidence-track { width: 3px; height: 1.25rem; border-radius: 2px; background: var(--color-primary, #2563eb); }
+.generate-action:focus-visible, textarea:focus-visible, .copy-action:focus-visible { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 2px; }
+.query-editor { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; overflow: hidden; border: 1px solid var(--border-strong, #cbd5e1); border-radius: 6px; background: #fff; }
+textarea { box-sizing: border-box; width: 100%; min-height: 9.7rem; resize: vertical; padding: .75rem .8rem; border: 0; background: transparent; color: var(--text-primary, #0f2a43); font: inherit; font-size: .86rem; line-height: 1.5; }
+textarea::placeholder { color: var(--text-muted, #64748b); opacity: 1; }
+.editor-meta { display: flex; justify-content: space-between; gap: .75rem; align-items: center; min-height: 2rem; padding: .35rem .7rem; border-top: 1px solid var(--border-subtle, #dbe4f0); color: var(--text-muted, #64748b); font-size: .75rem; }
+.copy-action { padding: 0; border: 0; background: transparent; color: var(--color-primary, #2563eb); font: inherit; font-size: inherit; cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 </style>

@@ -59,12 +59,14 @@ class MatrixCreate(BaseModel):
     fields: list[str] | None = Field(default=None, min_length=1, max_length=50)
     # 可选：基于 comparison task 创建（复用其字段与已选文献）。
     source_comparison_id: int | None = Field(default=None, ge=1)
+    research_context_id: int | None = Field(default=None, ge=1)
 
 
 class MatrixUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
     status: MatrixStatus | None = None
+    research_context_id: int | None = Field(default=None, ge=1)
 
 
 class MatrixDocumentAdd(BaseModel):
@@ -161,6 +163,7 @@ class EvidenceMatrixRead(BaseModel):
     status: MatrixStatus
     version: int
     source_comparison_id: int | None
+    research_context_id: int | None
     created_at: datetime
     updated_at: datetime
     # 只含 active 字段（停用字段不展示，历史单元格数据仍在库中）。

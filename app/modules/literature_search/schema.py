@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.library_item.schema import LibraryItemRead
+
 from app.modules.literature_search.query_model import MAX_RETMX, SearchIntentCandidate
 
 
@@ -280,6 +282,7 @@ class RankedCitationItem(BaseModel):
     item: CitationItem
     sort_reason: str
     state: "ItemStateRead | None" = None
+    library_item: LibraryItemRead | None = None
 
 
 class LiteratureSearchResultPage(BaseModel):

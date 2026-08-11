@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.core import models  # noqa: F401
 from app.core.database import Base, get_session
+from app.integrations.pubmed.exceptions import PubMedConnectionError
 from app.main import app
 
 
@@ -33,6 +34,11 @@ class _FakeExecutor:
             verified_on="2026-08-05T00:00:00+00:00",
         )
         return [item], 1
+
+
+class _UnavailableExecutor:
+    async def execute(self, query: str, *, retmax: int = 20):
+        raise PubMedConnectionError("Could not reach NCBI after 3 attempts")
 
 
 @pytest.fixture
@@ -124,3 +130,21 @@ def test_results_endpoint_returns_persisted_items(client):
 def test_bibtex_for_missing_result_returns_404(client):
     response = client.get("/api/v1/literature-search/99999/bibtex")
     assert response.status_code == 404
+
+
+def test_execute_returns_service_unavailable_when_pubmed_cannot_be_reached(
+    client, monkeypatch
+):
+    monkeypatch.setattr(_FakeExecutor, "execute", _UnavailableExecutor.execute)
+    response = client.post(
+        "/api/v1/literature-search/execute",
+        json={"boolean_query": "cancer immunotherapy", "retmax": 1},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": "pubmed_connection_error",
+            "message": "Could not reach NCBI after 3 attempts",
+        }
+    }

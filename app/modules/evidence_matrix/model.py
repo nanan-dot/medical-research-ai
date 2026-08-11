@@ -41,6 +41,12 @@ class EvidenceMatrix(Base):
     source_comparison_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("comparison_tasks.id"), nullable=True
     )
+    research_context_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("research_contexts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

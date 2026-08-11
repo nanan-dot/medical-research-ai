@@ -57,6 +57,8 @@ EXPECTED_TABLES = {
     "ai_disclosure_drafts",
     "research_conditions",
     "research_conditions_versions",
+    "research_contexts",
+    "research_context_documents",
     "topic_structurings",
     "topic_structuring_versions",
     "task_records",
@@ -64,6 +66,7 @@ EXPECTED_TABLES = {
     "evaluation_run_results",
     "literature_status_records",
     "writings",
+    "writing_evidence_references",
 }
 
 

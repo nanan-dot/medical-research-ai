@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class ConversationCreate(BaseModel):
     document_ids: list[int] = Field(min_length=1, max_length=10)
     title: str | None = Field(default=None, max_length=200)
+    research_context_id: int | None = Field(default=None, gt=0)
 
 
 class MessageCreate(BaseModel):
@@ -42,6 +43,7 @@ class ConversationRead(BaseModel):
     id: int
     document_ids: list[int]
     title: str | None
+    research_context_id: int | None
     created_at: datetime
     updated_at: datetime
     messages: list[MessageRead]
@@ -51,6 +53,7 @@ class ConversationSummary(BaseModel):
     id: int
     document_ids: list[int]
     title: str | None
+    research_context_id: int | None
     updated_at: datetime
     message_count: int
 

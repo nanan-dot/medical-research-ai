@@ -41,13 +41,7 @@ function isPdfMimeType(mediaType: string): boolean {
 </script>
 
 <template>
-  <section class="upload-panel" aria-labelledby="upload-title">
-    <div>
-      <p class="eyebrow">SINGLE PDF UPLOAD</p>
-      <h3 id="upload-title" class="upload-title">上传一份 PDF</h3>
-      <p class="upload-description">文件将在受控存储中校验并建立文档记录；单文件上限 50 MiB。</p>
-    </div>
-
+  <section class="upload-panel" aria-label="上传 PDF">
     <label
       class="drop-zone"
       :class="{ 'drop-zone-active': isDragActive, 'drop-zone-disabled': props.uploading }"
@@ -63,8 +57,7 @@ function isPdfMimeType(mediaType: string): boolean {
         :disabled="props.uploading"
         @change="handleInputChange"
       />
-      <span class="drop-zone-title">{{ props.uploading ? "正在上传并校验…" : "拖入 PDF，或点击选择文件" }}</span>
-      <span class="drop-zone-note">仅支持单个、未加密的 PDF</span>
+      <span class="drop-zone-title">{{ props.uploading ? "正在上传并校验…" : "上传 PDF" }}</span>
     </label>
 
     <p v-if="props.uploadedFilename" class="upload-success" role="status">
@@ -77,16 +70,11 @@ function isPdfMimeType(mediaType: string): boolean {
 </template>
 
 <style scoped>
-.upload-panel { display: grid; gap: .8rem; padding: 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-muted); }
-.eyebrow { margin: 0; color: var(--color-primary); font-size: .72rem; font-weight: 900; letter-spacing: .14em; }
-.upload-title { margin: .18rem 0 0; font-size: 1.08rem; }
-.upload-description { margin: .35rem 0 0; color: var(--text-muted); font-size: .85rem; line-height: 1.5; }
-.drop-zone { display: grid; gap: .35rem; padding: .9rem; border: 1px dashed var(--border-strong); border-radius: 9px; background: var(--paper); cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.upload-panel{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}.drop-zone{display:inline-flex;padding:.62rem 1rem;border:0;border-radius:8px;background:var(--color-primary);color:#fff;cursor:pointer;transition:background-color .15s ease,transform .15s ease}.drop-zone:hover{background:#1d4ed8}.drop-zone:active{transform:translateY(1px)}
 .drop-zone-active { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .drop-zone-disabled { cursor: wait; opacity: .72; }
 .file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.drop-zone-title { color: var(--text-primary); font-weight: 800; }
-.drop-zone-note { color: var(--text-muted); font-size: .78rem; }
+.drop-zone-title { font-weight:800; }
 .upload-success, .upload-error { margin: 0; padding: .7rem .8rem; border-radius: 8px; font-size: .85rem; }
 .upload-success { background: var(--color-success-soft); color: var(--color-success); }
 .upload-error { background: var(--color-danger-soft); color: var(--color-danger); }

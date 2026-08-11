@@ -1,7 +1,7 @@
 import { apiRequest } from "./client";
 
 export interface DateRange { start_year: number | null; end_year: number | null; original_expression: string | null; }
-export interface SearchIntentCandidate { topic: string; disease: string | null; intervention: string | null; target: string | null; mechanism: string | null; date_range: DateRange | null; study_types: string[]; language: string[]; exclusions: string[]; retmax: number; }
+export interface SearchIntentCandidate { topic: string; disease: string | null; intervention: string | null; comparison: string | null; outcome: string | null; target: string | null; mechanism: string | null; date_range: DateRange | null; study_types: string[]; language: string[]; exclusions: string[]; retmax: number; }
 export interface ParsedQuery { raw_topic: string; candidate: SearchIntentCandidate; clarification_questions: string[]; candidate_source: "model_candidate" | "rule_fallback"; prompt_version: string; }
 export interface SearchTermGroup { name: string; core_term: string; terms: string[]; field_tag: string | null; source: string; }
 export interface MeshCandidate { descriptor: string; mesh_id: string; source: string; group_name: string; }
@@ -72,6 +72,7 @@ export interface CitationItem {
   verified_by: string | null;
   verified_on: string | null;
   has_abstract: boolean;
+  abstract: string | null;
   publication_types: string[];
 }
 
@@ -88,6 +89,7 @@ export interface RankedCitationItem {
   item: CitationItem;
   sort_reason: string;
   state: ItemStateRead | null;
+  library_item: LibraryItem | null;
 }
 
 // 结果分页响应：total 为应用筛选后的总条数，items 为当前页带排序理由的条目。

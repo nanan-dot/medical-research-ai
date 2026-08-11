@@ -17,6 +17,7 @@ from app.integrations.ollama.client import OllamaClient
 from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
 from app.modules.library_item.repository import LibraryItemRepository
+from app.modules.library_item.schema import LibraryItemRead
 from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
 from app.modules.literature_search.dedup import DedupRecord, find_duplicate_candidates
@@ -31,6 +32,7 @@ from app.modules.literature_search.model import (
     LiteratureSearchResultVersion,
     LiteratureSearchTask,
 )
+from app.modules.literature_search.pico_fallback import extract_curated_pico
 from app.modules.literature_search.prompts import PROMPT_VERSION, build_candidate_prompt
 from app.modules.literature_search.pubmed_executor import PubMedExecutor
 from app.modules.literature_search.query_builder import build_boolean_query
@@ -158,6 +160,7 @@ class LiteratureSearchService:
             candidate = self._constrain_candidate(
                 SearchIntentCandidate.model_validate_json(raw_json), normalized
             )
+            candidate = self._fill_missing_pico_fields(candidate, fallback)
             source = "model_candidate"
         except (ValueError, json.JSONDecodeError):
             candidate = fallback
@@ -509,6 +512,12 @@ class LiteratureSearchService:
         )
         start = (params.page - 1) * params.page_size
         page_items = ranked[start : start + params.page_size]
+        library_items = {
+            item.pmid: item
+            for item in await LibraryItemRepository(self.session).list_by_pmids(
+                [entry.item.pmid for entry in page_items]
+            )
+        }
         return LiteratureSearchResultPage(
             result_id=entity.id,
             query=entity.query,
@@ -517,7 +526,18 @@ class LiteratureSearchService:
             page=params.page,
             page_size=params.page_size,
             sort=params.sort,
-            items=[self._ranked_with_state(entry, state_map) for entry in page_items],
+            items=[
+                self._ranked_with_state(entry, state_map).model_copy(
+                    update={
+                        "library_item": (
+                            LibraryItemRead.model_validate(library_items[entry.item.pmid])
+                            if entry.item.pmid in library_items
+                            else None
+                        )
+                    }
+                )
+                for entry in page_items
+            ],
         )
 
     async def update_item_state(
@@ -961,7 +981,14 @@ class LiteratureSearchService:
 
     @staticmethod
     def _rule_candidate(raw_topic: str) -> SearchIntentCandidate:
-        candidate = SearchIntentCandidate(topic=raw_topic)
+        pico = extract_curated_pico(raw_topic)
+        candidate = SearchIntentCandidate(
+            topic=raw_topic,
+            disease=pico.population,
+            intervention=pico.intervention,
+            comparison=pico.comparison,
+            outcome=pico.outcome,
+        )
         relative = re.search(r"近\s*([一二三四五六七八九十\d]{1,3})\s*年", raw_topic)
         if relative:
             candidate.date_range = relative_year_range(
@@ -969,6 +996,20 @@ class LiteratureSearchService:
                 relative.group(0),
             )
         return candidate
+
+    @staticmethod
+    def _fill_missing_pico_fields(
+        candidate: SearchIntentCandidate, fallback: SearchIntentCandidate
+    ) -> SearchIntentCandidate:
+        """Keep model output first, using only curated fallback phrases for blanks."""
+        return candidate.model_copy(
+            update={
+                "disease": candidate.disease or fallback.disease,
+                "intervention": candidate.intervention or fallback.intervention,
+                "comparison": candidate.comparison or fallback.comparison,
+                "outcome": candidate.outcome or fallback.outcome,
+            }
+        )
 
     @staticmethod
     def _constrain_candidate(

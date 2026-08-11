@@ -1,4 +1,4 @@
-import type { AnalysisField, PaperSource } from "../../api/paperAnalysis";
+import type { AnalysisField, ClaimKind, PaperSource } from "../../api/paperAnalysis";
 
 /**
  * paper 工作区共享展示模型：全部只读派生自 PaperAnalysis 真实字段。
@@ -59,43 +59,13 @@ export const FIELD_LABELS: Readonly<Record<string, string>> = {
 
 /** 章节导航锚点。仅用于展示层定位，不暗示后端存在阅读状态字段 */
 export const OUTLINE_SECTIONS: readonly OutlineSection[] = [
-  { key: "abstract", label: "Abstract" },
-  { key: "introduction", label: "Introduction" },
-  { key: "methods", label: "Methods" },
-  { key: "results", label: "Results" },
-  { key: "figures", label: "Figures" },
-  { key: "discussion", label: "Discussion" },
-  { key: "references", label: "References" },
+  { key: "abstract", label: "一句话结论" },
+  { key: "introduction", label: "研究背景" },
+  { key: "methods", label: "研究设计" },
+  { key: "results", label: "主要结果" },
+  { key: "discussion", label: "讨论与局限" },
+  { key: "references", label: "原文证据" },
 ];
-
-/** 章节区间定义：每个章节覆盖的页码范围（起始含、结束不含） */
-export interface OutlineRange {
-  key: string;
-  start: number;
-  end: number;
-}
-
-export const OUTLINE_RANGES: readonly OutlineRange[] = [
-  { key: "abstract", start: 1, end: 2 },
-  { key: "introduction", start: 2, end: 4 },
-  { key: "methods", start: 4, end: 7 },
-  { key: "results", start: 7, end: 10 },
-  { key: "figures", start: 10, end: 11 },
-  { key: "discussion", start: 11, end: 14 },
-  { key: "references", start: 14, end: Number.POSITIVE_INFINITY },
-];
-
-/** 按页码范围判断章节是否已有来源引用（有引用=已分析，从 sources[].page_start 推导） */
-export function isSectionAnalyzed(ranges: readonly OutlineRange[], page: number): boolean {
-  return ranges.some((range) => page >= range.start && page < range.end);
-}
-
-/** 章节状态：任一来源落在该章节页码区间内即为已分析 */
-export function sectionStatus(sectionKey: string, sources: readonly PaperSource[]): "analyzed" | "uncovered" {
-  const range = OUTLINE_RANGES.find((item) => item.key === sectionKey);
-  if (!range) return "uncovered";
-  return sources.some((source) => source.page_start !== null && isSectionAnalyzed([range], source.page_start)) ? "analyzed" : "uncovered";
-}
 
 /** kind → 置信度：fact+有来源=High；summary=Medium；inference/not_found=Needs verification */
 export function confidenceOf(field: AnalysisField): ConfidenceLevel {
@@ -121,6 +91,26 @@ export function toEvidenceCards(sources: readonly PaperSource[]): EvidenceCardMo
       score: source.score ?? null,
     };
   });
+}
+
+/**
+ * 每张来源卡的证据角色必须由引用它的结构化字段 kind 推导。
+ * PaperSource 本身不提供该语义；没有任何字段指向来源时保留为空，交给界面显示“待核对”。
+ */
+export function toSourceKinds(
+  structuredResult: Readonly<Record<string, AnalysisField>> | null,
+): ReadonlyMap<number, readonly ClaimKind[]> {
+  const sourceKinds = new Map<number, ClaimKind[]>();
+  if (!structuredResult) return sourceKinds;
+
+  for (const field of Object.values(structuredResult)) {
+    for (const sourceIndex of field.source_indices) {
+      const currentKinds = sourceKinds.get(sourceIndex) ?? [];
+      if (!currentKinds.includes(field.kind)) currentKinds.push(field.kind);
+      sourceKinds.set(sourceIndex, currentKinds);
+    }
+  }
+  return sourceKinds;
 }
 
 /** 组装中央报告区块列表：跳过值为空或仅空白的字段 */

@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { shallowRef } from "vue";
+import AbstractDisclosure from "../../components/literature/AbstractDisclosure.vue";
+import FulltextAccess from "../../components/literature/FulltextAccess.vue";
+import PubMedLink from "../../components/literature/PubMedLink.vue";
 import { useRecommendations } from "../../composables/useRecommendations";
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false });
 
-const query = ref("");
-const candidateCount = ref(5);
+const query = shallowRef("");
+const candidateCount = shallowRef(5);
 const { result, loading, error, recommend } = useRecommendations();
 
 async function submit() {
@@ -17,13 +20,12 @@ async function submit() {
   <main class="recommendation-page">
     <header v-if="!props.embedded" class="recommendation-header">
       <div>
-        <p class="eyebrow">EVIDENCE-LED RECOMMENDATION</p>
-        <h1>从真实文献开始，找到值得读的方向</h1>
-        <p class="lede">输入研究主题。系统先检索 PubMed，再仅基于已验证摘要生成推荐理由。</p>
+        <h1>推荐阅读</h1>
+        <p class="lede">输入研究主题，按服务端返回的优先级审阅真实 PubMed 候选和推荐依据。</p>
       </div>
       <div class="boundary-note" role="note">
         <span class="boundary-dot" aria-hidden="true"></span>
-        <span>LIVE · PubMed</span>
+        <span>来源：PubMed</span>
       </div>
     </header>
 
@@ -34,7 +36,7 @@ async function submit() {
         v-model="query"
         maxlength="1000"
         rows="3"
-        placeholder="例如：肺癌免疫治疗的近期综述"
+        placeholder="输入新的研究主题"
         required
       ></textarea>
       <div class="query-controls">
@@ -56,7 +58,7 @@ async function submit() {
 
     <section v-else-if="result" class="results-area" aria-live="polite">
       <div class="results-heading">
-        <div><p class="eyebrow">VERIFIED RESULTS</p><h2>{{ result.items.length }} 篇可核验文献</h2></div>
+        <div><p class="section-number">3. 推荐结果</p><h2>{{ result.items.length }} 篇可核验文献</h2></div>
         <span class="status-label" :class="result.status">{{ result.status === "completed" ? "已完成" : "已完成 · 含提示" }}</span>
       </div>
       <div v-if="result.warnings.length" class="warning-box" role="status">
@@ -68,12 +70,19 @@ async function submit() {
       <ol v-else class="result-list">
         <li v-for="item in result.items" :key="item.citation.pmid" class="result-item">
           <div class="result-index">{{ String(result.items.indexOf(item) + 1).padStart(2, "0") }}</div>
-          <article>
+          <article class="recommendation-entry">
+            <div class="citation-column">
             <div class="citation-meta"><span>PMID {{ item.citation.pmid }}</span><span v-if="item.citation.year">{{ item.citation.year }}</span><span v-if="item.citation.journal">{{ item.citation.journal }}</span></div>
             <h3>{{ item.citation.title || "未提供题名" }}</h3>
             <p class="authors">{{ item.citation.authors.join(", ") || "作者信息未提供" }}</p>
-            <div class="reason"><span class="reason-label">推荐理由</span><p>{{ item.recommendation_reason }}</p></div>
+            <AbstractDisclosure :abstract-text="item.citation.abstract" />
+            <div class="reading-links">
+              <PubMedLink :pmid="item.citation.pmid" />
+              <FulltextAccess :item="null" />
+            </div>
             <p class="source-note">来源：PubMed · {{ item.citation.verified_on || "核验日期未提供" }} · 元数据由服务器装配</p>
+            </div>
+            <aside class="reason"><span class="reason-label">推荐理由</span><p>{{ item.recommendation_reason }}</p><span class="reason-basis">依据：服务端返回的已核验元数据与摘要</span></aside>
           </article>
         </li>
       </ol>
@@ -88,5 +97,5 @@ async function submit() {
 </template>
 
 <style scoped>
-.recommendation-page{max-width:1120px;margin:0 auto;padding:2.5rem 1.4rem 4rem;color:var(--text-primary);display:grid;gap:1.5rem}.recommendation-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;border-bottom:1px solid var(--border-subtle);padding-bottom:1.6rem}.eyebrow{margin:0;color:var(--color-primary);font-size:.7rem;font-weight:800;letter-spacing:.13em}.recommendation-header h1{max-width:670px;margin:.45rem 0 .7rem;font-size:clamp(2rem,4vw,3.4rem);line-height:1.08;letter-spacing:-.04em}.lede{max-width:610px;margin:0;color:var(--text-muted);font-size:1rem}.boundary-note{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#166534;font-size:.73rem;font-weight:800;white-space:nowrap}.boundary-dot{width:.45rem;height:.45rem;border-radius:50%;background:var(--color-success)}.query-panel{display:grid;gap:.7rem;padding:1.2rem;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-card);border-radius:var(--radius)}.query-panel>label{font-weight:800}.query-panel textarea{width:100%;resize:vertical;padding:.85rem;border:1px solid var(--line-strong);border-radius:8px;color:var(--text-primary);font:inherit;line-height:1.5;box-sizing:border-box}.query-panel textarea:focus{outline:3px solid var(--color-primary-soft);border-color:var(--color-primary)}.query-controls{display:flex;gap:1rem;align-items:center}.field-hint{margin-right:auto;color:var(--text-muted);font-size:.8rem}.count-control{display:flex;gap:.5rem;align-items:center;color:var(--text-muted);font-size:.85rem}.count-control select{padding:.55rem;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface);color:var(--text-primary)}button{padding:.7rem 1.1rem;border:0;border-radius:8px;background:var(--color-primary);color:#fff;font:inherit;font-weight:800;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.state-message,.warning-box{padding:.85rem 1rem;border-radius:8px}.state-message.error{background:var(--color-danger-soft);color:#991b1b}.loading-state,.empty-start,.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-muted);border:1px dashed var(--line-strong);border-radius:var(--radius)}.loading-line{display:block;width:220px;height:10px;margin:0 auto .6rem;background:var(--surface-muted);border-radius:5px;animation:pulse 1.3s infinite}.loading-line.short{width:140px;margin-bottom:1rem}.results-area{display:grid;gap:1rem}.results-heading{display:flex;align-items:end;justify-content:space-between}.results-heading h2{margin:.35rem 0 0;font-size:1.7rem}.status-label{padding:.35rem .6rem;border-radius:999px;font-size:.75rem;font-weight:800}.status-label.completed{background:var(--color-success-soft);color:#166534}.status-label.completed_with_warnings{background:var(--color-warning-soft);color:#92400e}.warning-box{display:flex;gap:.8rem;flex-wrap:wrap;background:var(--color-warning-soft);color:#92400e;font-size:.85rem}.warning-box span{font-weight:600}.result-list{display:grid;gap:0;margin:0;padding:0;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}.result-item{display:grid;grid-template-columns:56px 1fr;gap:1rem;padding:1.25rem 1.4rem;border-bottom:1px solid var(--line)}.result-item:last-child{border-bottom:0}.result-index{color:var(--text-faint);font:700 1.2rem/1.2 Georgia,serif}.citation-meta{display:flex;gap:.8rem;flex-wrap:wrap;color:var(--text-muted);font-size:.72rem;font-weight:700}.result-item h3{margin:.45rem 0 .25rem;font-size:1.15rem;line-height:1.4}.authors{margin:0;color:var(--text-muted);font-size:.82rem}.reason{margin-top:1rem;padding:.85rem 1rem;border-left:3px solid var(--color-secondary);background:#f0f9ff}.reason-label{color:#0369a1;font-size:.72rem;font-weight:800;letter-spacing:.08em}.reason p{margin:.35rem 0 0;line-height:1.55}.source-note{margin:.8rem 0 0;color:var(--text-faint);font-size:.72rem}.empty-start h2,.empty-state h3{margin:.8rem 0 .35rem;color:var(--text-primary)}.empty-start p,.empty-state p{max-width:520px;margin:auto;line-height:1.6}.empty-mark{font:3rem Georgia,serif;color:var(--color-primary)}@keyframes pulse{50%{opacity:.45}}@media(max-width:720px){.recommendation-header{display:grid}.boundary-note{justify-self:start}.query-controls{align-items:stretch;flex-wrap:wrap}.field-hint{width:100%;order:3}.result-item{grid-template-columns:1fr}.result-index{font-size:.8rem}.results-heading{align-items:start;gap:1rem;flex-direction:column}}
+.recommendation-page{max-width:1440px;margin:0 auto;padding:1.4rem 1.5rem 2.6rem;color:var(--text-primary);display:grid;gap:1rem}.recommendation-header{display:flex;justify-content:space-between;gap:2rem;align-items:flex-start;border-bottom:1px solid var(--border-subtle);padding-bottom:1rem}.recommendation-header h1{margin:0 0 .35rem;font-size:clamp(1.75rem,2.5vw,2rem);line-height:1.2}.lede{margin:0;color:var(--text-muted);font-size:.9rem}.boundary-note{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border:1px solid var(--border-subtle);border-radius:6px;background:var(--surface-muted);color:var(--text-secondary);font-size:.75rem}.boundary-dot{width:.45rem;height:.45rem;border-radius:50%;background:var(--color-primary)}.query-panel{display:grid;gap:.7rem;padding:1rem;background:var(--surface);border:1px solid var(--border-subtle);box-shadow:var(--shadow-card);border-radius:8px}.query-panel>label{font-weight:700}.query-panel textarea{width:100%;resize:vertical;padding:.7rem;border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font:inherit;line-height:1.5;box-sizing:border-box}.query-panel textarea:focus{outline:2px solid var(--color-primary);outline-offset:1px;border-color:var(--color-primary)}.query-controls{display:flex;gap:1rem;align-items:center}.field-hint{margin-right:auto;color:var(--text-muted);font-size:.8rem}.count-control{display:flex;gap:.5rem;align-items:center;color:var(--text-muted);font-size:.85rem}.count-control select{padding:.45rem;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text-primary)}button{padding:.6rem 1rem;border:0;border-radius:6px;background:var(--color-primary);color:#fff;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.state-message,.warning-box{padding:.85rem 1rem;border-radius:8px}.state-message.error{background:var(--color-danger-soft);color:#991b1b}.loading-state,.empty-start,.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-muted);border:1px dashed var(--border-strong);border-radius:8px}.loading-line{display:block;width:220px;height:10px;margin:0 auto .6rem;background:var(--surface-muted);border-radius:5px;animation:pulse 1.3s infinite}.loading-line.short{width:140px;margin-bottom:1rem}.results-area{display:grid;gap:1rem}.results-heading{display:flex;align-items:end;justify-content:space-between}.section-number{margin:0;color:var(--color-primary);font-size:.78rem;font-weight:750}.results-heading h2{margin:.25rem 0 0;font-size:1.2rem}.status-label{padding:.35rem .6rem;border-radius:6px;font-size:.75rem;font-weight:800}.status-label.completed{background:var(--color-success-soft);color:#166534}.status-label.completed_with_warnings{background:var(--color-warning-soft);color:#92400e}.warning-box{display:flex;gap:.8rem;flex-wrap:wrap;background:var(--color-warning-soft);color:#92400e;font-size:.85rem}.warning-box span{font-weight:600}.result-list{display:grid;gap:0;margin:0;padding:0;list-style:none;background:var(--surface);border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}.result-item{display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.75rem;padding:1rem;border-bottom:1px solid var(--border-subtle)}.result-item:last-child{border-bottom:0}.result-index{color:#fff;background:var(--color-primary);align-self:start;border-radius:5px;padding:.25rem 0;text-align:center;font-size:.78rem;font-weight:800}.recommendation-entry{display:grid;grid-template-columns:minmax(0,1fr) 15rem;gap:1rem}.citation-meta{display:flex;gap:.8rem;flex-wrap:wrap;color:var(--text-muted);font-size:.72rem;font-weight:700}.result-item h3{margin:.45rem 0 .25rem;font-size:1rem;line-height:1.4}.authors{margin:0;color:var(--text-muted);font-size:.82rem}.reason{align-self:stretch;padding:.75rem .85rem;border-left:2px solid var(--color-primary);background:var(--color-primary-soft)}.reason-label{color:var(--color-primary);font-size:.72rem;font-weight:800}.reason p{margin:.35rem 0;line-height:1.55;font-size:.85rem}.reason-basis{color:var(--text-muted);font-size:.72rem}.source-note{margin:.8rem 0 0;color:var(--text-faint);font-size:.72rem}.empty-start h2,.empty-state h3{margin:.8rem 0 .35rem;color:var(--text-primary)}.empty-start p,.empty-state p{max-width:520px;margin:auto;line-height:1.6}.empty-mark{font:3rem Georgia,serif;color:var(--color-primary)}@keyframes pulse{50%{opacity:.45}}@media(max-width:720px){.recommendation-header{display:grid}.boundary-note{justify-self:start}.query-controls{align-items:stretch;flex-wrap:wrap}.field-hint{width:100%;order:3}.result-item{grid-template-columns:1fr}.result-index{width:2rem}.recommendation-entry{grid-template-columns:1fr}.results-heading{align-items:start;gap:1rem;flex-direction:column}}
 </style>

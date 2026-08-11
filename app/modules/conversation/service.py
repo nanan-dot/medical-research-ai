@@ -28,6 +28,7 @@ from app.modules.conversation.schema import (
     MessageRead,
 )
 from app.modules.document.repository import DocumentRepository
+from app.modules.research_context.service import ResearchContextService
 
 MAX_EVIDENCE_LENGTH = 2000
 _LOCKS: dict[int, asyncio.Lock] = {}
@@ -42,17 +43,28 @@ class ConversationService:
     ):
         self.repo = ConversationRepository(session)
         self.documents = DocumentRepository(session)
+        self.research_contexts = ResearchContextService(session)
         self.client_factory = client_factory or create_paperqa2_client
 
-    async def create(self, document_ids: list[int], title: str | None = None):
+    async def create(
+        self,
+        document_ids: list[int],
+        title: str | None = None,
+        research_context_id: int | None = None,
+    ):
         unique = list(dict.fromkeys(document_ids))
         for document_id in unique:
             await self._indexed(document_id)
+        if research_context_id is not None:
+            await self.research_contexts.require_document_membership(
+                research_context_id, unique
+            )
         now = datetime.now(UTC)
         entity = await self.repo.create(
             Conversation(
                 document_ids=json.dumps(unique),
                 title=title,
+                research_context_id=research_context_id,
                 created_at=now,
                 updated_at=now,
             )
@@ -73,6 +85,7 @@ class ConversationService:
                     id=entity.id,
                     document_ids=json.loads(entity.document_ids),
                     title=entity.title,
+                    research_context_id=entity.research_context_id,
                     updated_at=entity.updated_at,
                     message_count=len(await self.repo.messages(entity.id)),
                 )
@@ -210,6 +223,7 @@ class ConversationService:
             id=entity.id,
             document_ids=json.loads(entity.document_ids),
             title=entity.title,
+            research_context_id=entity.research_context_id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
             messages=[

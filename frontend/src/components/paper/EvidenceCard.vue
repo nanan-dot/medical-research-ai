@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import type { ClaimKind } from "../../api/paperAnalysis";
 import ConfidenceBadge from "./ConfidenceBadge.vue";
 import SourceLocator from "./SourceLocator.vue";
 import type { ConfidenceLevel, EvidenceCardModel } from "./paperModel";
@@ -8,13 +10,29 @@ import type { ConfidenceLevel, EvidenceCardModel } from "./paperModel";
  * confidence 仅当该卡作为某分析字段的证据时传入（由字段 kind 推导）；
  * 单独出现在证据栏时后端未定义该来源的置信度，因此不渲染徽章，避免伪造。
  */
-defineProps<{ card: EvidenceCardModel; confidence?: ConfidenceLevel | null }>();
+const props = defineProps<{
+  card: EvidenceCardModel;
+  confidence?: ConfidenceLevel | null;
+  sourceKinds: readonly ClaimKind[];
+}>();
 
 const emit = defineEmits<{ jump: [localIndex: number] }>();
 
 function scoreText(score: number | null): string {
   return score === null ? "未提供" : String(score);
 }
+
+const KIND_LABELS: Readonly<Record<ClaimKind, string>> = {
+  fact: "直接证据",
+  summary: "模型总结",
+  inference: "模型推断",
+  not_found: "待核对",
+};
+
+const evidenceKinds = computed(() => {
+  const labels = props.sourceKinds.map((kind) => KIND_LABELS[kind]);
+  return labels.length > 0 ? labels : ["待核对"];
+});
 </script>
 
 <template>
@@ -23,6 +41,9 @@ function scoreText(score: number | null): string {
       <span class="index">#{{ card.source.local_index + 1 }}</span>
       <ConfidenceBadge v-if="confidence" :level="confidence" />
     </header>
+    <div class="kind-list" aria-label="证据状态">
+      <span v-for="kind in evidenceKinds" :key="kind" class="kind">{{ kind }}</span>
+    </div>
     <p class="excerpt">{{ card.excerpt || "原文摘录未提供" }}</p>
     <footer class="card-foot">
       <SourceLocator :source="card.source" @jump="emit('jump', $event)" />
@@ -69,5 +90,18 @@ function scoreText(score: number | null): string {
   flex-shrink: 0;
   font-size: 0.7rem;
   color: var(--text-faint);
+}
+.kind-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.kind {
+  padding: 0.12rem 0.42rem;
+  border-radius: 99px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  font-weight: 800;
 }
 </style>

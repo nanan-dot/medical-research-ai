@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ClaimKind } from "../../api/paperAnalysis";
 import EvidenceCard from "./EvidenceCard.vue";
 import type { EvidenceCardModel } from "./paperModel";
 
@@ -7,7 +8,10 @@ import type { EvidenceCardModel } from "./paperModel";
  * 证据数量取 sources.length（真实字段）；为空时展示引导文案而非伪造证据。
  * <1100px 时由页面容器将本栏渲染为底部抽屉（仅保留 body 区域与触发按钮）。
  */
-defineProps<{ cards: readonly EvidenceCardModel[] }>();
+const props = defineProps<{
+  cards: readonly EvidenceCardModel[];
+  sourceKinds: ReadonlyMap<number, readonly ClaimKind[]>;
+}>();
 
 const emit = defineEmits<{ jump: [localIndex: number] }>();
 
@@ -31,7 +35,7 @@ function titleFor(count: number): string {
     </p>
     <ul v-else class="card-list">
       <li v-for="card in cards" :key="card.source.local_index">
-        <EvidenceCard :card="card" @jump="emit('jump', $event)" />
+        <EvidenceCard :card="card" :source-kinds="props.sourceKinds.get(card.source.local_index) ?? []" @jump="emit('jump', $event)" />
       </li>
     </ul>
     <footer v-if="cards.length > 0" class="rail-foot">

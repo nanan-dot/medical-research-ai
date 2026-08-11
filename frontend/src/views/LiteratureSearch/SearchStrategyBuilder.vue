@@ -1,8 +1,5 @@
 <script setup lang="ts">
-// 构建检索策略：研究问题输入 + 生成检索式（真实 parse-query 管线）+ PICO 四条件。
-// PICO 为受控状态：由父级持有并传入（解析回填/手动修订均经父级），
-// 组件仅负责展示与输入事件，不伪造已保存到后端。
-import { computed, ref } from "vue";
+import { computed } from "vue";
 
 export interface PicoState {
   population: string;
@@ -11,27 +8,25 @@ export interface PicoState {
   outcome: string;
 }
 
-const emit = defineEmits<{
-  submit: [topic: string];
-  picoChange: [pico: PicoState];
-}>();
-
 const props = defineProps<{
   loading: boolean;
   error: string | null;
-  hasCandidate: boolean;
   pico: PicoState;
+  topic: string;
 }>();
 
-const topic = ref("");
+const emit = defineEmits<{
+  submit: [topic: string];
+  picoChange: [pico: PicoState];
+  topicChange: [topic: string];
+  clear: [];
+}>();
 
-function submitForm(): void {
-  const text = topic.value.trim();
-  if (!text) return; // 空输入前端拦截，不请求接口
-  emit("submit", text);
-}
+const topicModel = computed({
+  get: () => props.topic,
+  set: (value: string) => emit("topicChange", value),
+});
 
-// 错误信息健壮化：后端/请求库可能返回对象或非字符串，统一转为可读文本。
 const displayError = computed(() => {
   if (!props.error) return "";
   if (typeof props.error === "string") return props.error;
@@ -39,13 +34,18 @@ const displayError = computed(() => {
   return typeof detail === "string" ? detail : "请求失败，请稍后重试。";
 });
 
-// 受控字段：读取来自 props，写入经 emit 通知父级更新（单向数据流）。
 function field(fieldName: keyof PicoState) {
   return computed({
     get: () => props.pico[fieldName],
     set: (value: string) => emit("picoChange", { ...props.pico, [fieldName]: value }),
   });
 }
+
+function submitForm(): void {
+  const value = topicModel.value.trim();
+  if (value) emit("submit", value);
+}
+
 const population = field("population");
 const intervention = field("intervention");
 const comparison = field("comparison");
@@ -54,130 +54,85 @@ const outcome = field("outcome");
 
 <template>
   <section class="strategy-builder" aria-labelledby="strategy-builder-title">
-    <h2 id="strategy-builder-title" class="section-title">构建检索策略</h2>
-    <form class="question-row" @submit.prevent="submitForm">
-      <label class="question-label">
-        <span class="field-label-text">研究问题</span>
+    <header class="panel-heading">
+      <span class="evidence-track" aria-hidden="true" />
+      <h2 id="strategy-builder-title">1. 输入研究问题</h2>
+    </header>
+
+    <form class="topic-section" @submit.prevent="submitForm">
+      <label for="research-topic" class="topic-label">临床研究问题</label>
+      <div class="topic-input-row">
         <input
-          v-model="topic"
+          id="research-topic"
+          v-model="topicModel"
           type="text"
           maxlength="1000"
-          placeholder="例如：肝细胞癌一线免疫联合治疗能否改善总体生存？"
+          placeholder="例如：胃癌患者接受 EGFR 靶向治疗能否改善总体生存？"
           :disabled="props.loading"
         />
-      </label>
-      <button class="primary-action" type="submit" :disabled="props.loading || !topic.trim()">
-        {{ props.loading ? "解析中…" : "生成检索式" }}
-      </button>
+        <button
+          type="submit"
+          class="parse-action"
+          :disabled="props.loading || !topicModel.trim()"
+        >
+          {{ props.loading ? "解析中…" : "解析研究问题" }}
+        </button>
+      </div>
+      <p>系统将提取 PICO 条件并生成可编辑的检索式。</p>
     </form>
-    <p v-if="displayError" class="request-error" role="alert">{{ displayError }}</p>
 
-    <div class="pico-grid" role="group" aria-label="PICO 检索条件">
+    <section class="pico-section" aria-labelledby="pico-fields-title">
+      <div class="pico-section-heading">
+        <h3 id="pico-fields-title">解析后的 PICO 条件</h3>
+        <button type="button" class="clear-action" @click="emit('clear')">清空</button>
+      </div>
+      <p class="pico-hint">解析后可核对和手动修正；也可直接补充已知条件。</p>
+      <div class="pico-fields" role="group" aria-labelledby="pico-fields-title">
       <label class="pico-field">
-        <span class="field-label-text">人群</span>
-        <input v-model="population" type="text" placeholder="例如：晚期肝细胞癌" />
+        <span>人群（P）</span>
+        <input v-model="population" type="text" placeholder="解析后自动回填，或手动输入" />
       </label>
       <label class="pico-field">
-        <span class="field-label-text">干预</span>
-        <input v-model="intervention" type="text" placeholder="例如：PD-1/PD-L1 抑制剂联合治疗" />
+        <span>干预（I）</span>
+        <input v-model="intervention" type="text" placeholder="解析后自动回填，或手动输入" />
       </label>
       <label class="pico-field">
-        <span class="field-label-text">对照</span>
-        <input v-model="comparison" type="text" placeholder="例如：索拉非尼或标准治疗" />
+        <span>对照（C）</span>
+        <input v-model="comparison" type="text" placeholder="解析后自动回填，或手动输入" />
       </label>
       <label class="pico-field">
-        <span class="field-label-text">结局</span>
-        <input v-model="outcome" type="text" placeholder="例如：总体生存与安全性" />
+        <span>结局（O）</span>
+        <input v-model="outcome" type="text" placeholder="解析后自动回填，或手动输入" />
       </label>
-    </div>
+      </div>
+    </section>
+
+    <p v-if="displayError" class="request-error" role="alert">{{ displayError }}</p>
   </section>
 </template>
 
 <style scoped>
-.strategy-builder {
-  display: grid;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border-subtle, #e2e8f0);
-  border-radius: 8px;
-}
-.section-title {
-  margin: 0;
-  color: var(--text-primary, #0f2a43);
-  font-size: 1.05rem;
-}
-.question-row {
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-end;
-}
-.question-label {
-  flex: 1;
-  display: grid;
-  gap: 0.35rem;
-}
-.field-label-text {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary, #475569);
-}
-.question-label input,
-.pico-field input {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border-strong, #cbd5e1);
-  border-radius: 6px;
-  font: inherit;
-  background: #fff;
-}
-.question-label input:focus-visible,
-.pico-field input:focus-visible {
-  outline: 2px solid var(--color-primary, #2563eb);
-  outline-offset: 1px;
-}
-.primary-action {
-  padding: 0.6rem 1.2rem;
-  border: 0;
-  border-radius: 6px;
-  background: var(--color-primary, #2563eb);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.primary-action:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.pico-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding-top: 0.25rem;
-}
-.pico-field {
-  display: grid;
-  gap: 0.35rem;
-}
-.request-error {
-  margin: 0;
-  padding: 0.6rem 0.8rem;
-  color: var(--color-danger, #dc2626);
-  background: var(--color-danger-soft, #fef2f2);
-  border-radius: 6px;
-  font-size: 0.875rem;
-}
-@media (max-width: 960px) {
-  .question-row {
-    display: grid;
-  }
-  .pico-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 640px) {
-  .pico-grid {
-    grid-template-columns: 1fr;
-  }
-}
+.strategy-builder { display: grid; align-content: start; gap: 12px; padding: 16px; background: var(--surface, #fff); border: 1px solid var(--border-subtle, #dbe4f0); border-radius: 8px; box-shadow: 0 8px 24px rgb(15 42 67 / 5%); }
+.panel-heading { display: flex; gap: .55rem; align-items: center; }
+.panel-heading h2 { margin: 0; color: var(--text-primary, #0f2a43); font-size: 1rem; line-height: 1.3; }
+.evidence-track { width: 3px; height: 1.25rem; border-radius: 2px; background: var(--color-primary, #2563eb); }
+.topic-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.parse-action { min-height: 2.4rem; padding: .48rem .8rem; border: 0; border-radius: 6px; background: var(--color-primary, #2563eb); color: #fff; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.parse-action:disabled { opacity: .55; cursor: not-allowed; }
+.parse-action:active { transform: translateY(1px); }
+.pico-section { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-subtle, #dbe4f0); }
+.pico-section-heading { display: flex; align-items: center; gap: 8px; }
+.pico-section-heading h3 { margin: 0; color: var(--text-primary, #0f2a43); font-size: .85rem; }
+.pico-hint { margin: 0; color: var(--text-muted, #64748b); font-size: .75rem; line-height: 1.45; }
+.pico-fields { display: grid; gap: .48rem; }
+.pico-field { display: grid; grid-template-columns: 5.75rem minmax(0, 1fr); gap: .55rem; align-items: center; color: var(--text-secondary, #475569); font-size: .85rem; }
+.pico-field span { font-weight: 600; white-space: nowrap; }
+.pico-field input, .topic-section input { min-width: 0; min-height: 2.4rem; padding: .48rem .65rem; border: 1px solid var(--border-strong, #cbd5e1); border-radius: 6px; background: #fff; color: var(--text-primary, #0f2a43); font: inherit; }
+.pico-field input:focus-visible, .topic-section input:focus-visible, .clear-action:focus-visible, .parse-action:focus-visible { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 2px; }
+.clear-action { padding: 0; border: 0; background: transparent; color: var(--color-primary, #2563eb); font: inherit; font-size: .8rem; cursor: pointer; }
+.topic-section { display: grid; gap: .42rem; }
+.topic-label { color: var(--text-secondary, #475569); font-size: .85rem; font-weight: 600; }
+.topic-section p { margin: 0; color: var(--text-muted, #64748b); font-size: .75rem; line-height: 1.45; }
+.request-error { margin: 0; padding: .55rem .7rem; border-radius: 6px; background: var(--color-danger-soft, #fef2f2); color: var(--color-danger, #dc2626); font-size: .82rem; }
+@media (max-width: 640px) { .strategy-builder { padding: 1rem; } .topic-input-row { grid-template-columns: 1fr; } .pico-field { grid-template-columns: 5rem minmax(0, 1fr); } }
 </style>

@@ -7,6 +7,8 @@ from app.core.database import get_session
 from app.modules.writing_project.schema import (
     UserMaterialCreate,
     UserMaterialRead,
+    WritingEvidenceReferenceCreate,
+    WritingEvidenceReferenceRead,
     WritingProjectCreate,
     WritingProjectRead,
     WritingProjectUpdate,
@@ -65,6 +67,15 @@ async def add_material(
     session: AsyncSession = Depends(get_session),
 ) -> UserMaterialRead:
     return await WritingProjectService(session).add_material(project_id, payload)
+
+
+@router.post("/{project_id}/evidence-references", response_model=WritingEvidenceReferenceRead)
+async def add_evidence_reference(
+    project_id: int,
+    payload: WritingEvidenceReferenceCreate,
+    session: AsyncSession = Depends(get_session),
+) -> WritingEvidenceReferenceRead:
+    return await WritingProjectService(session).add_evidence_reference(project_id, payload)
 
 
 @router.post("/{project_id}/versions", response_model=WritingVersionRead)

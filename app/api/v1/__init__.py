@@ -40,9 +40,11 @@ from app.modules.literature_search.status_router import (
 from app.modules.model_config.router import router as model_config_router
 from app.modules.outline.router import router as outline_router
 from app.modules.paper_analysis.router import router as paper_analysis_router
+from app.modules.paper_research.router import router as paper_research_router
 from app.modules.presentation.router import router as presentation_router
 from app.modules.recommendation.router import router as recommendation_router
 from app.modules.research_conditions.router import router as research_conditions_router
+from app.modules.research_context.router import router as research_context_router
 from app.modules.research_direction.router import router as research_direction_router
 from app.modules.task.router import router as task_router
 from app.modules.topic_structuring.router import router as topic_structuring_router
@@ -69,10 +71,12 @@ api_router.include_router(document_preview_router)
 api_router.include_router(document_upload_router)
 api_router.include_router(conversation_router, tags=["会话"])
 api_router.include_router(paper_analysis_router, tags=["论文分析"])
+api_router.include_router(paper_research_router)
 api_router.include_router(literature_search_router, tags=["文献检索"])
 api_router.include_router(literature_status_router)
 api_router.include_router(duplicate_group_router, tags=["文献去重"])
 api_router.include_router(research_direction_router, tags=["研究方向"])
+api_router.include_router(research_context_router)
 api_router.include_router(feasibility_router)
 api_router.include_router(advisor_workflow_router)
 api_router.include_router(presentation_router)

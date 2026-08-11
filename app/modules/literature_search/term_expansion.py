@@ -22,12 +22,20 @@ _TERM_MAPPINGS: dict[str, TermExpansion] = {
     "breast cancer": TermExpansion(
         "Breast Neoplasms", ("breast cancer", "mammary carcinoma")
     ),
+    "locally advanced rectal cancer": TermExpansion(
+        "Rectal Neoplasms",
+        ("locally advanced rectal cancer", "locally advanced rectal neoplasm"),
+    ),
     "diabetes": TermExpansion("Diabetes Mellitus", ("diabetes", "diabetic")),
     "alzheimer disease": TermExpansion(
         "Alzheimer Disease", ("Alzheimer's disease", "Alzheimer disease")
     ),
     "immunotherapy": TermExpansion(
         "Immunotherapy", ("cancer immunotherapy", "immune therapy")
+    ),
+    "neoadjuvant immunotherapy": TermExpansion(
+        "Immunotherapy",
+        ("neoadjuvant immunotherapy", "neoadjuvant immune checkpoint inhibitor"),
     ),
     "metformin": TermExpansion("Metformin", ("metformin", "dimethylbiguanide")),
     "aspirin": TermExpansion("Aspirin", ("aspirin", "acetylsalicylic acid", "ASA")),
@@ -47,13 +55,28 @@ _CHINESE_ALIASES = {
     "阿司匹林": "aspirin",
     "表皮生长因子受体": "egfr",
     "靶向治疗": "targeted therapy",
+    # 精确别名优先于猜测翻译，避免中文输入在生成查询时被静默丢弃。
+    "局部晚期直肠癌": "locally advanced rectal cancer",
+    "新辅助免疫治疗": "neoadjuvant immunotherapy",
 }
+
+
+def _resolve_curated_chinese_alias(value: str) -> str | None:
+    """Resolve a known Chinese concept embedded in a longer clinical phrase."""
+    compact_value = "".join(value.split())
+    for phrase, english_term in sorted(
+        _CHINESE_ALIASES.items(), key=lambda item: len(item[0]), reverse=True
+    ):
+        if phrase in compact_value:
+            return english_term
+    return None
 
 
 def expand_term(value: str) -> TermExpansion:
     """Return a conservative English expansion; unknown terms are never invented."""
-    normalized = " ".join(value.casefold().split())
-    normalized = _CHINESE_ALIASES.get(value.strip(), normalized)
+    normalized = _resolve_curated_chinese_alias(value) or " ".join(
+        value.casefold().split()
+    )
     if known := _TERM_MAPPINGS.get(normalized):
         return known
     return TermExpansion(value.strip(), (value.strip(),), source="user_supplied")

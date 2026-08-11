@@ -1,25 +1,34 @@
 <script setup lang="ts">
-import type { PaperSource } from "../../api/paperAnalysis";
-import { OUTLINE_SECTIONS, sectionStatus } from "./paperModel";
+import { OUTLINE_SECTIONS } from "./paperModel";
 
 /**
- * 左侧章节导航（Paper Structure Navigator）。
- * 章节列表为展示层常量；每章状态从 sources[].page_start 推导（有引用=已分析）。
+ * 章节导航只反映当前报告中可滚动到的分析块。
+ * 后端没有论文原始章节边界，故不从页码推断“已覆盖”的章节状态。
  */
-defineProps<{ sources: readonly PaperSource[] }>();
+const props = defineProps<{ availableSections: readonly string[] }>();
 
 const emit = defineEmits<{ navigate: [sectionKey: string] }>();
+
+function isAvailable(sectionKey: string): boolean {
+  return props.availableSections.includes(sectionKey);
+}
 </script>
 
 <template>
-  <nav class="outline" aria-label="论文大纲">
+  <nav class="outline" aria-label="论文结构">
     <p class="eyebrow">PAPER OUTLINE</p>
+    <h2 class="title">论文结构</h2>
     <ul class="sections">
       <li v-for="section in OUTLINE_SECTIONS" :key="section.key">
-        <button class="section" type="button" @click="emit('navigate', section.key)">
-          <span class="dot" :class="sectionStatus(section.key, sources) === 'analyzed' ? 'dot--analyzed' : 'dot--uncovered'" />
+        <button
+          class="section"
+          :class="{ 'section--available': isAvailable(section.key) }"
+          type="button"
+          :disabled="!isAvailable(section.key)"
+          @click="emit('navigate', section.key)"
+        >
           <span class="label">{{ section.label }}</span>
-          <span class="status">{{ sectionStatus(section.key, sources) === 'analyzed' ? '已分析' : '未覆盖' }}</span>
+          <span class="status">{{ isAvailable(section.key) ? "定位" : "未提供" }}</span>
         </button>
       </li>
     </ul>
@@ -29,8 +38,8 @@ const emit = defineEmits<{ navigate: [sectionKey: string] }>();
 <style scoped>
 .outline {
   display: grid;
-  gap: 0.7rem;
   align-content: start;
+  gap: 0.45rem;
   padding: 1.15rem 0.9rem;
 }
 .eyebrow {
@@ -39,6 +48,11 @@ const emit = defineEmits<{ navigate: [sectionKey: string] }>();
   font-size: 0.7rem;
   font-weight: 900;
   letter-spacing: 0.1em;
+}
+.title {
+  margin: 0 0 0.3rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
 }
 .sections {
   display: grid;
@@ -56,37 +70,32 @@ const emit = defineEmits<{ navigate: [sectionKey: string] }>();
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--text-primary);
+  color: var(--text-faint);
   text-align: left;
   font-size: 0.84rem;
-  transition: background-color 0.15s;
 }
-.section:hover {
+.section--available {
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.section--available:hover,
+.section--available:focus-visible {
   background: var(--surface-muted);
-}
-.dot {
-  flex-shrink: 0;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 99px;
-  background: var(--text-faint);
-}
-.dot--analyzed {
-  background: var(--color-success);
-}
-.dot--uncovered {
-  background: var(--border-strong);
+  outline: none;
 }
 .label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  white-space: nowrap;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .status {
   flex-shrink: 0;
-  font-size: 0.68rem;
   color: var(--text-faint);
+  font-size: 0.68rem;
+}
+.section--available .status {
+  color: var(--color-primary);
 }
 </style>

@@ -29,11 +29,11 @@ describe("KnowledgeSourceManager", () => {
     const wrapper = mount(KnowledgeSourceManager);
     await flushPromises();
     expect(wrapper.text()).toContain("实验论文");
-    expect(wrapper.text()).toContain("1 个来源 · 1 个启用");
+    expect(wrapper.text()).toContain("1 个来源 · 1 个已启用");
 
-    await wrapper.get(".source-actions button").trigger("click");
+    await wrapper.get('.source-actions input[type="checkbox"]').setValue(false);
     await flushPromises();
-    expect(wrapper.text()).toContain("1 个来源 · 0 个启用");
+    expect(wrapper.text()).toContain("1 个来源 · 0 个已启用");
     expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/v1/knowledge-sources/1",
       expect.objectContaining({ method: "PATCH" }),

@@ -41,6 +41,70 @@ async def test_empty_mesh_is_valid_and_does_not_invent_descriptor() -> None:
     ]
 
 
+async def test_expands_curated_chinese_rectal_cancer_and_neoadjuvant_immunotherapy() -> None:
+    async def fetcher(_: str) -> list[dict[str, str]]:
+        return []
+
+    service = LiteratureSearchService(None, mesh_client=MeshClient(fetcher))  # type: ignore[arg-type]
+    response = await service.expand_terms(
+        SearchIntentCandidate(
+            topic="局部晚期直肠癌患者加入新辅助免疫治疗",
+            disease="局部晚期直肠癌",
+            intervention="新辅助免疫治疗",
+        ),
+        {},
+    )
+
+    assert [group.name for group in response.term_groups] == ["disease", "intervention"]
+    assert response.term_groups[0].terms == [
+        "locally advanced rectal cancer",
+        "locally advanced rectal neoplasm",
+    ]
+    assert response.term_groups[1].terms == [
+        "neoadjuvant immunotherapy",
+        "neoadjuvant immune checkpoint inhibitor",
+    ]
+    assert not any("Chinese-only" in warning for warning in response.warnings)
+
+
+@pytest.mark.parametrize(
+    "disease, intervention",
+    [
+        ("局部晚期直肠癌", "新辅助免疫治疗"),
+        ("局部晚期直肠癌患者", "新辅助免疫治疗联合标准新辅助放化疗"),
+        ("接受新辅助免疫治疗的局部晚期直肠癌", "接受新辅助免疫治疗"),
+        ("局部晚期直肠癌（LARC）", "新辅助免疫治疗（PD-1 抑制剂）"),
+        ("局部 晚期 直肠癌", "新辅助 免疫治疗"),
+    ],
+)
+async def test_normalizes_five_common_chinese_clinical_phrase_formats(
+    disease: str,
+    intervention: str,
+) -> None:
+    async def fetcher(_: str) -> list[dict[str, str]]:
+        return []
+
+    service = LiteratureSearchService(None, mesh_client=MeshClient(fetcher))  # type: ignore[arg-type]
+    response = await service.expand_terms(
+        SearchIntentCandidate(topic=f"{disease} {intervention}", disease=disease, intervention=intervention),
+        {},
+    )
+
+    term_groups = {group.name: group.terms for group in response.term_groups}
+    assert "locally advanced rectal cancer" in term_groups["disease"]
+    assert "neoadjuvant immunotherapy" in term_groups["intervention"]
+    assert not any("Chinese-only" in warning for warning in response.warnings)
+
+
+def test_unknown_chinese_term_remains_unmapped_instead_of_inventing_translation() -> None:
+    from app.modules.literature_search.term_expansion import expand_term
+
+    expansion = expand_term("未收录的治疗概念")
+
+    assert expansion.source == "user_supplied"
+    assert expansion.synonyms == ("未收录的治疗概念",)
+
+
 @pytest.mark.parametrize(
     "value, expected",
     [

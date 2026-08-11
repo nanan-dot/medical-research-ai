@@ -97,14 +97,36 @@ test("shows workspace title, tabs, and empty strategy state", async () => {
   expect(wrapper.text()).toContain("结果展示");
   expect(wrapper.text()).toContain("历史记录");
   expect(wrapper.text()).toContain("推荐阅读");
-  // 未生成检索式时显示诚实空状态
-  expect(wrapper.text()).toContain("完善研究问题后生成检索式草案");
+  const resultTab = wrapper.get('button[role="tab"]:nth-child(2)');
+  expect(resultTab.attributes("aria-disabled")).toBeUndefined();
+  // 桌面工作区将 PICO 与连续策略面板作为同级区域，避免 PICO 占满一整行。
+  const workspace = wrapper.get(".search-workspace");
+  expect(workspace.findAll(":scope > section")).toHaveLength(3);
+  expect(workspace.find(".strategy-builder").exists()).toBe(true);
+  expect(workspace.find(".workspace-execution .source-panel").exists()).toBe(true);
+  expect(workspace.find(".workspace-execution .readiness-panel").exists()).toBe(true);
+  expect(workspace.get("#research-topic").element.compareDocumentPosition(
+    workspace.get(".pico-fields").element,
+  ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(workspace.get(".topic-section button").text()).toContain("解析研究问题");
+  expect(workspace.text()).toContain("解析后的 PICO 条件");
+  // 双列工作区保留每个 PICO 字段的可访问标签，检索式为空时不伪造布尔表达式。
+  expect(workspace.get("textarea[aria-describedby='query-editor-note']").attributes("placeholder")).toContain("解析研究问题");
+  expect(workspace.findAll(".pico-field input")).toHaveLength(4);
+  expect(workspace.text()).toContain("本次检索仅提交至 PubMed");
+  expect(workspace.text()).toContain("术语依据");
+  expect(workspace.text()).toContain("不限发表语言");
+  await resultTab.trigger("click");
+  expect(wrapper.text()).toContain("尚无可用的真实检索结果");
 });
 
 test("parses topic, fills PICO, builds query, and runs a real search task", async () => {
   const router = createRouter({
     history: createWebHistory(),
-    routes: [{ path: "/literature-search/results/:id", component: { template: "<div>results</div>" } }],
+    routes: [
+      { path: "/literature-search", component: { template: "<div>search</div>" } },
+      { path: "/literature-search/results/:id", component: { template: "<div>results</div>" } },
+    ],
   });
   router.push("/literature-search");
   await router.isReady();
@@ -113,7 +135,7 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
   const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
 
   // 第一步：输入研究问题并生成检索式（parse-query → expand-terms → build-query 自动链）
-  const topicInput = wrapper.find("input[placeholder*='肝细胞癌']");
+  const topicInput = wrapper.get("#research-topic");
   await topicInput.setValue("胃癌 EGFR 免疫治疗");
   await flushPromises();
   // jsdom 中点击 submit 按钮不触发 form submit，直接提交 form（等价于浏览器行为）。
@@ -125,8 +147,12 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
   expect(picoInputs.length).toBe(4);
   expect((picoInputs[0].element as HTMLInputElement).value).toContain("胃癌");
 
-  // 检索式草案展示真实 build-query 结果
-  expect(wrapper.text()).toContain('"stomach neoplasms"[Title/Abstract]');
+  // 检索式草案展示真实 build-query 结果，并允许用户在执行前编辑。
+  expect((wrapper.get("#search-query-draft").element as HTMLTextAreaElement).value).toContain('"stomach neoplasms"[Title/Abstract]');
+  expect(wrapper.text()).toContain("胃癌");
+  expect(wrapper.text()).toContain("stomach neoplasms");
+
+  await wrapper.get('select[aria-label="文献发表语言"]').setValue("chinese");
 
   // 第二步：开始检索 → POST /literature-search → 跳转结果页
   const searchButton = wrapper.findAll("button").find((b) => b.text().includes("开始检索"));
@@ -136,7 +162,10 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
 
   expect(fetchMock).toHaveBeenCalledWith(
     "/api/v1/literature-search",
-    expect.objectContaining({ method: "POST" }),
+    expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining('AND chinese[la]'),
+    }),
   );
   // 成功后保留文件 3 的固定标题与页签，仅在下方切换至内嵌结果内容。
   expect(wrapper.text()).toContain("文献检索");
@@ -154,7 +183,7 @@ test("rejects empty topic without calling the API", async () => {
   router.push("/literature-search");
   await router.isReady();
   const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
-  const generateButton = wrapper.findAll("button").find((b) => b.text().includes("生成检索式"));
+  const generateButton = wrapper.findAll("button").find((b) => b.text().includes("解析研究问题"));
   expect((generateButton!.element as HTMLButtonElement).disabled).toBe(true);
   await wrapper.find("form").trigger("submit");
   // 初始挂载会读取一次历史任务以确定“结果展示”的真实目标；空输入不会产生检索请求。

@@ -43,10 +43,12 @@ function isSelected(documentId: number) {
           <td><span class="status" :class="`status-${document.parse_status}`">{{ statusLabels[document.parse_status] }}</span></td>
           <td><span class="status" :class="`status-${document.index_status}`">{{ statusLabels[document.index_status] }}</span></td>
           <td class="actions">
-            <button v-if="document.parse_status === 'failed'" :disabled="disabled" @click="emit('retryParse', document)">重试解析</button>
-            <button v-if="document.index_status === 'failed' || document.index_status === 'outdated'" :disabled="disabled || document.parse_status !== 'succeeded'" @click="emit('retryIndex', document)">重试索引</button>
-            <RouterLink class="detail-link" :to="`/documents/${document.id}`">详情</RouterLink>
-            <button class="danger" :disabled="disabled || document.index_status === 'indexing'" @click="emit('deleteIndex', document)">删除索引</button>
+            <div class="action-group">
+              <button v-if="document.parse_status === 'failed'" :disabled="disabled" @click="emit('retryParse', document)">重试解析</button>
+              <button v-if="document.index_status === 'failed' || document.index_status === 'outdated'" :disabled="disabled || document.parse_status !== 'succeeded'" @click="emit('retryIndex', document)">重试索引</button>
+              <RouterLink class="detail-link" :to="`/documents/${document.id}`">详情</RouterLink>
+              <button v-if="document.index_status === 'succeeded'" class="danger" :disabled="disabled" @click="emit('deleteIndex', document)">删除索引</button>
+            </div>
           </td>
         </tr>
       </tbody>
@@ -55,10 +57,7 @@ function isSelected(documentId: number) {
 </template>
 
 <style scoped>
-.table-wrap { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--paper); }
-.document-table { width: 100%; min-width: 800px; border-collapse: collapse; }
-.document-table th, .document-table td { padding: .75rem; border-bottom: 1px solid var(--border-subtle); text-align: left; vertical-align: top; }
-.document-table th { color: var(--text-muted); font-size: .72rem; letter-spacing: .08em; }
+.table-wrap{border:1px solid var(--border-subtle);border-radius:10px;background:#fff;overflow:hidden}.document-table{width:100%;border-collapse:collapse}.document-table th,.document-table td{padding:.8rem;border-bottom:1px solid var(--border-subtle);text-align:left;vertical-align:top}.document-table th{color:var(--text-muted);font-size:.76rem;letter-spacing:.04em;background:#f8fafc}
 .file-name, .file-meta, .error-text { display: block; }
 .file-name { max-width: 330px; overflow-wrap: anywhere; color: var(--color-primary); font-weight: 750; text-decoration: none; }
 .file-name:hover, .detail-link:hover { text-decoration: underline; }
@@ -69,8 +68,9 @@ function isSelected(documentId: number) {
 .status-failed { background: var(--color-danger-soft); color: var(--color-danger); }
 .status-parsing, .status-indexing { background: var(--color-primary-soft); color: var(--color-primary); }
 .status-outdated { background: var(--color-warning-soft); color: var(--color-warning); }
-.actions { display: flex; gap: .4rem; flex-wrap: wrap; }
-.actions button, .detail-link { border: 1px solid var(--border-strong); border-radius: 7px; padding: .4rem .55rem; background: var(--paper); color: var(--text-primary); font: inherit; font-size: .78rem; text-decoration: none; white-space: nowrap; }
-.actions .danger { color: var(--color-danger); }
-.empty-state { padding: 2rem; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); text-align: center; color: var(--text-muted); }
+.actions { vertical-align: middle !important; }
+.action-group { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.action-group button, .detail-link { border: 1px solid var(--border-strong); border-radius: 7px; padding: .4rem .55rem; background: var(--paper); color: var(--text-primary); font: inherit; font-size: .78rem; text-decoration: none; white-space: nowrap; }
+.action-group .danger { color: var(--color-danger); }
+.empty-state{padding:2rem;border:1px dashed var(--border-strong);border-radius:10px;text-align:center;color:var(--text-muted)}@media(max-width:767px){.table-wrap{border:0;background:transparent}.document-table,.document-table tbody,.document-table tr,.document-table td{display:block}.document-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.document-table tr{position:relative;margin-bottom:.75rem;padding:1rem 1rem 1rem 3rem;border:1px solid var(--border-subtle);border-radius:10px;background:#fff}.document-table td{padding:.25rem 0;border:0}.document-table td:first-child{position:absolute;top:1rem;left:1rem}.document-table td:nth-child(3)::before{content:"来源："}.document-table td:nth-child(4)::before{content:"解析："}.document-table td:nth-child(5)::before{content:"索引："}.document-table td:nth-child(3)::before,.document-table td:nth-child(4)::before,.document-table td:nth-child(5)::before{color:var(--text-muted);font-size:.8rem}.actions{margin-top:.35rem}}
 </style>

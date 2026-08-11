@@ -12,6 +12,10 @@ def test_writing_project_router_exposes_required_mutating_endpoints() -> None:
     assert ("/writing-projects/{project_id}/versions", ("POST",)) in routes
     assert ("/writing-projects/{project_id}/versions", ("GET",)) in routes
     assert (
+        "/writing-projects/{project_id}/evidence-references",
+        ("POST",),
+    ) in routes
+    assert (
         "/writing-projects/{project_id}/versions/{version}/restore",
         ("POST",),
     ) in routes

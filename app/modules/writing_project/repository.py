@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.writing_project.model import (
+    WritingEvidenceReference,
     WritingProject,
     WritingUserMaterial,
     WritingVersion,
@@ -65,6 +66,21 @@ class WritingProjectRepository:
         await self.session.flush()
         await self.session.refresh(entity)
         return entity
+
+    async def add_evidence_reference(
+        self, entity: WritingEvidenceReference
+    ) -> WritingEvidenceReference:
+        self.session.add(entity)
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity
+
+    async def replace_evidence_references(
+        self, project: WritingProject, entities: list[WritingEvidenceReference]
+    ) -> None:
+        project.evidence_references.clear()
+        project.evidence_references.extend(entities)
+        await self.session.flush()
 
     async def get_version(self, project_id: int, version: int) -> WritingVersion | None:
         result = await self.session.execute(

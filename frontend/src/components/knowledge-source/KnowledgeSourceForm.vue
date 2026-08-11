@@ -46,12 +46,9 @@ function submit(): void {
 </template>
 
 <style scoped>
-.source-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.source-form { display: grid; grid-template-columns: 1fr .9fr 1.3fr auto; align-items:end; gap: .8rem; }
 .field { display: grid; gap: 0.45rem; }
-.field-wide { grid-column: 1 / -1; }
-.field-label { color: #52626b; font-size: 0.82rem; font-weight: 700; }
-.field input, .field select { border: 1px solid #c8d4d8; border-radius: 10px; padding: 0.78rem; background: #fff; color: #17262d; }
-.primary-action { justify-self: start; border: 0; border-radius: 10px; padding: 0.75rem 1rem; background: #0d6f66; color: #fff; font-weight: 700; cursor: pointer; }
+.field-wide { grid-column:auto; }.field-label { color:var(--text-muted); font-size:.82rem; font-weight:700; }.field input,.field select { width:100%; border:1px solid var(--border-strong); border-radius:8px; padding:.7rem .75rem; background:#fff; color:var(--text-primary); }.primary-action { min-height:40px; border:0; border-radius:8px; padding:.7rem 1rem; background:var(--color-primary); color:#fff; font-weight:700; cursor:pointer; }
 .primary-action:disabled { cursor: wait; opacity: 0.55; }
-@media (max-width: 680px) { .source-form { grid-template-columns: 1fr; } .field-wide { grid-column: auto; } }
+@media (max-width: 850px) { .source-form { grid-template-columns:1fr 1fr; }.field-wide{grid-column:1/-1}}@media (max-width:560px){.source-form{grid-template-columns:1fr}.field-wide{grid-column:auto}}
 </style>

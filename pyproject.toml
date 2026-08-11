@@ -74,3 +74,9 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = ["paperqa", "paperqa.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# scispaCy is an optional local integration; its guarded import must not make
+# the baseline static check depend on a heavyweight NLP runtime.
+module = ["spacy", "spacy.*"]
+ignore_missing_imports = true

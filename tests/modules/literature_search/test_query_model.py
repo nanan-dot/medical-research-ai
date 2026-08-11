@@ -96,3 +96,36 @@ async def test_invalid_model_json_falls_back_without_inventing_entities():
     assert result.candidate_source == "rule_fallback"
     assert result.candidate.topic == "近三年胃癌"
     assert result.candidate.disease is None
+
+
+@pytest.mark.asyncio
+async def test_rule_fallback_extracts_known_pico_phrases_from_clinical_question():
+    async def invalid(_: str) -> str:
+        return "not-json"
+
+    result = await LiteratureSearchService(
+        None, candidate_extractor=invalid
+    ).parse_query(  # type: ignore[arg-type]
+        "对于接受标准化疗的局部晚期直肠癌患者，加入新辅助免疫治疗联合标准新辅助放化疗，"
+        "是否提高病理完全缓解率并且不显著增加≥3级治疗相关不良事件？"
+    )
+
+    assert result.candidate_source == "rule_fallback"
+    assert result.candidate.disease == "局部晚期直肠癌患者"
+    assert result.candidate.intervention == "新辅助免疫治疗"
+    assert result.candidate.comparison == "标准新辅助放化疗"
+    assert result.candidate.outcome == "病理完全缓解率；≥3级治疗相关不良事件"
+
+
+@pytest.mark.asyncio
+async def test_topic_only_model_candidate_is_completed_by_known_pico_fallback():
+    service = LiteratureSearchService(
+        None,  # type: ignore[arg-type]
+        candidate_extractor=await extractor({"topic": "局部晚期直肠癌患者接受新辅助免疫治疗"}),
+    )
+
+    result = await service.parse_query("局部晚期直肠癌患者接受新辅助免疫治疗")
+
+    assert result.candidate_source == "model_candidate"
+    assert result.candidate.disease == "局部晚期直肠癌患者"
+    assert result.candidate.intervention == "新辅助免疫治疗"

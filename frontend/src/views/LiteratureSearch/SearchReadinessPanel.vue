@@ -5,7 +5,6 @@ import { computed } from "vue";
 
 const props = defineProps<{
   topicFilled: boolean;
-  picoFilled: boolean;
   sourceSelected: boolean;
   draftReady: boolean;
   taskLoading: boolean;
@@ -22,7 +21,7 @@ const items = computed(() => [
   { label: "研究问题已明确", done: props.topicFilled },
   { label: "关键词已扩展", done: props.hasCandidate && props.draftReady },
   { label: "来源范围已选择", done: props.sourceSelected },
-  { label: "准备开始检索", done: props.topicFilled && props.picoFilled && props.sourceSelected && props.draftReady },
+  { label: "准备开始检索", done: props.topicFilled && props.sourceSelected && props.draftReady },
 ]);
 
 const allReady = computed(() => items.value.every((item) => item.done));
@@ -30,15 +29,17 @@ const allReady = computed(() => items.value.every((item) => item.done));
 
 <template>
   <section class="readiness-panel" aria-labelledby="readiness-panel-title">
-    <h2 id="readiness-panel-title" class="section-title">检索前检查</h2>
-    <ul class="check-list">
-      <li v-for="item in items" :key="item.label" class="check-item" :class="{ done: item.done }">
-        <span class="check-mark" aria-hidden="true">{{ item.done ? "✓" : "○" }}</span>
-        <span>{{ item.label }}</span>
-      </li>
-    </ul>
+    <div class="readiness-summary">
+      <h2 id="readiness-panel-title" class="sr-only">检索前检查</h2>
+      <ul class="check-list">
+        <li v-for="item in items" :key="item.label" class="check-item" :class="{ done: item.done }">
+          <span class="check-mark" aria-hidden="true">{{ item.done ? "✓" : "○" }}</span>
+          <span>{{ item.label }}</span>
+        </li>
+      </ul>
+    </div>
     <div class="readiness-actions">
-      <button type="button" class="secondary-action" @click="emit('saveDraft')">保存为检索策略</button>
+      <button type="button" class="secondary-action" @click="emit('saveDraft')">保存草稿</button>
       <button
         type="button"
         class="primary-action"
@@ -49,27 +50,27 @@ const allReady = computed(() => items.value.every((item) => item.done));
       </button>
     </div>
     <p v-if="props.taskError" class="request-error" role="alert">{{ props.taskError }}</p>
-    <p class="footnote">本页用于设计检索策略；结果与历史将在相应页面查看。</p>
+    <p class="footnote">保存草稿仅存储在本机浏览器；执行后才会产生真实检索结果。</p>
   </section>
 </template>
 
 <style scoped>
 .readiness-panel {
-  display: grid;
-  gap: 0.8rem;
-  padding: 1.25rem;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border-subtle, #e2e8f0);
-  border-radius: 8px;
+  display: flex;
+  gap: .75rem 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: .85rem 1rem;
+  background: var(--surface-muted, #f8fafc);
+  border: 0;
+  border-top: 1px solid var(--border-subtle, #e2e8f0);
+  border-radius: 0;
 }
-.section-title {
-  margin: 0;
-  color: var(--text-primary, #0f2a43);
-  font-size: 1.05rem;
-}
+.readiness-summary { display: grid; flex: 1 1 22rem; min-width: 0; }
 .check-list {
   display: grid;
-  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .35rem .75rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -78,7 +79,7 @@ const allReady = computed(() => items.value.every((item) => item.done));
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  font-size: 0.9rem;
+  font-size: .78rem;
   color: var(--text-muted, #64748b);
 }
 .check-item.done {
@@ -103,10 +104,11 @@ const allReady = computed(() => items.value.every((item) => item.done));
   display: flex;
   gap: 0.6rem;
   align-items: center;
-  padding-top: 0.35rem;
+  justify-content: flex-end;
+  padding-top: 0;
 }
 .secondary-action {
-  padding: 0.55rem 1rem;
+  padding: .48rem .7rem;
   border: 1px solid var(--border-strong, #cbd5e1);
   border-radius: 6px;
   background: transparent;
@@ -114,15 +116,17 @@ const allReady = computed(() => items.value.every((item) => item.done));
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 .primary-action {
-  padding: 0.55rem 1.2rem;
+  padding: .48rem .8rem;
   border: 0;
   border-radius: 6px;
   background: var(--color-primary, #2563eb);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 .primary-action:disabled {
   opacity: 0.55;
@@ -138,12 +142,17 @@ const allReady = computed(() => items.value.every((item) => item.done));
 }
 .footnote {
   margin: 0;
-  font-size: 0.8rem;
+  flex-basis: 100%;
+  font-size: .75rem;
   color: var(--text-muted, #64748b);
 }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 640px) {
   .readiness-actions {
     flex-wrap: wrap;
   }
+  .readiness-panel { grid-template-columns: 1fr; }
+  .check-list { grid-template-columns: 1fr; }
+  .readiness-actions { justify-content: flex-start; }
 }
 </style>

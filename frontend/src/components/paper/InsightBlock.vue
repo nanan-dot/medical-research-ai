@@ -23,7 +23,7 @@ function kindLabel(kind: InsightBlockModel["fieldValue"]["kind"]): string {
 <template>
   <article class="block" :aria-label="block.label">
     <header class="block-head">
-      <h3 class="block-title">{{ block.label }}</h3>
+      <h3 class="block-title analysis-block-title">{{ block.label }}</h3>
       <span class="kind" :class="`kind--${block.fieldValue.kind}`">{{ kindLabel(block.fieldValue.kind) }}</span>
     </header>
     <p class="value">{{ block.fieldValue.value }}</p>

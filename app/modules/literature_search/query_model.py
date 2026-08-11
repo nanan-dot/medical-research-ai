@@ -30,6 +30,8 @@ class SearchIntentCandidate(BaseModel):
     topic: str = Field(min_length=1, max_length=500)
     disease: str | None = Field(default=None, max_length=200)
     intervention: str | None = Field(default=None, max_length=200)
+    comparison: str | None = Field(default=None, max_length=200)
+    outcome: str | None = Field(default=None, max_length=200)
     target: str | None = Field(default=None, max_length=200)
     mechanism: str | None = Field(default=None, max_length=200)
     date_range: DateRange | None = None

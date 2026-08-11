@@ -31,6 +31,12 @@ class LiteratureSearchTask(Base):
     __tablename__ = "literature_search_tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    research_context_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("research_contexts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     # 原始自然语言主题（如"胃癌 EGFR 免疫治疗"），用户输入原文。
     original_query: Mapped[str] = mapped_column(Text, nullable=False)
     # 结构化条件：parse-query 输出的 SearchIntentCandidate 序列化快照，可为空串。

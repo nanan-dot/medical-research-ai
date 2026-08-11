@@ -25,7 +25,7 @@ async function save(): Promise<void> {
   <span class="save-library">
     <button class="button" :disabled="disabled || saving" @click="save">{{ saving ? "保存中…" : "加入知识库" }}</button>
     <small v-if="error" class="error" role="alert">{{ error }}</small>
-    <OpenAccessFulltextPanel v-if="savedItem" :item="savedItem" @updated="savedItem = $event" />
+    <OpenAccessFulltextPanel v-if="savedItem?.fulltext_status === 'open_access_available'" :item="savedItem" @updated="savedItem = $event" />
   </span>
 </template>
 

@@ -12,6 +12,9 @@ class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     document_ids: Mapped[str] = mapped_column(Text, nullable=False)
+    research_context_id: Mapped[int | None] = mapped_column(
+        ForeignKey("research_contexts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     title: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

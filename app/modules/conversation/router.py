@@ -25,7 +25,7 @@ async def create_conversation(
     request: ConversationCreate, session: AsyncSession = Depends(get_session)
 ):
     return await ConversationService(session).create(
-        request.document_ids, request.title
+        request.document_ids, request.title, request.research_context_id
     )
 
 

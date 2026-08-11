@@ -150,6 +150,24 @@ def test_create_task_persists_input_snapshot_and_search_string(api_client):
     assert payload["versions"][0]["change"] is None
 
 
+def test_result_page_exposes_saved_library_fulltext_status(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("39000401")], 1)
+
+    task = client.post("/api/v1/literature-search", json=TASK_PAYLOAD).json()
+    result_id = task["latest_result_id"]
+    saved = client.post(
+        f"/api/v1/literature-results/{result_id}/save", json={"pmid": "39000401"}
+    )
+    assert saved.status_code == 200
+
+    response = client.get(f"/api/v1/literature-search/{result_id}/results")
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["item"]["abstract"] is None
+    assert item["library_item"]["fulltext_status"] == "metadata_only"
+
+
 def test_failed_task_records_error_and_has_no_version(api_client):
     client, executor = api_client
     executor.enqueue_error(PubMedError("ESearch failed"))

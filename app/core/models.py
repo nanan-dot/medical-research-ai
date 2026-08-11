@@ -53,6 +53,7 @@ from app.modules.research_conditions.model import (
     ResearchConditions,
     ResearchConditionsVersion,
 )
+from app.modules.research_context.model import ResearchContext, ResearchContextDocument
 from app.modules.research_direction.model import ResearchDirection
 from app.modules.task.model import TaskRecord
 from app.modules.topic_structuring.model import (
@@ -61,6 +62,7 @@ from app.modules.topic_structuring.model import (
 )
 from app.modules.writing.model import Writing
 from app.modules.writing_project.model import (  # noqa: F401
+    WritingEvidenceReference,
     WritingGeneratedContent,
     WritingProject,
     WritingUserMaterial,
@@ -71,9 +73,9 @@ __all__ = [
     "Conversation",
     "Document",
     "DocumentAnnotation",
+    "DocumentAsset",
     "DocumentOcrJob",
     "DocumentOcrPage",
-    "DocumentAsset",
     "Evaluation",
     "EvaluationRunRecord",
     "EvaluationRunResult",
@@ -82,7 +84,6 @@ __all__ = [
     "Health",
     "KnowledgeSource",
     "LibraryItem",
-    "OpenFulltextAcquisition",
     "LiteratureDuplicateGroup",
     "LiteratureDuplicateGroupMember",
     "LiteratureDuplicateResolution",
@@ -94,12 +95,16 @@ __all__ = [
     "LiteratureSearchTask",
     "LiteratureStatusRecord",
     "ModelConfig",
+    "OpenFulltextAcquisition",
     "PaperAnalysis",
     "ResearchConditions",
     "ResearchConditionsVersion",
+    "ResearchContext",
+    "ResearchContextDocument",
     "ResearchDirection",
     "TaskRecord",
     "TopicStructuring",
     "TopicStructuringVersion",
     "Writing",
+    "WritingEvidenceReference",
 ]

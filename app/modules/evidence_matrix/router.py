@@ -35,6 +35,7 @@ async def create_matrix(
         description=payload.description,
         fields=payload.fields,
         source_comparison_id=payload.source_comparison_id,
+        research_context_id=payload.research_context_id,
     )
 
 
@@ -67,6 +68,7 @@ async def update_matrix(
         name=payload.name,
         description=payload.description,
         status=payload.status.value if payload.status else None,
+        research_context_id=payload.research_context_id,
     )
 
 

@@ -4,6 +4,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { LiteratureSearchTask } from "../../api/literatureSearch";
 import History from "./History.vue";
 
+const routerStubs = { RouterLink: { template: "<a><slot /></a>" } };
+
 const succeededTask: LiteratureSearchTask = {
   id: 1,
   original_query: "胃癌 EGFR 免疫治疗",
@@ -34,13 +36,13 @@ test("renders the task list with topic, search string, status and rerun action",
       new Response(JSON.stringify({ total: 1, offset: 0, limit: 10, items: [succeededTask] })),
     ),
   );
-  const wrapper = mount(History);
+  const wrapper = mount(History, { global: { stubs: routerStubs } });
   await flushPromises();
 
   expect(wrapper.text()).toContain("检索历史");
   expect(wrapper.text()).toContain("胃癌 EGFR 免疫治疗");
   expect(wrapper.text()).toContain("已完成");
-  expect(wrapper.text()).toContain("search-intent-v1");
+  expect(wrapper.text()).toContain("v1");
   expect(wrapper.text()).toContain("重跑");
 });
 
@@ -83,7 +85,7 @@ test("rerun posts to the rerun endpoint and shows the version change summary", a
       ),
     );
   vi.stubGlobal("fetch", fetchMock);
-  const wrapper = mount(History);
+  const wrapper = mount(History, { global: { stubs: routerStubs } });
   await flushPromises();
 
   await wrapper.get(".rerun").trigger("click");
@@ -96,4 +98,5 @@ test("rerun posts to the rerun endpoint and shows the version change summary", a
   expect(wrapper.text()).toContain("新增 2 条");
   expect(wrapper.text()).toContain("减少 0 条");
   expect(wrapper.text()).toContain("39000401");
+  expect(wrapper.emitted("rerunSucceeded")?.[0]).toEqual([{ resultId: 102, taskId: 1 }]);
 });

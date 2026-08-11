@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 文献检索工作空间内的局部二级导航：检索中心 / 结果展示 / 历史记录 / 推荐阅读。
 // 只作用于本工作空间，不进入左侧全局导航；结果页只链接至真实已有的检索结果。
-import { onMounted, ref } from "vue";
+import { onMounted, shallowRef } from "vue";
 import { literatureSearchApi } from "../../api/literatureSearch";
 
 const props = defineProps<{ activeTab: "center" | "results" | "history" | "recommendations" }>();
@@ -9,11 +9,11 @@ const emit = defineEmits<{
   select: [tab: "center" | "results" | "history" | "recommendations"];
   "select-result": [result: { resultId: number; taskId: number }];
 }>();
-const latestResult = ref<{ resultId: number; taskId: number } | null>(null);
+const latestResult = shallowRef<{ resultId: number; taskId: number } | null>(null);
 
 const tabs = [
   { key: "center", label: "检索中心" },
-  { key: "results", label: "结果展示", requiresResult: true },
+  { key: "results", label: "结果展示" },
   { key: "history", label: "历史记录" },
   { key: "recommendations", label: "推荐阅读" },
 ] as const;
@@ -32,12 +32,10 @@ onMounted(async () => {
 });
 
 function openTab(tab: (typeof tabs)[number]): void {
-  // 在固定的文献检索工作区内切换内容；不跳转到另一张页面。
+  // 结果页始终可进入；没有真实快照时由父级展示诚实空态，而不伪造结果。
   if (tab.key === "results") {
-    if (latestResult.value) {
-      emit("select-result", latestResult.value);
-      emit("select", "results");
-    }
+    if (latestResult.value) emit("select-result", latestResult.value);
+    emit("select", "results");
     return;
   }
   emit("select", tab.key);
@@ -45,16 +43,16 @@ function openTab(tab: (typeof tabs)[number]): void {
 </script>
 
 <template>
-  <nav class="workspace-tabs" aria-label="文献检索工作空间导航">
+  <nav class="workspace-tabs" role="tablist" aria-label="文献检索工作空间导航">
     <button
       v-for="tab in tabs"
       :key="tab.key"
       type="button"
+      role="tab"
       class="workspace-tab"
-      :class="{ active: props.activeTab === tab.key, disabled: tab.key === 'results' && !latestResult && props.activeTab !== 'results' }"
+      :class="{ active: props.activeTab === tab.key }"
       :aria-current="props.activeTab === tab.key ? 'page' : undefined"
-      :aria-disabled="tab.key === 'results' && !latestResult && props.activeTab !== 'results' ? 'true' : undefined"
-      :title="tab.key === 'results' && !latestResult && props.activeTab !== 'results' ? '完成一次检索后可查看结果展示' : undefined"
+      :aria-selected="props.activeTab === tab.key"
       @click="openTab(tab)"
     >
       {{ tab.label }}

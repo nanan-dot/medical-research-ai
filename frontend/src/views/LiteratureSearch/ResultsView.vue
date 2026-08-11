@@ -99,12 +99,12 @@ const {
       <p v-else class="page-copy">正在按服务端返回的检索快照展示筛选、排序与分页。</p>
     </header>
 
-    <p v-if="error" class="request-error" role="alert">{{ error }}</p>
-    <p v-if="deduplicationError" class="request-error" role="alert">{{ deduplicationError }}</p>
-    <p v-if="libraryStatus" class="library-status">{{ libraryStatus }}</p>
-
-    <LiteratureFilters :filters="filters" :disabled="loading" @apply="applyFilters" />
-    <PaperResults
+    <section class="results-workspace" aria-label="检索结果工作区">
+      <LiteratureFilters :filters="filters" :disabled="loading" @apply="applyFilters" />
+      <p v-if="error" class="request-error workspace-error" role="alert">{{ error }}</p>
+      <p v-if="deduplicationError" class="request-error workspace-error" role="alert">{{ deduplicationError }}</p>
+      <p v-if="libraryStatus" class="library-status workspace-status">{{ libraryStatus }}</p>
+      <PaperResults
       :items="page?.items ?? []"
       :result-id="resultId"
       :loading="loading"
@@ -119,25 +119,36 @@ const {
       @go-to-page="goToPage"
       @toggle-saved="(pmid, saved) => updateState(pmid, { saved })"
       @toggle-read="(pmid, read) => updateState(pmid, { read_status: read ? 'read' : 'unread' })"
-      @saved-to-library="(reason) => libraryStatus = reason"
-    />
-    <ReadingPlan
+        @saved-to-library="(item) => libraryStatus = item.fulltext_status_reason"
+      />
+    </section>
+    <details class="utility-disclosure">
+      <summary>阅读顺序</summary>
+      <ReadingPlan
       :order="readingOrder"
       :loading="readingLoading"
       :saving="readingSaving"
       :error="readingError"
       @generate="generateReadingOrder"
-      @save="saveReadingOrder"
-    />
-    <DuplicateReview :groups="duplicateGroups" :loading="deduplicating" @run="runDeduplication" @resolve="resolveDuplicate" />
+        @save="saveReadingOrder"
+      />
+    </details>
+    <details class="utility-disclosure">
+      <summary>去重</summary>
+      <DuplicateReview :groups="duplicateGroups" :loading="deduplicating" @run="runDeduplication" @resolve="resolveDuplicate" />
+    </details>
   </main>
 </template>
 
 <style scoped>
-.results-view { max-width: 1100px; margin: auto; padding: 2rem 1.2rem 3rem; display: grid; gap: 1rem; }
+.results-view { max-width: 1440px; margin: auto; padding: 0; display: grid; gap: .8rem; }
 .eyebrow { margin: 0; color: var(--color-primary); font-weight: 800; letter-spacing: 0.12em; font-size: 0.72rem; }
 .page-title { margin: 0.25rem 0; color: var(--text-primary); font-size: clamp(1.6rem, 3.5vw, 2.6rem); line-height: 1.15; }
 .page-copy { max-width: 760px; margin: 0; color: var(--text-muted); line-height: 1.6; overflow-wrap: anywhere; }
 .request-error { margin: 0; padding: 0.8rem; color: var(--color-danger); background: var(--color-danger-soft); border-radius: 10px; }
 .library-status { margin: 0; padding: .8rem; color: var(--color-success); background: var(--color-success-soft, #edf8f1); border-radius: 10px; }
+.results-workspace { overflow: hidden; border: 1px solid var(--border-subtle, #dbe4f0); border-radius: 8px; background: var(--surface, #fff); box-shadow: var(--shadow-card, 0 2px 8px rgb(15 42 67 / 4%)); }
+.results-workspace :deep(.results) { border: 0; border-radius: 0; box-shadow: none; }
+.workspace-error, .workspace-status { margin: .65rem .9rem 0; }
+.utility-disclosure { border: 1px solid var(--border-subtle, #dbe4f0); border-radius: 8px; background: var(--surface, #fff); padding: .65rem .8rem; }.utility-disclosure summary { color: var(--text-primary, #0f2a43); font-size: .84rem; font-weight: 600; cursor: pointer; }.utility-disclosure[open] summary { margin-bottom: .7rem; }
 </style>

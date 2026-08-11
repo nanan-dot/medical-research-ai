@@ -55,9 +55,10 @@ const greetingTitle = computed(() => `${greeting}，${researcherName}`);
 .welcome-title {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.75rem, 2.5vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 .welcome-sub {
   margin: 0;
@@ -84,8 +85,6 @@ const greetingTitle = computed(() => `${greeting}，${researcherName}`);
     padding: 1.1rem 1rem 1.8rem;
     gap: 1.2rem;
   }
-  .welcome-title {
-    font-size: 1.3rem;
-  }
+  .welcome-title { font-size: 1.75rem; }
 }
 </style>

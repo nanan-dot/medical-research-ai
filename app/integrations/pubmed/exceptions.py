@@ -7,6 +7,8 @@ from app.common.exceptions import AppError
 
 
 class PubMedError(AppError):
+    # PubMed 是外部依赖；检索式已通过本地校验时，其失败不应被误报为客户端 400。
+    status_code = 503
     code = "pubmed_error"
 
 

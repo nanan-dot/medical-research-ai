@@ -22,9 +22,11 @@ const { parsed, candidate, loading: intentLoading, error: intentError, parse, up
 const { expanded, result, loading: termsLoading, error: termsError, taskLoading, taskError, expand, build, createTask } = useSearchTerms();
 
 const topic = shallowRef("");
+const editableQuery = shallowRef("");
 // PICO 受控状态：reactive 保证子组件 emit 后响应式更新。
 const pico = reactive({ population: "", intervention: "", comparison: "", outcome: "" });
 const selectedSources = shallowRef<string[]>(["pubmed"]);
+const publicationLanguage = shallowRef<"any" | "chinese">("any");
 const activeTab = shallowRef<"center" | "results" | "history" | "recommendations">("center");
 const activeResult = shallowRef<{ resultId: number; taskId: number } | null>(null);
 
@@ -47,8 +49,8 @@ async function handleSubmit(rawTopic: string): Promise<void> {
   if (!cand) return;
   pico.population = cand.disease ?? "";
   pico.intervention = cand.intervention ?? "";
-  pico.comparison = "";
-  pico.outcome = "";
+  pico.comparison = cand.comparison ?? "";
+  pico.outcome = cand.outcome ?? "";
   // 解析成功后立即扩展关键词（真实 expand-terms 调用）。
   // candidate 为只读类型，展开为可变对象传给 expand（composable 需要可变 SearchIntentCandidate）。
   await expand({
@@ -63,6 +65,7 @@ async function handleSubmit(rawTopic: string): Promise<void> {
   const groups = expanded.value?.term_groups ?? [];
   if (groups.some((group) => group.terms.length > 0)) {
     await build(groups);
+    editableQuery.value = result.value?.boolean_query ?? "";
   }
 }
 
@@ -77,29 +80,39 @@ function handleSourceChange(selected: string[]): void {
   selectedSources.value = selected;
 }
 
-function handleBuild(groups: unknown[]): void {
-  void build(groups as Parameters<typeof build>[0]);
+function handleLanguageChange(value: "any" | "chinese"): void {
+  publicationLanguage.value = value;
+}
+
+function clearStrategyInput(): void {
+  pico.population = "";
+  pico.intervention = "";
+  pico.comparison = "";
+  pico.outcome = "";
+  topic.value = "";
 }
 
 function saveDraft(): void {
   // 本地草稿边界：仅保存在浏览器 localStorage，不伪称已保存到后端。
-  if (result.value) {
-    window.localStorage.setItem("rag-medicine-search-draft", result.value.boolean_query);
+  if (editableQuery.value.trim()) {
+    window.localStorage.setItem("rag-medicine-search-draft", editableQuery.value);
   }
 }
 
 function copyQuery(): void {
-  if (result.value) void window.navigator.clipboard?.writeText(result.value.boolean_query);
+  if (editableQuery.value) void window.navigator.clipboard?.writeText(editableQuery.value);
 }
 
 // 执行检索：真实 createTask（调用后端 PubMed 检索），成功后在本页面切换至结果展示。
 async function runSearch(): Promise<void> {
-  if (!result.value || !parsed.value) return;
+  if (!result.value || !parsed.value || !editableQuery.value.trim()) return;
   const task = await createTask({
     original_query: parsed.value.raw_topic,
     structured_query: JSON.stringify(parsed.value.candidate),
-    search_string: result.value.boolean_query,
-    filters: JSON.stringify({}),
+    search_string: publicationLanguage.value === "chinese"
+      ? `(${editableQuery.value}) AND chinese[la]`
+      : editableQuery.value,
+    filters: JSON.stringify({ publication_language: publicationLanguage.value }),
     model_version: parsed.value.prompt_version,
     user_edits: JSON.stringify(result.value.user_edits),
     retmax: parsed.value.candidate.retmax || 20,
@@ -111,11 +124,8 @@ async function runSearch(): Promise<void> {
 }
 
 const topicFilled = computed(() => topic.value.trim().length > 0);
-const picoFilled = computed(() =>
-  [pico.population, pico.intervention, pico.comparison, pico.outcome].some((v) => v.trim().length > 0),
-);
 const sourceSelected = computed(() => selectedSources.value.length > 0);
-const draftReady = computed(() => Boolean(result.value?.boolean_query));
+const draftReady = computed(() => Boolean(result.value?.boolean_query && editableQuery.value.trim()));
 </script>
 
 <template>
@@ -132,37 +142,43 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query));
     />
 
     <template v-if="activeTab === 'center'">
-      <SearchStrategyBuilder
-      :loading="loading"
-      :error="error"
-      :has-candidate="Boolean(candidate)"
-      :pico="pico"
-      @submit="handleSubmit"
-      @pico-change="handlePicoChange"
-      />
-
-      <div class="workspace-columns">
-      <SearchDraftPanel
-        :expanded="expanded"
-        :result="result"
-        :loading="termsLoading"
-        @build="handleBuild"
-        @copy="copyQuery"
-      />
-      <SourceScopePanel @change="handleSourceChange" />
-      </div>
-
-      <SearchReadinessPanel
-      :topic-filled="topicFilled"
-      :pico-filled="picoFilled"
-      :source-selected="sourceSelected"
-      :draft-ready="draftReady"
-      :task-loading="taskLoading"
-      :task-error="taskError"
-      :has-candidate="Boolean(candidate)"
-      @save-draft="saveDraft"
-      @run-search="runSearch"
-      />
+      <section class="search-workspace" aria-label="检索策略工作区">
+        <SearchStrategyBuilder
+          :loading="loading"
+          :error="error"
+          :pico="pico"
+          :topic="topic"
+          @submit="handleSubmit"
+          @pico-change="handlePicoChange"
+          @topic-change="topic = $event"
+          @clear="clearStrategyInput"
+        />
+        <SearchDraftPanel
+          :query="editableQuery"
+          :loading="termsLoading"
+          :expanded="expanded"
+          :candidate="candidate"
+          @query-change="editableQuery = $event"
+          @copy="copyQuery"
+        />
+        <section class="workspace-execution" aria-label="来源范围与检索操作">
+          <SourceScopePanel
+            :publication-language="publicationLanguage"
+            @change="handleSourceChange"
+            @language-change="handleLanguageChange"
+          />
+          <SearchReadinessPanel
+            :topic-filled="topicFilled"
+            :source-selected="sourceSelected"
+            :draft-ready="draftReady"
+            :task-loading="taskLoading"
+            :task-error="taskError"
+            :has-candidate="Boolean(candidate)"
+            @save-draft="saveDraft"
+            @run-search="runSearch"
+          />
+        </section>
+      </section>
     </template>
 
     <ResultsView
@@ -172,43 +188,97 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query));
       :result-id="activeResult.resultId"
       :task-id="activeResult.taskId"
     />
-    <History v-else-if="activeTab === 'history'" embedded />
+    <section v-else-if="activeTab === 'results'" class="results-empty-workspace" aria-labelledby="results-empty-title">
+      <h2 id="results-empty-title">结果展示</h2>
+      <p>尚无可用的真实检索结果。请在检索中心完成一次检索后查看结果快照。</p>
+    </section>
+    <History
+      v-else-if="activeTab === 'history'"
+      embedded
+      @rerun-succeeded="(selection) => { activeResult = selection; activeTab = 'results'; }"
+    />
     <RecommendationsView v-else-if="activeTab === 'recommendations'" embedded />
   </main>
 </template>
 
 <style scoped>
 .literature-workspace {
-  max-width: 1180px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 1.4rem 1.2rem 2.6rem;
+  padding: 24px 32px 40px;
   display: grid;
-  gap: 1rem;
+  gap: 16px;
 }
 .page-header {
   display: grid;
-  gap: 0.2rem;
+  gap: 4px;
 }
 .page-title {
   margin: 0;
   color: var(--text-primary, #0f2a43);
-  font-size: 1.6rem;
-  line-height: 1.2;
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 .page-copy {
   margin: 0;
   color: var(--text-muted, #64748b);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
 }
-.workspace-columns {
+.search-workspace {
   display: grid;
-  grid-template-columns: 8fr 4fr;
-  gap: 1rem;
-  align-items: start;
+  grid-template-columns: minmax(352px, 5fr) minmax(480px, 8fr);
+  gap: 16px;
+  align-items: stretch;
 }
+.workspace-execution {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(420px, 8fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle, #dbe4f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: 0 8px 24px rgb(15 42 67 / 5%);
+}
+.workspace-execution :deep(.source-panel) {
+  padding: 16px;
+  border: 0;
+}
+.workspace-execution :deep(.readiness-panel) {
+  padding: 12px 16px;
+  border: 0;
+  border-left: 1px solid var(--border-subtle, #dbe4f0);
+  background: var(--surface-muted, #f8fafc);
+}
+.results-empty-workspace { display: grid; gap: .5rem; padding: 2rem 1.1rem; border: 1px solid var(--border-subtle, #dbe4f0); border-radius: 8px; background: var(--surface, #fff); color: var(--text-muted, #64748b); text-align: center; box-shadow: var(--shadow-card, 0 2px 8px rgb(15 42 67 / 4%)); }.results-empty-workspace h2,.results-empty-workspace p { margin: 0; }.results-empty-workspace h2 { color: var(--text-primary, #0f2a43); font-size: 1rem; }.results-empty-workspace p { font-size: .88rem; }
+:deep(.workspace-tabs) { gap: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+:deep(.workspace-tab) { min-height: auto; padding: 8px 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--text-muted, #64748b); font-size: .8125rem; }
+:deep(.workspace-tab + .workspace-tab) { border-left: 1px solid var(--border-strong, #cbd5e1); }
+:deep(.workspace-tab.active) { border-bottom-color: var(--color-primary, #2563eb); background: transparent; color: var(--color-primary, #2563eb); }
+:deep(.workspace-tab[aria-disabled="true"]) { background: transparent; }
 @media (max-width: 900px) {
-  .workspace-columns {
+  .search-workspace {
     grid-template-columns: 1fr;
+  }
+  .workspace-execution {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+  .workspace-execution :deep(.readiness-panel) {
+    border-top: 1px solid var(--border-subtle, #dbe4f0);
+    border-left: 0;
+  }
+}
+@media (max-width: 640px) {
+  .literature-workspace {
+    padding: 16px;
+    gap: 12px;
+  }
+  :deep(.workspace-tab) {
+    padding-inline: 10px;
   }
 }
 </style>

@@ -7,6 +7,8 @@ const candidate = {
   topic: "胃癌",
   disease: "胃癌",
   intervention: null,
+  comparison: null,
+  outcome: null,
   target: null,
   mechanism: null,
   date_range: { start_year: 2024, end_year: 2026, original_expression: "近三年" },

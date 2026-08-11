@@ -30,8 +30,6 @@ onMounted(load);
 
 <template>
   <main class="detail-page">
-    <RouterLink class="back-link" to="/documents">← 返回文档库</RouterLink>
-
     <StatePanel
       v-if="loading"
       title="正在读取文档状态"
@@ -82,8 +80,7 @@ onMounted(load);
 
 <style scoped>
 .detail-page { width: min(100% - 2rem, 1280px); margin: 0 auto; padding: 2rem 0 2.8rem; }
-.back-link { color: var(--color-primary); font-weight: 750; text-decoration: none; }
-.detail-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr); gap: 1.25rem; margin-top: 1.25rem; align-items: start; }
+.detail-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr); gap: 1.25rem; align-items: start; }
 .primary-column, .sidebar { min-width: 0; }
 .sidebar { display: grid; gap: 1rem; }
 .retry-button { border: 1px solid var(--border-strong); border-radius: 7px; padding: .45rem .7rem; background: var(--paper); color: var(--text-primary); font: inherit; }
