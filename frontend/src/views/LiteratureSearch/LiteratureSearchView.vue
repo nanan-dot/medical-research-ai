@@ -23,7 +23,7 @@ const literatureWorkspaceTabs = ["center", "results", "history", "recommendation
 type LiteratureWorkspaceTab = (typeof literatureWorkspaceTabs)[number];
 type ResultSelection = { resultId: number; taskId: number };
 
-const { parsed, candidate, loading: intentLoading, error: intentError, parse, updateCandidate } = useQueryIntent();
+const { parsed, candidate, loading: intentLoading, error: intentError, parse } = useQueryIntent();
 const { expanded, result, loading: termsLoading, error: termsError, taskLoading, taskError, expand, build, createTask } = useSearchTerms();
 
 const topic = shallowRef("");

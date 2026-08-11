@@ -58,15 +58,7 @@ class CandidateCore(BaseModel):
 
     @model_validator(mode="after")
     def prevent_overclaiming(self) -> "CandidateCore":
-        content = " ".join(
-            (
-                self.name,
-                self.question,
-                self.current_evidence.text,
-                self.controversy.text,
-                self.gap,
-            )
-        )
+        content = f"{self.name} {self.question} {self.current_evidence.text} {self.controversy.text} {self.gap}"
         if any(word in content for word in FORBIDDEN_CLAIMS):
             raise ValueError("Candidate contains prohibited overclaiming language")
         if "当前检索结果中较少见" not in self.gap:

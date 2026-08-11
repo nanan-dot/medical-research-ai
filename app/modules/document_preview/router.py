@@ -2,6 +2,7 @@
 
 from typing import Annotated
 
+import anyio
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,9 +89,14 @@ async def get_document_pdf(
         start, end = ranges[0]
         end = min(end, start + _CHUNK_LIMIT_BYTES - 1)
         length = end - start + 1
-        with open(path, "rb") as file_handle:
-            file_handle.seek(start)
-            body = file_handle.read(length)
+
+        def _read_chunk() -> bytes:
+            # 同步文件读取放到线程池，避免阻塞事件循环（分块最大 1MiB）。
+            with open(path, "rb") as file_handle:
+                file_handle.seek(start)
+                return file_handle.read(length)
+
+        body = await anyio.to_thread.run_sync(_read_chunk)
         return Response(
             content=body,
             status_code=206,
@@ -107,9 +113,14 @@ async def get_document_pdf(
     for start, end in ranges:
         end = min(end, start + _CHUNK_LIMIT_BYTES - 1)
         length = end - start + 1
-        with open(path, "rb") as file_handle:
-            file_handle.seek(start)
-            body = file_handle.read(length)
+
+        def _read_part(part_start: int = start, part_end: int = end) -> bytes:
+            # 多块场景同样走线程池读取，避免阻塞事件循环。
+            with open(path, "rb") as file_handle:
+                file_handle.seek(part_start)
+                return file_handle.read(part_end - part_start + 1)
+
+        body = await anyio.to_thread.run_sync(_read_part)
         parts.append(
             b"--" + boundary.encode()
             + b"\r\nContent-Type: application/pdf\r\n"

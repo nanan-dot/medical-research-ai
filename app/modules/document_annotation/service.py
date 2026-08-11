@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
+from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from app.modules.document.schema import ParseStatus
 from app.modules.document_annotation.model import DocumentAnnotation
 from app.modules.document_annotation.repository import DocumentAnnotationRepository
 from app.modules.document_annotation.schema import (
+    AnnotationColor,
     AnnotationCreate,
     AnnotationRead,
     AnnotationUpdate,
@@ -143,7 +145,7 @@ class DocumentAnnotationService:
             rectangles=json.loads(annotation.selection_geometry),
             selected_text=annotation.selected_text,
             selected_text_hash=annotation.selected_text_hash,
-            color=annotation.color,
+            color=cast(AnnotationColor, annotation.color),
             note=annotation.note,
             version_status=(
                 AnnotationVersionStatus.CURRENT

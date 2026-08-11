@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from datetime import UTC, datetime
+from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,7 +98,7 @@ class DocumentOcrService:
         return OcrJobRead(
             id=job.id,
             document_id=job.document_id,
-            status=job.status,
+            status=cast(OcrJobStatus, job.status),
             engine_name=job.engine_name,
             engine_version=job.engine_version,
             language=job.language,
@@ -190,7 +191,7 @@ class DocumentOcrRunner:
             return
         except OcrEngineUnavailableError as exc:
             await self._mark_failed(job, "ocr_engine_unavailable", str(exc))
-        except Exception:
+        except Exception:  # noqa: BLE001 — OCR 兜底：未预期失败收敛为已记录的任务失败状态。
             await self._mark_failed(job, "ocr_execution_failed", "OCR 任务执行失败")
 
     async def _mark_processing(self, job: DocumentOcrJob) -> None:

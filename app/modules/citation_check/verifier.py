@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Self
 
 import httpx
 
@@ -63,7 +63,7 @@ class CitationVerifier:
         if self._owns_http:
             await self._http.aclose()
 
-    async def __aenter__(self) -> CitationVerifier:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:

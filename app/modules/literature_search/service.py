@@ -9,8 +9,8 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Literal, cast
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import NotFoundError
 from app.integrations.llm.client import LLMClient
@@ -279,7 +279,7 @@ class LiteratureSearchService:
             )
             try:
                 rows = await self.mesh_client.lookup(expansion.core_term)
-            except Exception:
+            except Exception:  # noqa: BLE001 — MeSH 查找失败降级：追加警告继续，不中断扩展流程。
                 warnings.append(
                     f"{name}: official MeSH lookup was unavailable; no MeSH candidate was assumed."
                 )

@@ -6,7 +6,7 @@ import asyncio
 import hashlib
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PureWindowsPath
 from uuid import uuid4
 
@@ -25,7 +25,10 @@ from app.modules.document_upload.repository import DocumentAssetRepository
 from app.modules.document_upload.schema import DocumentAssetRead, DocumentUploadRead
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.knowledge_source.repository import KnowledgeSourceRepository
-from app.modules.knowledge_source.schema import KnowledgeSourceSyncStatus, KnowledgeSourceType
+from app.modules.knowledge_source.schema import (
+    KnowledgeSourceSyncStatus,
+    KnowledgeSourceType,
+)
 
 _ALLOWED_MEDIA_TYPES = frozenset({"application/pdf", "application/x-pdf"})
 _PDF_SIGNATURE = b"%PDF-"
@@ -152,7 +155,7 @@ class DocumentUploadService:
         sha256: str,
     ) -> tuple[Document, DocumentAsset]:
         relative_path = final_path.relative_to(upload_root).as_posix()
-        modified_time = datetime.fromtimestamp(final_path.stat().st_mtime, tz=timezone.utc)
+        modified_time = datetime.fromtimestamp(final_path.stat().st_mtime, tz=UTC)
 
         async with self._session.begin():
             source = await self._get_or_create_upload_source(upload_root)

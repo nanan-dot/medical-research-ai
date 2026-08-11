@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from docx import Document as WordDocument
 
 from app.modules.document_preview.schema import (
@@ -26,7 +28,7 @@ def convert_docx_to_preview(path: str) -> tuple[list[DocumentPreviewBlock], list
     return blocks, tables
 
 
-def _convert_paragraphs(document: WordDocument) -> list[DocumentPreviewBlock]:
+def _convert_paragraphs(document: Any) -> list[DocumentPreviewBlock]:
     blocks: list[DocumentPreviewBlock] = []
     for paragraph in document.paragraphs:
         text = _compact_text(paragraph.text)
@@ -44,7 +46,7 @@ def _convert_paragraphs(document: WordDocument) -> list[DocumentPreviewBlock]:
     return blocks
 
 
-def _convert_tables(document: WordDocument) -> list[DocumentPreviewTable]:
+def _convert_tables(document: Any) -> list[DocumentPreviewTable]:
     tables: list[DocumentPreviewTable] = []
     for table in document.tables[:_MAX_TABLES]:
         rows = [

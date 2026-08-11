@@ -3,6 +3,7 @@
 import json
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from typing import cast
 
 from pydantic import AnyHttpUrl, SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from app.modules.writing_ai.schema import (
     EvidenceMapping,
     WritingGenerationRequest,
     WritingSuggestionRead,
+    WritingTask,
 )
 from app.modules.writing_project.service import WritingProjectService
 
@@ -169,7 +171,7 @@ class WritingAiService:
         return WritingSuggestionRead(
             id=entity.id,
             project_id=entity.project_id,
-            task=entity.task,
+            task=cast(WritingTask, entity.task),
             content=entity.content,
             evidence_mappings=[
                 EvidenceMapping.model_validate(item)
@@ -177,5 +179,6 @@ class WritingAiService:
             ],
             requires_human_confirmation=entity.requires_human_confirmation,
             confirmed_at=entity.confirmed_at,
+            adopted_version=entity.adopted_version,
             created_at=entity.created_at,
         )

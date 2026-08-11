@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { evidenceMatricesApi, type EvidenceMatrix } from "../../api/evidenceMatrices";
 import { researchDirectionsApi, type ResearchConditionsPayload, type ResearchDirection } from "../../api/researchDirections";
 import CandidateDirectionGrid from "../../components/research/CandidateDirectionGrid.vue";
 import ResearchContextForm from "../../components/research/ResearchContextForm.vue";
 
 const matrices = ref<EvidenceMatrix[]>([]); const selectedMatrixId = ref<number | null>(null); const candidates = ref<ResearchDirection[]>([]); const saving = ref(false); const loadingDetailsId = ref<number | null>(null); const error = ref("");
-const canGenerate = computed(() => selectedMatrixId.value !== null && !saving.value);
 async function loadMatrices(): Promise<void> { try { const page = await evidenceMatricesApi.list(); matrices.value = page.items; selectedMatrixId.value = page.items[0]?.id ?? null; } catch (cause) { error.value = cause instanceof Error ? cause.message : "无法读取证据矩阵。"; } }
 async function saveConditions(payload: ResearchConditionsPayload): Promise<void> { saving.value = true; error.value = ""; try { const conditions = await researchDirectionsApi.createConditions(payload); if (!selectedMatrixId.value) { error.value = "研究条件已保存；请先创建并选择一个证据矩阵，再生成候选方向。"; return; } candidates.value = await researchDirectionsApi.generate(conditions.id, selectedMatrixId.value, 3); } catch (cause) { error.value = cause instanceof Error ? cause.message : "无法生成候选研究方向。"; } finally { saving.value = false; } }
 async function loadDetails(candidate: ResearchDirection): Promise<void> { loadingDetailsId.value = candidate.id; error.value = ""; try { const detailed = candidate.methods ? await researchDirectionsApi.getDetails(candidate.id) : await researchDirectionsApi.generateDetails(candidate.id); candidates.value = candidates.value.map((item) => item.id === detailed.id ? detailed : item); } catch (cause) { error.value = cause instanceof Error ? cause.message : "无法读取研究方向详情。"; } finally { loadingDetailsId.value = null; } }

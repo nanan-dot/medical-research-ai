@@ -301,7 +301,7 @@ def rank_reading_order(
         grouped[entry.category].append(entry)
 
     result: list[ClassifiedReadingItem] = []
-    for category, _ in _CATEGORY_ORDER.items():
+    for category in _CATEGORY_ORDER:
         group = grouped[category]
         if category in {"review", "guideline", "frontier"}:
             group.sort(key=_year_sort_key)

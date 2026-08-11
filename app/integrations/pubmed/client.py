@@ -19,7 +19,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Self
 from xml.etree import ElementTree
 
 import httpx
@@ -235,7 +235,7 @@ class PubMedClient:
         if self._owns_http_client:
             await self._http_client.aclose()
 
-    async def __aenter__(self) -> PubMedClient:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:

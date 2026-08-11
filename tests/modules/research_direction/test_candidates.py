@@ -5,7 +5,7 @@ import json
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.common.exceptions import AIModelError, ConflictError
+from app.common.exceptions import AIModelError, ConflictError, NotFoundError
 from app.core import models  # noqa: F401  # 注册全部表，确保外键可建。
 from app.core.database import Base
 from app.modules.evidence_matrix.model import EvidenceMatrix, MatrixCell, MatrixDocument
@@ -149,7 +149,7 @@ async def test_generate_details_merge_delete_and_version(session) -> None:
         and source.merged_into_id == merged.id
     )
     await service.delete(generated[2].id)
-    with pytest.raises(Exception):
+    with pytest.raises(NotFoundError):
         await service.get(generated[2].id)
 
 

@@ -446,6 +446,6 @@ def test_reading_order_request_manual_overrides_each_time(api_client):
 
 
 def test_reading_order_missing_result_returns_404(api_client):
-    client, executor = api_client
+    client, _executor = api_client
     missing = client.post("/api/v1/literature-search/99999/reading-order", json={})
     assert missing.status_code == 404

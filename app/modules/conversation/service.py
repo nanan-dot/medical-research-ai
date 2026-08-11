@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -243,7 +244,7 @@ class ConversationService:
         )
 
     @staticmethod
-    def _decode_document_ids(entity: Conversation) -> list[int] | None:
+    def _decode_document_ids(entity: Conversation) -> builtins.list[int] | None:
         try:
             parsed_ids = json.loads(entity.document_ids)
         except json.JSONDecodeError:

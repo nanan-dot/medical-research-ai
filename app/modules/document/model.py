@@ -7,6 +7,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+# DocumentAsset 定义在 document_upload 模块；repository.py 已有同样导入，
+# 模块间为单向依赖（document → document_upload），无循环风险。
+from app.modules.document_upload.model import DocumentAsset
+
 
 class Document(Base):
     __tablename__ = "documents"

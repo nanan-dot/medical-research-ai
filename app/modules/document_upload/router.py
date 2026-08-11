@@ -8,7 +8,10 @@ from starlette.datastructures import UploadFile
 
 from app.core.database import get_session
 from app.modules.document_upload.schema import DocumentUploadRead
-from app.modules.document_upload.service import DocumentUploadService, UploadValidationError
+from app.modules.document_upload.service import (
+    DocumentUploadService,
+    UploadValidationError,
+)
 
 router = APIRouter(prefix="/document-uploads", tags=["document-uploads"])
 

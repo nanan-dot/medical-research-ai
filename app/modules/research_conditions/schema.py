@@ -1,7 +1,7 @@
 """研究条件快照的请求与响应结构。"""
 
 from datetime import datetime
-from typing import Literal, TypeAlias
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,7 +11,7 @@ from app.modules.research_conditions.validation import (
     validate_nonempty_minimal_input,
 )
 
-ConditionValue: TypeAlias = str | int | list[str] | None
+type ConditionValue = str | int | list[str] | None
 ConditionSource = Literal["user", "unknown"]
 
 

@@ -6,7 +6,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.library_item.schema import LibraryItemRead
-
 from app.modules.literature_search.query_model import MAX_RETMX, SearchIntentCandidate
 
 

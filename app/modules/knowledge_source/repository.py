@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass
 
 from sqlalchemy import case, func, select
@@ -55,7 +56,7 @@ class KnowledgeSourceRepository:
         return result.scalar_one_or_none()
 
     async def stats_by_source_ids(
-        self, source_ids: list[int]
+        self, source_ids: builtins.list[int]
     ) -> dict[int, KnowledgeSourceStatsRecord]:
         if not source_ids:
             return {}

@@ -2,7 +2,7 @@
 
 import logging
 from time import perf_counter
-from typing import Any
+from typing import Any, Self
 
 import httpx
 from pydantic import AnyHttpUrl, SecretStr, ValidationError
@@ -135,7 +135,7 @@ class LLMClient:
         if self._owns_http_client:
             await self._http_client.aclose()
 
-    async def __aenter__(self) -> "LLMClient":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:

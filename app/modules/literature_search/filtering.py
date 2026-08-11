@@ -100,9 +100,7 @@ def apply_filters(
             return False
         if params.read_status is not None and read_status != params.read_status:
             return False
-        if params.tags is not None and not _tags_contain(tags, params.tags):
-            return False
-        return True
+        return not (params.tags is not None and not _tags_contain(tags, params.tags))
 
     # 列表推导生成新列表，避免在遍历原列表时删除元素导致跳过条目。
     return [item for item in items if passes(item)]

@@ -11,11 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.modules.document.model import Document
 from app.modules.document.parsers.schemas import ParsedDocument
-from app.modules.document_upload.model import DocumentAsset
 from app.modules.document_navigation.schema import (
-    DocumentNavigationRequest, DocumentNavigationResponse, DocumentNavigationResult,
-    NavigationCondition, NavigationLocation, NavigationStrategy, VerificationStatus,
+    DocumentNavigationRequest,
+    DocumentNavigationResponse,
+    DocumentNavigationResult,
+    NavigationCondition,
+    NavigationLocation,
+    NavigationStrategy,
+    VerificationStatus,
 )
+from app.modules.document_upload.model import DocumentAsset
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.rag.bm25_store import BM25Store
 from app.rag.embeddings import EmbeddingError, create_embedding_client
@@ -25,7 +30,7 @@ from app.rag.schemas import Chunk, RetrievalResult
 from app.rag.vector_retriever import VectorRetriever
 
 _YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
-_RCT = re.compile(r"随机[对照化]试验|随机对照|randomi[sz]ed controlled trial|\bRCT\b", re.I)
+_RCT = re.compile(r"随机[对照化]试验|随机对照|randomi[sz]ed controlled trial|\bRCT\b", re.IGNORECASE)
 _WHITESPACE = re.compile(r"\s+")
 _EXCERPT_RADIUS = 180
 
@@ -107,14 +112,17 @@ class DocumentNavigationService:
             results = await asyncio.to_thread(HybridRetriever(vector_retriever=vector, bm25_retriever=bm25).search, query, limit)
             return results, NavigationStrategy.HYBRID, None
         except (EmbeddingError, RuntimeError, ValueError, OSError) as error:
-            return _matched_bm25(bm25, query, limit), NavigationStrategy.BM25, f"本机语义向量不可用，已降级为 BM25：{str(error)}"
+            return _matched_bm25(bm25, query, limit), NavigationStrategy.BM25, f"本机语义向量不可用，已降级为 BM25：{error!s}"
 
 
 def _make_chunks(documents: list[_SourceDocument]) -> tuple[list[Chunk], dict[str, _ChunkContext]]:
     chunks: list[Chunk] = []
     contexts: dict[str, _ChunkContext] = {}
     for item in documents:
-        entries = [(page.text, page.page_number, None) for page in item.parsed.pages if page.text.strip()]
+        # entries 混装"页文本 + 页码"与"节文本 + 节标题"两类来源，统一为三元素元组。
+        entries: list[tuple[str, int | None, str | None]] = [
+            (page.text, page.page_number, None) for page in item.parsed.pages if page.text.strip()
+        ]
         entries += [(section.text, None, section.heading) for section in item.parsed.sections if section.text.strip()]
         if not entries and item.parsed.text.strip(): entries = [(item.parsed.text, None, None)]
         for index, (text, page_number, section) in enumerate(entries):

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import NotFoundError
 from app.core.database import get_session
+from app.modules.document.model import Document
 from app.modules.literature_search.status_classifier import Status, classify
 from app.modules.literature_search.status_model import LiteratureStatusRecord
 from app.modules.literature_search.status_schema import (
@@ -13,7 +14,6 @@ from app.modules.literature_search.status_schema import (
     LiteratureStatusRead,
     LiteratureStatusRequest,
 )
-from app.modules.document.model import Document
 
 router = APIRouter(prefix="/literature-status", tags=["literature-status"])
 @router.post("/check", response_model=LiteratureStatusRead)

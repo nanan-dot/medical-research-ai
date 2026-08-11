@@ -3,6 +3,7 @@ from cryptography.fernet import Fernet
 
 from app.common.exceptions import ConflictError
 from app.core.security import SecretCipher
+from app.integrations.ollama.exceptions import OllamaConfigurationError
 from app.modules.model_config.schema import ModelConfigCreate
 from app.modules.model_config.service import ModelConfigService
 
@@ -12,28 +13,28 @@ def cipher():
 
 
 def cloud(**changes):
-    values = dict(
-        deployment_mode="cloud",
-        provider="openai",
-        api_base="https://api.example/v1",
-        api_key="secret-value",
-        model_name="model",
-        allow_cloud_content=True,
-        is_default=False,
-    )
+    values = {
+        "deployment_mode": "cloud",
+        "provider": "openai",
+        "api_base": "https://api.example/v1",
+        "api_key": "secret-value",
+        "model_name": "model",
+        "allow_cloud_content": True,
+        "is_default": False,
+    }
     values.update(changes)
     return ModelConfigCreate(**values)
 
 
 def local(**changes):
-    values = dict(
-        deployment_mode="local",
-        provider="ollama",
-        api_base="http://127.0.0.1:11434",
-        model_name="qwen3:4b",
-        allow_cloud_content=False,
-        is_default=False,
-    )
+    values = {
+        "deployment_mode": "local",
+        "provider": "ollama",
+        "api_base": "http://127.0.0.1:11434",
+        "model_name": "qwen3:4b",
+        "allow_cloud_content": False,
+        "is_default": False,
+    }
     values.update(changes)
     return ModelConfigCreate(**values)
 
@@ -71,7 +72,7 @@ async def test_cloud_authorization_and_local_ssrf_are_rejected(session):
         api_base="http://10.0.0.2:11434",
         model_name="x",
     )
-    with pytest.raises(Exception):
+    with pytest.raises(OllamaConfigurationError):
         await ModelConfigService(session, cipher=cipher()).create(request)
 
 

@@ -12,7 +12,8 @@ class LiteratureSearch(Base):
     __tablename__ = "literature_searchs"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    # TODO: 添加业务字段
+    # 脚手架遗留：业务检索数据由 LiteratureSearchTask 承载（输入快照 + 结果版本），
+    # 本模型仅保留 id 以兼容早期 repository 契约。
 
 
 class LiteratureSearchTask(Base):

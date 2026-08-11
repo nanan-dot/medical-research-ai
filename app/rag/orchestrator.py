@@ -2,9 +2,9 @@
 from dataclasses import dataclass
 
 from app.rag.hybrid_retriever import TextRetriever
-from app.rag.schemas import RetrievalResult
-from app.rag.rrf import fuse_ranked_results
 from app.rag.reranker import RerankCandidate, RerankerService
+from app.rag.rrf import fuse_ranked_results
+from app.rag.schemas import RetrievalResult
 
 
 @dataclass(frozen=True)

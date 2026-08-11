@@ -31,6 +31,8 @@ const knowledgeSource = {
   error_message: null,
   stats: { total_files: 126, parsed: 112, indexed: 112, pending: 8, failed: 6 },
 };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 夹具保留作文档参考（mock 响应形状）
+void knowledgeSource;
 
 afterEach(() => vi.unstubAllGlobals());
 

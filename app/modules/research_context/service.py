@@ -1,6 +1,7 @@
 """Business rules for grouping real research resources under one context."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -95,7 +96,9 @@ class ResearchContextService:
             updated_at=entity.updated_at,
         )
 
-    async def _resource_ids(self, model: type[object], context_id: int) -> list[int]:
+    async def _resource_ids(self, model: type[Any], context_id: int) -> list[int]:
+        # model 是 SQLAlchemy 模型类，列属性经 InstrumentedAttribute 处理，
+        # 与静态类型不直接兼容；用 Any 保留运行时行为。
         result = await self.session.execute(
             select(model.id).where(model.research_context_id == context_id)
         )

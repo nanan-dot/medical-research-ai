@@ -2,7 +2,7 @@
 // 继续研究：从真实后端读取最近的研究任务（文献检索历史）。
 // 无记录时显示空态引导，不伪造任何研究记录。
 import { onMounted, shallowRef } from "vue";
-import { literatureSearchApi, type LiteratureSearchTask } from "../../api/literatureSearch";
+import { literatureSearchApi } from "../../api/literatureSearch";
 
 interface RecentResearch {
   id: number;

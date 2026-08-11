@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.modules.document_annotation.schema import AnnotationCreate, AnnotationRead, AnnotationUpdate
+from app.modules.document_annotation.schema import (
+    AnnotationCreate,
+    AnnotationRead,
+    AnnotationUpdate,
+)
 from app.modules.document_annotation.service import DocumentAnnotationService
 
 router = APIRouter(tags=["document-annotations"])

@@ -7,7 +7,7 @@ import LiteratureSearchView from "./LiteratureSearchView.vue";
 afterEach(() => vi.restoreAllMocks());
 
 // 完整解析/扩展/构建/执行检索的响应链，供"执行检索"测试复用。
-function stubSearchChain(router: ReturnType<typeof createRouter>) {
+function stubSearchChain(_router: ReturnType<typeof createRouter>) {
   const fetchMock = vi
     .fn()
     // 1. 文献检索二级导航读取最近结果（空列表表示不展示伪造结果入口）

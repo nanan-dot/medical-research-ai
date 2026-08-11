@@ -8,7 +8,7 @@
 
 import hashlib
 import ipaddress
-from typing import Literal, Protocol, runtime_checkable
+from typing import Literal, Protocol, Self, runtime_checkable
 from urllib.parse import urlparse
 
 import httpx
@@ -203,7 +203,7 @@ class OllamaEmbeddingClient:
         if self._owns_http_client:
             await self._http_client.aclose()
 
-    async def __aenter__(self) -> "OllamaEmbeddingClient":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:

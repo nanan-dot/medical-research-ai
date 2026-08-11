@@ -92,6 +92,7 @@ class DocumentIndexService:
             await self._mark_failed(document, exc.code, exc.message)
             raise ConflictError(exc.message) from exc
         except Exception as exc:
+            # 兜底：任何未预料的 PaperQA2 操作失败都收敛为已标记的失败任务并抛出领域异常。
             await self._mark_failed(
                 document, "paperqa2_operation_error", "PaperQA2 indexing failed"
             )
@@ -110,7 +111,7 @@ class DocumentIndexService:
         for document_id in dict.fromkeys(document_ids):
             try:
                 results.append(await self.index(document_id))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — 批量隔离：单篇失败不中断整批，记录后继续。
                 results.append(
                     DocumentIndexResult(
                         document_id=document_id,

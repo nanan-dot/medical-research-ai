@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { PaperAnalysis } from "../../api/paperAnalysis";
 
-const props = defineProps<{
+// 模板直接使用解构后的 props 字段（defineProps 无需显式赋值给变量）。
+defineProps<{
   analysis: PaperAnalysis;
   title: string | null;
 }>();

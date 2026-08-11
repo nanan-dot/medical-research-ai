@@ -1,7 +1,7 @@
 """通过统一 ``LLMClient.chat`` 调用本机 Ollama。"""
 
 import ipaddress
-from typing import Any
+from typing import Any, Self
 from urllib.parse import urlparse
 
 import httpx
@@ -176,7 +176,7 @@ class OllamaClient:
         if self._owns_http_client:
             await self._http_client.aclose()
 
-    async def __aenter__(self) -> "OllamaClient":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:

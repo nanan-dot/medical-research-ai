@@ -47,12 +47,12 @@ async def test_check_builds_audit_report_with_summary():
     assert result.summary.verified == 1
     assert result.summary.unverified == 1
 
-    verified = [item for item in result.items if item.identifier == "39000401"][0]
+    verified = next(item for item in result.items if item.identifier == "39000401")
     assert verified.verified is True
     assert verified.verified_by == "pubmed"
     assert verified.matched == "39000401"
 
-    unverified = [item for item in result.items if item.identifier == "99999999"][0]
+    unverified = next(item for item in result.items if item.identifier == "99999999")
     assert unverified.verified is False
     assert unverified.notes == ["未找到"]
 
