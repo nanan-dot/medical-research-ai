@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -9,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Literal, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.common.exceptions import NotFoundError
 from app.integrations.llm.client import LLMClient
@@ -61,6 +63,7 @@ from app.modules.literature_search.schema import (
     LiteratureSearchResultPage,
     LiteratureSearchResultRead,
     LiteratureSearchTaskCreate,
+    LiteratureSearchTaskCreateResult,
     LiteratureSearchTaskList,
     LiteratureSearchTaskRead,
     LiteratureSearchTaskRerun,
@@ -111,6 +114,70 @@ def _coerce_status(value: str) -> SearchTaskStatus:
     if value not in _VALID_STATUSES:
         raise ValueError(f"invalid task status: {value!r}")
     return value  # type: ignore[return-value]  # 已用集合校验收敛为合法 Literal
+
+
+def _canonical_json(value: str) -> object | str:
+    """Parse JSON snapshots before deterministic serialization."""
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
+
+
+def _normalize_user_edit_value(value: object) -> object:
+    """Normalize user-edit JSON while preserving meaningful search terms."""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        normalized_items = [_normalize_user_edit_value(item) for item in value]
+        non_empty_items = [item for item in normalized_items if item != ""]
+        return sorted(
+            non_empty_items,
+            key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+    if isinstance(value, dict):
+        return {
+            key: _normalize_user_edit_value(item)
+            for key, item in sorted(value.items())
+        }
+    return value
+
+
+def normalize_user_edits(raw: str) -> str:
+    """Return a stable JSON representation of user edits without format-only differences."""
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return raw
+    normalized = _normalize_user_edit_value(parsed)
+    return json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def strategy_fingerprint_from_snapshot(
+    *, database: str, search_string: str, filters: str, retmax: int,
+    user_edits: str, model_version: str, structured_query: str,
+    original_query: str,
+) -> str:
+    """Return a stable SHA-256 digest for exact reproducible strategy inputs."""
+    snapshot = {
+        "database": database, "search_string": search_string,
+        "filters": _canonical_json(filters), "retmax": retmax,
+        "user_edits": normalize_user_edits(user_edits), "model_version": model_version,
+        "structured_query": _canonical_json(structured_query),
+        "original_query": original_query,
+    }
+    canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def strategy_fingerprint(request: LiteratureSearchTaskCreate) -> str:
+    """Build an exact strategy fingerprint from a validated create request."""
+    return strategy_fingerprint_from_snapshot(
+        database=request.database, search_string=request.search_string,
+        filters=request.filters, retmax=request.retmax, user_edits=request.user_edits,
+        model_version=request.model_version, structured_query=request.structured_query,
+        original_query=request.original_query,
+    )
 
 
 class LiteratureSearchService:
@@ -237,7 +304,7 @@ class LiteratureSearchService:
 
     async def create_task(
         self, request: LiteratureSearchTaskCreate
-    ) -> LiteratureSearchTaskRead:
+    ) -> LiteratureSearchTaskCreateResult:
         """创建检索任务并立即执行（pending → running → succeeded/failed）。
 
         设计说明：任务持久化的是完整检索输入快照，执行复用 WP03.5 的
@@ -245,6 +312,19 @@ class LiteratureSearchService:
         结果引用落到 LiteratureSearchResult，任务只保存结果 id，避免复制
         items_json 造成历史膨胀。
         """
+        fingerprint = strategy_fingerprint(request)
+        existing = await self.repo.get_task_by_fingerprint(fingerprint)
+        if existing is None:
+            existing = await self._find_legacy_task_by_fingerprint(fingerprint)
+        if existing is not None:
+            rerun = await self.rerun_task(existing.id)
+            return LiteratureSearchTaskCreateResult(
+                **rerun.task.model_dump(),
+                operation="reused",
+                change=rerun.change,
+                new_result_id=rerun.new_result_id,
+            )
+
         now = datetime.now(UTC)
         entity = LiteratureSearchTask(
             original_query=request.original_query,
@@ -255,12 +335,56 @@ class LiteratureSearchService:
             model_version=request.model_version,
             user_edits=request.user_edits,
             retmax=request.retmax,
+            strategy_fingerprint=fingerprint,
             status=STATUS_PENDING,
             created_at=now,
         )
-        saved = await self.repo.create_task(entity)
+        try:
+            saved = await self.repo.create_task(entity)
+        except IntegrityError:
+            # 唯一约束是跨请求的最终裁决：竞争者创建成功后，本请求回滚并复用它。
+            await self.repo.session.rollback()
+            existing = await self.repo.get_task_by_fingerprint(fingerprint)
+            if existing is None:
+                raise
+            rerun = await self.rerun_task(existing.id)
+            return LiteratureSearchTaskCreateResult(
+                **rerun.task.model_dump(),
+                operation="reused",
+                change=rerun.change,
+                new_result_id=rerun.new_result_id,
+            )
         await self._run_task(saved, request.retmax)
-        return await self.get_task(saved.id)
+        task = await self.get_task(saved.id)
+        return LiteratureSearchTaskCreateResult(
+            **task.model_dump(),
+            operation="created",
+            change=None,
+            new_result_id=task.latest_result_id or 0,
+        )
+
+    async def _find_legacy_task_by_fingerprint(
+        self, fingerprint: str
+    ) -> LiteratureSearchTask | None:
+        """以纯函数比对旧快照；只给首个匹配任务加指纹，不处理其他审计行。"""
+        for task in await self.repo.list_tasks_for_fingerprint_matching():
+            if strategy_fingerprint_from_snapshot(
+                database=task.database,
+                search_string=task.search_string,
+                filters=task.filters,
+                retmax=task.retmax,
+                user_edits=task.user_edits,
+                model_version=task.model_version,
+                structured_query=task.structured_query,
+                original_query=task.original_query,
+            ) == fingerprint:
+                task.strategy_fingerprint = fingerprint
+                try:
+                    return await self.repo.save_task(task)
+                except IntegrityError:
+                    await self.repo.session.rollback()
+                    return await self.repo.get_task_by_fingerprint(fingerprint)
+        return None
 
     async def get_task(self, id: int) -> LiteratureSearchTaskRead:
         """返回任务详情，含按版本升序排列的结果版本时间线。"""

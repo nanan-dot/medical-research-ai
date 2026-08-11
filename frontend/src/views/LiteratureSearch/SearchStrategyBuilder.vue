@@ -134,5 +134,6 @@ const outcome = field("outcome");
 .topic-label { color: var(--text-secondary, #475569); font-size: .85rem; font-weight: 600; }
 .topic-section p { margin: 0; color: var(--text-muted, #64748b); font-size: .75rem; line-height: 1.45; }
 .request-error { margin: 0; padding: .55rem .7rem; border-radius: 6px; background: var(--color-danger-soft, #fef2f2); color: var(--color-danger, #dc2626); font-size: .82rem; }
-@media (max-width: 640px) { .strategy-builder { padding: 1rem; } .topic-input-row { grid-template-columns: 1fr; } .pico-field { grid-template-columns: 5rem minmax(0, 1fr); } }
+@media (max-width: 1280px) { .topic-input-row { grid-template-columns: 1fr; }.parse-action { justify-self: start; } }
+@media (max-width: 640px) { .strategy-builder { padding: 1rem; } .parse-action { width: 100%; }.pico-field { grid-template-columns: 5rem minmax(0, 1fr); } }
 </style>

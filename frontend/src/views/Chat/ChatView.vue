@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from "vue";
+import { useRoute } from "vue-router";
 import { conversationsApi, type Conversation, type ConversationSummary } from "../../api/conversations";
 import EvidencePanel from "../../components/evidence/EvidencePanel.vue";
 import type { EvidenceItemModel } from "../../components/evidence/EvidenceItem.vue";
@@ -7,6 +8,7 @@ import ExportButton from "../../components/common/ExportButton.vue";
 import { researchContextsApi, type ResearchContext } from "../../api/researchContexts";
 
 const documentIds = shallowRef("");
+const route = useRoute();
 const question = shallowRef("");
 const conversation = shallowRef<Conversation | null>(null);
 const history = shallowRef<ConversationSummary[]>([]);
@@ -19,11 +21,21 @@ const activeContext = computed(() => contexts.value.find((context) => context.id
 const selectedDocumentIds = computed(() => activeContext.value?.document_ids ?? documentIds.value.split(",").map(Number).filter(Boolean));
 const evidence = computed<EvidenceItemModel[]>(() => conversation.value?.messages.flatMap(message => message.citations.map(citation => ({ id: citation.id, title: citation.citation_text, excerpt: citation.evidence_text, page: citation.page, section: citation.section, kind: "paper" }))) ?? []);
 
+function positiveRouteId(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 async function load(): Promise<void> {
   try {
     const [loadedHistory, loadedContexts] = await Promise.all([conversationsApi.list(), researchContextsApi.list()]);
     history.value = loadedHistory;
     contexts.value = loadedContexts;
+    const requestedDocumentId = positiveRouteId(route.query.documentId);
+    if (requestedDocumentId !== null) documentIds.value = String(requestedDocumentId);
+    const requestedConversationId = positiveRouteId(route.query.conversationId);
+    if (requestedConversationId !== null) await restore(requestedConversationId);
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "会话历史或研究上下文暂不可用。";
   }

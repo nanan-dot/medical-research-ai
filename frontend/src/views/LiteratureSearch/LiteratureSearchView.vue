@@ -4,7 +4,7 @@
 // → build-query（构建检索式）→ createTask（执行检索）。所有数据来自真实后端，
 // 不伪造检索完成/论文数量/进度。空态与禁用态诚实表达能力边界。
 import { computed, reactive, shallowRef } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useQueryIntent } from "../../composables/useQueryIntent";
 import { useSearchTerms } from "../../composables/useSearchTerms";
 import LiteratureWorkspaceTabs from "./LiteratureWorkspaceTabs.vue";
@@ -17,6 +17,11 @@ import History from "./History.vue";
 import RecommendationsView from "../Recommendations/RecommendationsView.vue";
 
 const route = useRoute();
+const router = useRouter();
+
+const literatureWorkspaceTabs = ["center", "results", "history", "recommendations"] as const;
+type LiteratureWorkspaceTab = (typeof literatureWorkspaceTabs)[number];
+type ResultSelection = { resultId: number; taskId: number };
 
 const { parsed, candidate, loading: intentLoading, error: intentError, parse, updateCandidate } = useQueryIntent();
 const { expanded, result, loading: termsLoading, error: termsError, taskLoading, taskError, expand, build, createTask } = useSearchTerms();
@@ -27,8 +32,16 @@ const editableQuery = shallowRef("");
 const pico = reactive({ population: "", intervention: "", comparison: "", outcome: "" });
 const selectedSources = shallowRef<string[]>(["pubmed"]);
 const publicationLanguage = shallowRef<"any" | "chinese">("any");
-const activeTab = shallowRef<"center" | "results" | "history" | "recommendations">("center");
-const activeResult = shallowRef<{ resultId: number; taskId: number } | null>(null);
+// URL 是工作区标签页的唯一来源，保证结果页返回和刷新后仍能恢复用户所在上下文。
+const activeTab = computed<LiteratureWorkspaceTab>(() => {
+  const requestedTab = route.query.tab;
+  return typeof requestedTab === "string" && literatureWorkspaceTabs.includes(requestedTab as LiteratureWorkspaceTab)
+    ? requestedTab as LiteratureWorkspaceTab
+    : "center";
+});
+const activeResult = shallowRef<ResultSelection | null>(null);
+const reuseNotice = shallowRef("");
+const previousResultId = shallowRef<number | null>(null);
 
 const loading = computed(() => intentLoading.value || termsLoading.value);
 const error = computed(() => intentError.value || termsError.value);
@@ -103,10 +116,27 @@ function copyQuery(): void {
   if (editableQuery.value) void window.navigator.clipboard?.writeText(editableQuery.value);
 }
 
+function selectTab(nextTab: LiteratureWorkspaceTab): void {
+  const nextQuery = { ...route.query };
+  if (nextTab === "center") {
+    delete nextQuery.tab;
+  } else {
+    nextQuery.tab = nextTab;
+  }
+  void router.replace({ query: nextQuery });
+}
+
+function showResult(selection: ResultSelection): void {
+  activeResult.value = selection;
+  selectTab("results");
+}
+
 // 执行检索：真实 createTask（调用后端 PubMed 检索），成功后在本页面切换至结果展示。
 async function runSearch(): Promise<void> {
   if (!result.value || !parsed.value || !editableQuery.value.trim()) return;
-  const task = await createTask({
+  reuseNotice.value = "";
+  previousResultId.value = null;
+  const created = await createTask({
     original_query: parsed.value.raw_topic,
     structured_query: JSON.stringify(parsed.value.candidate),
     search_string: publicationLanguage.value === "chinese"
@@ -117,9 +147,20 @@ async function runSearch(): Promise<void> {
     user_edits: JSON.stringify(result.value.user_edits),
     retmax: parsed.value.candidate.retmax || 20,
   });
-  if (task !== null && task.latest_result_id !== null) {
-    activeResult.value = { resultId: task.latest_result_id, taskId: task.id };
-    activeTab.value = "results";
+  if (created !== null && created.latest_result_id !== null) {
+    // 部署滚动更新期间，旧后端尚未返回 new_result_id；其 latest_result_id
+    // 同样指向本次成功快照，回退可避免把 undefined 传入结果页。
+    const resultId = created.new_result_id || created.latest_result_id;
+    activeResult.value = { resultId, taskId: created.id };
+    if (created.operation === "reused") {
+      const latestVersion = created.versions.at(-1);
+      const priorVersion = created.versions.at(-2);
+      if (latestVersion) {
+        reuseNotice.value = `该检索策略已执行 ${created.versions.length} 次 · 当前为 v${latestVersion.version}`;
+        previousResultId.value = priorVersion?.result_id ?? null;
+      }
+    }
+    selectTab("results");
   }
 }
 
@@ -134,11 +175,12 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query && editabl
       <h1 class="page-title">文献检索</h1>
       <p class="page-copy">从临床问题出发，建立可复用、可追溯的检索策略。</p>
     </header>
+    <p v-if="reuseNotice" class="reuse-notice" role="status">{{ reuseNotice }} <RouterLink v-if="previousResultId" :to="`/literature-search/results/${previousResultId}`">查看上次结果 →</RouterLink></p>
 
     <LiteratureWorkspaceTabs
       :active-tab="activeTab"
-      @select="activeTab = $event"
-      @select-result="activeResult = $event"
+      @select="selectTab"
+      @select-result="showResult"
     />
 
     <template v-if="activeTab === 'center'">
@@ -195,7 +237,7 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query && editabl
     <History
       v-else-if="activeTab === 'history'"
       embedded
-      @rerun-succeeded="(selection) => { activeResult = selection; activeTab = 'results'; }"
+      @rerun-succeeded="showResult"
     />
     <RecommendationsView v-else-if="activeTab === 'recommendations'" embedded />
   </main>
@@ -216,8 +258,8 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query && editabl
 .page-title {
   margin: 0;
   color: var(--text-primary, #0f2a43);
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
-  font-weight: 680;
+  font-size: clamp(1.75rem, 2.5vw, 2rem);
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
 }
@@ -225,6 +267,14 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query && editabl
   margin: 0;
   color: var(--text-muted, #64748b);
   font-size: 0.8125rem;
+}
+.reuse-notice {
+  margin: 0;
+  padding: .7rem .9rem;
+  border-radius: 8px;
+  background: var(--color-success-soft, #ecfdf5);
+  color: var(--color-success, #047857);
+  font-size: .9rem;
 }
 .search-workspace {
   display: grid;
@@ -259,12 +309,24 @@ const draftReady = computed(() => Boolean(result.value?.boolean_query && editabl
 :deep(.workspace-tab + .workspace-tab) { border-left: 1px solid var(--border-strong, #cbd5e1); }
 :deep(.workspace-tab.active) { border-bottom-color: var(--color-primary, #2563eb); background: transparent; color: var(--color-primary, #2563eb); }
 :deep(.workspace-tab[aria-disabled="true"]) { background: transparent; }
-@media (max-width: 900px) {
+@media (max-width: 1440px) {
+  .literature-workspace {
+    padding: 20px 24px 32px;
+  }
+}
+@media (max-width: 1280px) {
+  .search-workspace {
+    grid-template-columns: minmax(320px, 5fr) minmax(380px, 8fr);
+  }
+  .workspace-execution {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 1fr);
+  }
+}
+@media (max-width: 1120px) {
   .search-workspace {
     grid-template-columns: 1fr;
   }
   .workspace-execution {
-    grid-column: auto;
     grid-template-columns: 1fr;
   }
   .workspace-execution :deep(.readiness-panel) {

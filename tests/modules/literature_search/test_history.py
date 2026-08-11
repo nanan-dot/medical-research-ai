@@ -16,6 +16,7 @@ from app.core.database import Base, get_session
 from app.integrations.pubmed.exceptions import PubMedError
 from app.main import app
 from app.modules.literature_search.schema import CitationItem
+from app.modules.literature_search.service import strategy_fingerprint_from_snapshot
 
 TASK_PAYLOAD = {
     "original_query": "胃癌 EGFR 免疫治疗",
@@ -148,6 +149,103 @@ def test_create_task_persists_input_snapshot_and_search_string(api_client):
     assert payload["versions"][0]["version"] == 1
     assert payload["versions"][0]["result_count"] == 1
     assert payload["versions"][0]["change"] is None
+    assert payload["operation"] == "created"
+
+
+def test_create_task_reuses_exact_strategy_as_next_version(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 1)
+
+    first = client.post("/api/v1/literature-search", json=TASK_PAYLOAD).json()
+    repeated = client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+
+    assert repeated.status_code == 201
+    payload = repeated.json()
+    assert payload["operation"] == "reused"
+    assert payload["id"] == first["id"]
+    assert payload["new_result_id"] == payload["latest_result_id"]
+    assert payload["versions"][-1]["version"] == 2
+    assert payload["change"]["added_pmids"] == ["10002"]
+    assert client.get("/api/v1/literature-search").json()["total"] == 1
+    detail = client.get(f"/api/v1/literature-search/{first['id']}").json()
+    assert [version["version"] for version in detail["versions"]] == [1, 2]
+    assert detail["versions"][0]["result_id"] == first["latest_result_id"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("filters", '{"language":"Chinese"}'),
+        ("retmax", 10),
+        ("user_edits", '{"disease":["new term"]}'),
+        ("model_version", "search-intent-v2"),
+        ("search_string", "new exact query"),
+    ],
+)
+def test_create_task_does_not_merge_changed_strategy(api_client, field, value):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 1)
+    changed = {**TASK_PAYLOAD, field: value}
+
+    first = client.post("/api/v1/literature-search", json=TASK_PAYLOAD).json()
+    second = client.post("/api/v1/literature-search", json=changed).json()
+
+    assert first["id"] != second["id"]
+    assert second["operation"] == "created"
+    assert client.get("/api/v1/literature-search").json()["total"] == 2
+
+
+def test_create_task_normalizes_json_snapshot_order(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 1)
+    first_payload = {**TASK_PAYLOAD, "filters": '{ "year": 2024, "language": "English" }'}
+    same_payload = {**TASK_PAYLOAD, "filters": '{"language":"English","year":2024}'}
+
+    first = client.post("/api/v1/literature-search", json=first_payload).json()
+    second = client.post("/api/v1/literature-search", json=same_payload).json()
+
+    assert second["operation"] == "reused"
+    assert second["id"] == first["id"]
+
+
+def test_strategy_fingerprint_normalizes_user_edit_whitespace_and_order():
+    first = strategy_fingerprint_from_snapshot(
+        database="pubmed", search_string="query", filters="{}", retmax=20,
+        user_edits='{"disease": [" 胃癌 ", "", "gastric cancer"], "target": ["EGFR"]}',
+        model_version="v1", structured_query="{}", original_query="topic",
+    )
+    second = strategy_fingerprint_from_snapshot(
+        database="pubmed", search_string="query", filters="{}", retmax=20,
+        user_edits=' { "target" : [ "EGFR" ], "disease" : [ "gastric cancer", "胃癌" ] } ',
+        model_version="v1", structured_query="{}", original_query="topic",
+    )
+
+    assert first == second
+
+
+def test_strategy_fingerprint_keeps_semantically_different_user_edits_distinct():
+    shared = {
+        "database": "pubmed", "search_string": "query", "filters": "{}", "retmax": 20,
+        "model_version": "v1", "structured_query": "{}", "original_query": "topic",
+    }
+
+    assert strategy_fingerprint_from_snapshot(
+        **shared, user_edits='{"disease":["gastric cancer"]}'
+    ) != strategy_fingerprint_from_snapshot(
+        **shared, user_edits='{"disease":["stomach neoplasms"]}'
+    )
+
+
+def test_strategy_fingerprint_tolerates_invalid_user_edits_json():
+    fingerprint = strategy_fingerprint_from_snapshot(
+        database="pubmed", search_string="query", filters="{}", retmax=20,
+        user_edits="{invalid json", model_version="v1", structured_query="{}", original_query="topic",
+    )
+
+    assert len(fingerprint) == 64
 
 
 def test_result_page_exposes_saved_library_fulltext_status(api_client):
@@ -247,7 +345,10 @@ def test_list_tasks_paginates_and_orders_by_recency(api_client):
     client, executor = api_client
     for i in range(3):
         executor.enqueue([_item(f"{i:05d}")], 1)
-        client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+        client.post(
+            "/api/v1/literature-search",
+            json={**TASK_PAYLOAD, "original_query": f"{TASK_PAYLOAD['original_query']} {i}"},
+        )
 
     page1 = client.get("/api/v1/literature-search", params={"offset": 0, "limit": 2})
     assert page1.status_code == 200
@@ -280,7 +381,10 @@ def test_export_strategy_requires_successful_search(api_client):
 
     # 从未成功的任务无可导出检索日期 → 404，不伪造时间与结果数
     executor.enqueue_error(PubMedError("boom"))
-    failed = client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+    failed = client.post(
+        "/api/v1/literature-search",
+        json={**TASK_PAYLOAD, "model_version": "search-intent-v2"},
+    )
     failed_id = failed.json()["id"]
     assert failed.json()["status"] == "failed"
     missing = client.get(f"/api/v1/literature-search/{failed_id}/strategy")

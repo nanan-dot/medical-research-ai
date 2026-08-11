@@ -111,7 +111,10 @@ def test_dedup_api_preserves_sources_and_resolve_then_undo(api_client):
     executor.enqueue(
         [CitationItem(pmid="900", title="A", doi="https://doi.org/10.1/x")], 1
     )
-    second = client.post("/api/v1/literature-search", json=TASK_PAYLOAD).json()
+    second = client.post(
+        "/api/v1/literature-search",
+        json={**TASK_PAYLOAD, "model_version": "search-intent-v2"},
+    ).json()
 
     response = client.post(f"/api/v1/literature-search/{first['id']}/deduplicate")
     assert response.status_code == 200
@@ -142,7 +145,10 @@ def test_fuzzy_group_requires_manual_resolution(api_client):
     executor.enqueue([CitationItem(pmid="901", title="Trial: A & B.")], 1)
     task = client.post("/api/v1/literature-search", json=TASK_PAYLOAD).json()
     executor.enqueue([CitationItem(pmid="902", title="Trial A and B")], 1)
-    client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+    client.post(
+        "/api/v1/literature-search",
+        json={**TASK_PAYLOAD, "model_version": "search-intent-v2"},
+    )
     group = client.post(f"/api/v1/literature-search/{task['id']}/deduplicate").json()[
         "items"
     ][0]

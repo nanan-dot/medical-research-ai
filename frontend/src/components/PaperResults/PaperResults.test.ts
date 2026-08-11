@@ -106,6 +106,28 @@ test("emits toggle events and pagination navigation", async () => {
   expect(wrapper.emitted("goToPage")).toBeUndefined();
 });
 
+test("groups saved, library, and read controls in a vertical action rail", () => {
+  const wrapper = mount(PaperResults, {
+    global: { stubs: routerStubs },
+    props: {
+      resultId: 9,
+      items: [item("12345")],
+      loading: false,
+      updating: {},
+      currentPage: 1,
+      totalPages: 1,
+      filteredTotal: 1,
+      hasPrevious: false,
+      hasNext: false,
+    },
+  });
+
+  const rail = wrapper.get(".record-actions--rail");
+  expect(rail.text()).toContain("保存");
+  expect(rail.text()).toContain("加入知识库");
+  expect(rail.text()).toContain("标记已读");
+});
+
 test("shows empty state when no items", () => {
   const wrapper = mount(PaperResults, {
     global: { stubs: routerStubs },

@@ -41,6 +41,7 @@ export interface LiteratureSearchTask {
   created_at: string;
   searched_at: string | null;
   latest_result_id: number | null;
+  strategy_fingerprint: string | null;
   versions: LiteratureSearchTaskVersion[];
 }
 export interface LiteratureSearchTaskPage {
@@ -134,6 +135,11 @@ export interface LiteratureSearchTaskRerun {
   change: SearchResultChange | null;
   new_result_id: number;
 }
+export interface LiteratureSearchTaskCreateResult extends LiteratureSearchTask {
+  operation: "created" | "reused";
+  change: SearchResultChange | null;
+  new_result_id: number;
+}
 export type DuplicateMatchMethod = "pmid" | "doi" | "title_normalized" | "author_year" | "manual";
 export type DuplicateConfidence = "clear" | "fuzzy";
 export type DuplicateResolutionAction = "keep_record" | "keep_all" | "merge_all" | "undo";
@@ -194,7 +200,7 @@ export const literatureSearchApi = {
     model_version: string;
     user_edits: string;
     retmax: number;
-  }) => apiRequest<LiteratureSearchTask>("/literature-search", { method: "POST", ...json, body: JSON.stringify(request) }),
+  }) => apiRequest<LiteratureSearchTaskCreateResult>("/literature-search", { method: "POST", ...json, body: JSON.stringify(request) }),
   listTasks: (offset: number, limit: number) => apiRequest<LiteratureSearchTaskPage>(`/literature-search?offset=${offset}&limit=${limit}`),
   rerunTask: (id: number) => apiRequest<LiteratureSearchTaskRerun>(`/literature-search/${id}/rerun`, { method: "POST" }),
   // 检索结果分页（R2-WP05）：白名单参数拼入 query，page_size 恒 ≤100。

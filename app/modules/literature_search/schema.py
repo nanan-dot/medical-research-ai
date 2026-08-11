@@ -92,6 +92,9 @@ class LiteratureSearchTaskRead(BaseModel):
     created_at: datetime
     searched_at: datetime | None = None
     latest_result_id: int | None = None
+    # 策略指纹（稳定序列化后的 SHA-256）：供历史页按真实策略分组，
+    # 与 createTask 的 operation=reused 判定口径一致，避免前端自行拼快照产生偏差。
+    strategy_fingerprint: str | None = None
     versions: list[LiteratureSearchTaskVersion] = Field(default_factory=list)
 
 
@@ -112,6 +115,14 @@ class LiteratureSearchTaskRerun(BaseModel):
     new_result_id: int
 
 
+class LiteratureSearchTaskCreateResult(LiteratureSearchTaskRead):
+    """创建或复用策略后的真实执行结果。"""
+
+    operation: Literal["created", "reused"]
+    change: "SearchResultChange | None" = None
+    new_result_id: int
+
+
 class SearchStrategyExport(BaseModel):
     """PRISMA-compliant 检索策略导出（数据库、检索日期、查询串、结果数）。"""
 
@@ -128,6 +139,7 @@ class SearchStrategyExport(BaseModel):
 # 前向引用在 Pydantic 2 中需通过 model_rebuild 解析。
 LiteratureSearchTaskVersion.model_rebuild()
 LiteratureSearchTaskRerun.model_rebuild()
+LiteratureSearchTaskCreateResult.model_rebuild()
 
 
 class ParseQueryRequest(BaseModel):

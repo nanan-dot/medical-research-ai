@@ -20,6 +20,50 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
 const currentPage = computed(() => Math.floor(offset.value / pageSize) + 1);
 const hasPreviousPage = computed(() => offset.value > 0);
 const hasNextPage = computed(() => offset.value + pageSize < total.value);
+interface StrategyGroup {
+  key: string;
+  summary: string;
+  executions: number;
+  latestVersion: number;
+  tasks: LiteratureSearchTask[];
+}
+
+function canonicalSnapshot(value: string): string {
+  try {
+    return JSON.stringify(JSON.parse(value));
+  } catch {
+    return value.trim();
+  }
+}
+
+function strategyKey(task: LiteratureSearchTask): string {
+  // 优先使用后端真实策略指纹（与 createTask 的 operation=reused 判定口径一致）；
+  // 旧任务或后端未返回时回退到完整策略快照，保证分组不因字段缺失而崩溃。
+  return task.strategy_fingerprint
+    ?? [
+        task.database, task.search_string, canonicalSnapshot(task.filters), task.retmax,
+        canonicalSnapshot(task.user_edits), task.model_version, canonicalSnapshot(task.structured_query),
+        task.original_query,
+      ].join("\u0000");
+}
+
+// 按策略分组展示；分组仅改善展示，不写回、不删除、不覆盖审计记录，且默认展开每一条。
+const strategyGroups = computed<StrategyGroup[]>(() => {
+  const groups = new Map<string, StrategyGroup>();
+  for (const task of tasks.value) {
+    const key = strategyKey(task);
+    const existing = groups.get(key);
+    const latestVersion = Math.max(0, ...task.versions.map((version) => version.version));
+    if (existing) {
+      existing.tasks.push(task);
+      existing.executions += task.versions.length || 1;
+      existing.latestVersion = Math.max(existing.latestVersion, latestVersion);
+    } else {
+      groups.set(key, { key, summary: task.search_string, executions: task.versions.length || 1, latestVersion, tasks: [task] });
+    }
+  }
+  return [...groups.values()];
+});
 
 async function loadTasks(): Promise<void> {
   isLoading.value = true;
@@ -81,7 +125,7 @@ onMounted(() => {
       <button class="refresh-button" type="button" :disabled="isLoading" @click="loadTasks">
         {{ isLoading ? "读取中…" : "刷新" }}
       </button>
-      <span class="total-note">共 {{ total }} 次检索</span>
+      <span class="total-note">共 {{ total }} 次检索 · 当前页展示最近 {{ tasks.length }} 条</span>
     </div>
 
     <p v-if="requestError" class="request-error" role="alert">{{ requestError }}</p>
@@ -98,15 +142,23 @@ onMounted(() => {
         <span>最后运行</span>
         <span>操作</span>
       </div>
-      <ul class="history-list">
-        <HistoryTableRow
-          v-for="task in tasks"
-          :key="task.id"
-          :task="task"
-          :is-rerunning="rerunningTaskId === task.id"
-          @rerun="handleRerun"
-        />
-      </ul>
+      <div class="history-list">
+        <details v-for="group in strategyGroups" :key="group.key" open class="strategy-group">
+          <summary class="strategy-summary">
+            <span class="strategy-query">{{ group.summary }}</span>
+            <span>执行 {{ group.executions }} 次 · 最新 v{{ group.latestVersion || "—" }}</span>
+          </summary>
+          <ul class="group-rows">
+            <HistoryTableRow
+              v-for="task in group.tasks"
+              :key="task.id"
+              :task="task"
+              :is-rerunning="rerunningTaskId === task.id"
+              @rerun="handleRerun"
+            />
+          </ul>
+        </details>
+      </div>
     </section>
 
     <HistoryPagination
@@ -136,6 +188,11 @@ onMounted(() => {
 .empty-state { margin: 0; padding: 2rem; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); color: var(--text-muted); text-align: center; }
 .history-table-wrap { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-card); }
 .history-columns { display: grid; grid-template-columns: 1.5fr 1.8fr .8fr .6fr .7fr 1.1fr 1.25fr; gap: .75rem; min-width: 980px; padding: .65rem 1rem; border-bottom: 1px solid var(--border-subtle); background: var(--surface-muted); color: var(--text-muted); font-size: .74rem; font-weight: 700; }
-.history-list { margin: 0; padding: 0; list-style: none; }
+.history-list { margin: 0; padding: 0; }
+.strategy-group { border-bottom: 1px solid var(--border-subtle); }
+.strategy-group:last-child { border-bottom: 0; }
+.strategy-summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem 1rem; color: var(--text-primary); background: var(--surface-raised, #f8fafc); cursor: pointer; font-size: .82rem; font-weight: 700; }
+.strategy-query { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-rows { margin: 0; padding: 0; list-style: none; }
 @media (max-width: 900px) { .history-page { padding: 1.2rem; }.history-table-wrap { overflow: visible; }.history-columns { display: none; } }
 </style>

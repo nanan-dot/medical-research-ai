@@ -45,10 +45,10 @@ function metadata(entry: RankedCitationItem): string[] { const values = [authors
           </div>
           <AbstractDisclosure :abstract-text="entry.item.abstract" />
         </article>
-        <div class="record-actions" aria-label="记录操作">
-          <button class="action-button" :class="{ active: entry.state?.saved }" :disabled="props.loading || props.updating[entry.item.pmid]" @click="emit('toggleSaved', entry.item.pmid, !entry.state?.saved)">{{ entry.state?.saved ? "已保存" : "保存" }}</button>
-          <SaveToLibraryButton v-if="resultId !== undefined" :result-id="resultId" :pmid="entry.item.pmid" :disabled="props.loading || props.updating[entry.item.pmid]" @saved="emit('savedToLibrary', $event)" />
-          <button class="action-button" :class="{ active: entry.state?.read_status === 'read' }" :disabled="props.loading || props.updating[entry.item.pmid]" @click="emit('toggleRead', entry.item.pmid, entry.state?.read_status !== 'read')">{{ entry.state?.read_status === "read" ? "已读" : "标记已读" }}</button>
+        <div class="record-actions record-actions--rail" aria-label="记录操作">
+          <button class="action-button" :class="{ active: entry.state?.saved }" :aria-pressed="entry.state?.saved === true" :disabled="props.loading || Boolean(props.updating[entry.item.pmid])" @click="emit('toggleSaved', entry.item.pmid, !entry.state?.saved)">{{ entry.state?.saved ? "已保存" : "保存" }}</button>
+          <SaveToLibraryButton v-if="resultId !== undefined" :result-id="resultId" :pmid="entry.item.pmid" :disabled="props.loading || Boolean(props.updating[entry.item.pmid])" @saved="emit('savedToLibrary', $event)" />
+          <button class="action-button" :class="{ active: entry.state?.read_status === 'read' }" :aria-pressed="entry.state?.read_status === 'read'" :disabled="props.loading || Boolean(props.updating[entry.item.pmid])" @click="emit('toggleRead', entry.item.pmid, entry.state?.read_status !== 'read')">{{ entry.state?.read_status === "read" ? "已读" : "标记已读" }}</button>
           <PubMedLink :pmid="entry.item.pmid" />
           <FulltextAccess :item="entry.library_item" />
         </div>
@@ -69,7 +69,7 @@ function metadata(entry: RankedCitationItem): string[] { const values = [authors
 .results-header h2 { margin: 0; color: var(--text-primary, #0f2a43); font-size: .95rem; }
 .count-note { margin: 0; color: var(--text-muted, #64748b); font-size: .8rem; }
 .result-list { margin: 0; padding: 0; list-style: none; }
-.result-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr) minmax(17rem, auto); gap: .75rem; align-items: start; padding: .82rem .95rem; border-bottom: 1px solid var(--border-subtle, #dbe4f0); }
+.result-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr) minmax(10rem, 11.5rem); gap: .75rem; align-items: stretch; padding: .82rem .95rem; border-bottom: 1px solid var(--border-subtle, #dbe4f0); }
 .result-index { display: grid; place-items: center; min-width: 1.5rem; min-height: 1.5rem; color: var(--text-muted, #64748b); font-size: .82rem; font-weight: 700; }
 .record-body { display: grid; min-width: 0; gap: .35rem; }
 .record-title { margin: 0; color: var(--color-primary, #2563eb); font-size: .93rem; line-height: 1.45; overflow-wrap: anywhere; }
@@ -78,15 +78,17 @@ function metadata(entry: RankedCitationItem): string[] { const values = [authors
 .verified { color: var(--color-success, #15803d); font-weight: 600; }
 .sort-reason, .tags { overflow-wrap: anywhere; }
 .record-body :deep(.abstract-disclosure) { margin-top: .15rem; }
-.record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: .38rem .55rem; max-width: 26rem; padding-top: .02rem; font-size: .78rem; }
-.action-button, .record-actions :deep(button), .record-actions :deep(a), .record-actions :deep(.fulltext-access) { min-height: 1.85rem; box-sizing: border-box; white-space: nowrap; }
-.action-button { padding: .28rem .52rem; border: 1px solid var(--border-strong, #cbd5e1); border-radius: 6px; background: #fff; color: var(--text-primary, #0f2a43); font: inherit; cursor: pointer; }
+.record-actions--rail { display: flex; flex-direction: column; align-items: stretch; gap: .42rem; min-width: 0; padding: .04rem 0 .04rem .75rem; border-left: 1px solid var(--border-subtle, #dbe4f0); font-size: .78rem; }
+.action-button, .record-actions :deep(button), .record-actions :deep(a), .record-actions :deep(.fulltext-access) { box-sizing: border-box; min-height: 1.85rem; }
+.action-button { width: 100%; padding: .28rem .52rem; border: 1px solid var(--border-strong, #cbd5e1); border-radius: 6px; background: #fff; color: var(--text-primary, #0f2a43); font: inherit; cursor: pointer; }
 .action-button.active { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 45%, white); background: var(--color-primary-soft, #eff6ff); color: var(--color-primary, #2563eb); }
+.record-actions :deep(.save-library) { width: 100%; }.record-actions :deep(.save-library .button) { width: 100%; }.record-actions :deep(a), .record-actions :deep(.fulltext-access) { display: block; padding-top: .08rem; line-height: 1.35; overflow-wrap: anywhere; }
 .action-button:focus-visible, .pagination button:focus-visible { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 2px; }
 .loading-list { display: grid; gap: .65rem; padding: 1rem; color: var(--text-muted, #64748b); font-size: .82rem; }
 .loading-list p { margin: 0; }.loading-row { display: grid; grid-template-columns: 2rem 1fr 14rem; gap: .75rem; }.loading-row span { height: 1.25rem; border-radius: 4px; background: var(--surface-muted, #f1f5f9); }
 .empty-state { margin: 0; padding: 2.4rem 1rem; color: var(--text-muted, #64748b); font-size: .88rem; text-align: center; }
 .pagination { display: flex; justify-content: center; gap: .4rem; padding: .75rem; }.pagination button { min-width: 2rem; padding: .34rem .6rem; border: 1px solid var(--border-strong, #cbd5e1); border-radius: 6px; background: #fff; color: var(--text-primary, #0f2a43); font: inherit; font-size: .8rem; cursor: pointer; }.pagination button.current { border-color: var(--color-primary, #2563eb); background: var(--color-primary, #2563eb); color: #fff; }.pagination button:disabled { opacity: .55; cursor: not-allowed; }
-@media (max-width: 900px) { .result-row { grid-template-columns: 1.6rem minmax(0, 1fr); }.record-actions { grid-column: 2; justify-content: flex-start; max-width: none; }.loading-row { grid-template-columns: 1.5rem 1fr; }.loading-row span:last-child { display: none; } }
+@media (max-width: 1200px) { .result-row { grid-template-columns: 1.6rem minmax(0, 1fr); }.record-actions--rail { grid-column: 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; padding: .7rem 0 0; border-top: 1px solid var(--border-subtle, #dbe4f0); border-left: 0; }.record-actions :deep(.save-library), .record-actions :deep(.save-library .button) { width: 100%; }.record-actions :deep(.fulltext-access) { grid-column: 1 / -1; }.loading-row { grid-template-columns: 1.5rem 1fr; }.loading-row span:last-child { display: none; } }
+@media (max-width: 640px) { .result-row { gap: .55rem; padding: .72rem; }.result-index { min-width: 1.25rem; }.record-actions--rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }.record-actions :deep(.fulltext-access) { grid-column: auto; }.record-actions :deep(a), .record-actions :deep(.fulltext-access) { padding-top: 0; }.record-meta { font-size: .74rem; } }
 @media (prefers-reduced-motion: no-preference) { .result-row, .action-button { transition: background-color 150ms ease, border-color 150ms ease; } .result-row:hover { background: var(--surface-muted, #f8fafc); } }
 </style>

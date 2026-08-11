@@ -55,6 +55,10 @@ class LiteratureSearchTask(Base):
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
     # 用户修改：对结构化条件、词项组的编辑记录（原始词→替换词映射）。
     user_edits: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # 仅用于精确策略复用；历史行保留为空，绝不回写或合并审计快照。
+    strategy_fingerprint: Mapped[str | None] = mapped_column(
+        Text, nullable=True, unique=True, index=True
+    )
     # 任务状态机。
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
     # 失败原因（status=failed 时填充；成功/运行中为空）。

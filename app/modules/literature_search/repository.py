@@ -85,6 +85,21 @@ class LiteratureSearchRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_task_by_fingerprint(
+        self, fingerprint: str
+    ) -> LiteratureSearchTask | None:
+        result = await self.session.execute(
+            select(LiteratureSearchTask).where(
+                LiteratureSearchTask.strategy_fingerprint == fingerprint
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_tasks_for_fingerprint_matching(self) -> list[LiteratureSearchTask]:
+        """读取旧任务以便首次按新规则认领其策略，不修改历史快照。"""
+        result = await self.session.execute(select(LiteratureSearchTask))
+        return list(result.scalars().all())
+
     async def list_tasks(
         self, offset: int = 0, limit: int = 20
     ) -> tuple[list[LiteratureSearchTask], int]:

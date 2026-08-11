@@ -18,6 +18,7 @@ from app.modules.literature_search.schema import (
     LiteratureSearchResultPage,
     LiteratureSearchResultRead,
     LiteratureSearchTaskCreate,
+    LiteratureSearchTaskCreateResult,
     LiteratureSearchTaskList,
     LiteratureSearchTaskRead,
     LiteratureSearchTaskRerun,
@@ -53,11 +54,11 @@ async def list_tasks(
     return await LiteratureSearchService(session).list_tasks(offset=offset, limit=limit)
 
 
-@router.post("", response_model=LiteratureSearchTaskRead, status_code=201)
+@router.post("", response_model=LiteratureSearchTaskCreateResult, status_code=201)
 async def create_task(
     request: LiteratureSearchTaskCreate,
     session: AsyncSession = Depends(get_session),
-) -> LiteratureSearchTaskRead:
+) -> LiteratureSearchTaskCreateResult:
     """创建检索任务并立即执行，返回任务详情（含版本时间线）。"""
     return await LiteratureSearchService(session).create_task(request)
 

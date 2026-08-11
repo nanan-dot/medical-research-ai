@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createMemoryHistory, createRouter } from "vue-router";
 import { afterEach, expect, test, vi } from "vitest";
 import ChatView from "./ChatView.vue";
 
@@ -11,7 +12,10 @@ test("opens citation evidence", async () => {
     .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, document_ids: [2], title: null, research_context_id: null, messages: [] }) })
     .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 4, role: "assistant", content: "120 participants", citations: [{ id: 9, document_id: 2, page: 6, section: null, evidence_text: "120 were enrolled", citation_text: "Trial", retrieval_score: .9 }] }) });
   vi.stubGlobal("fetch", fetchMock);
-  const wrapper = mount(ChatView);
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/chat", component: ChatView }] });
+  await router.push("/chat");
+  await router.isReady();
+  const wrapper = mount(ChatView, { global: { plugins: [router] } });
   await flushPromises();
   await wrapper.get("input").setValue("2");
   await wrapper.get("form").trigger("submit");

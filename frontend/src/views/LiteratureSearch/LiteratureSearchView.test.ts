@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, expect, test, vi } from "vitest";
-import { createRouter, createWebHistory } from "vue-router";
+import { createMemoryHistory, createRouter, createWebHistory } from "vue-router";
 
 import LiteratureSearchView from "./LiteratureSearchView.vue";
 
@@ -117,7 +117,27 @@ test("shows workspace title, tabs, and empty strategy state", async () => {
   expect(workspace.text()).toContain("术语依据");
   expect(workspace.text()).toContain("不限发表语言");
   await resultTab.trigger("click");
+  await flushPromises();
   expect(wrapper.text()).toContain("尚无可用的真实检索结果");
+});
+
+test("restores the history workspace tab from the URL", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ items: [], total: 0, offset: 0, limit: 50 }) }),
+  );
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/literature-search", component: { template: "<div>ls</div>" } }],
+  });
+  await router.push("/literature-search?tab=history");
+  await router.isReady();
+
+  const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
+  await flushPromises();
+
+  expect(wrapper.get('button[role="tab"][aria-selected="true"]').text()).toContain("历史记录");
+  expect(router.currentRoute.value.query.tab).toBe("history");
 });
 
 test("parses topic, fills PICO, builds query, and runs a real search task", async () => {
@@ -166,6 +186,10 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
       method: "POST",
       body: expect.stringContaining('AND chinese[la]'),
     }),
+  );
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/v1/literature-search/201/results?sort=relevance&page=1&page_size=20",
+    undefined,
   );
   // 成功后保留文件 3 的固定标题与页签，仅在下方切换至内嵌结果内容。
   expect(wrapper.text()).toContain("文献检索");

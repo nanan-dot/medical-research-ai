@@ -20,7 +20,7 @@ const quickActions: QuickAction[] = [
   { label: "检索文献", icon: "⌕", path: "/literature-search" },
   { label: "分析论文", icon: "◈", path: "/analysis" },
   { label: "比较研究", icon: "≋", path: "/comparisons" },
-  { label: "证据问答", icon: "◌", path: "/chat" },
+  { label: "证据问答", icon: "◌", path: "/analysis?tab=evidence" },
 ];
 
 async function submitQuery(): Promise<void> {

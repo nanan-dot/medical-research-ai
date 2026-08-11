@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { shallowRef } from "vue";
-import { useRoute } from "vue-router";
+import { onMounted, shallowRef } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import { literatureSearchApi, type DuplicateGroup, type DuplicateResolutionAction, type ReadingOrder } from "../../api/literatureSearch";
 import DuplicateReview from "../../components/DuplicateReview/DuplicateReview.vue";
@@ -8,9 +8,11 @@ import ReadingPlan from "../../components/ReadingPlan/ReadingPlan.vue";
 import { useLiteratureResults } from "../../composables/useLiteratureResults";
 import LiteratureFilters from "../../components/LiteratureFilters/LiteratureFilters.vue";
 import PaperResults from "../../components/PaperResults/PaperResults.vue";
+import { libraryStatusMessage } from "../../utils/libraryStatusMessage";
 
 const props = withDefaults(defineProps<{ resultId?: number; taskId?: number; embedded?: boolean }>(), { embedded: false });
 const route = useRoute();
+const router = useRouter();
 const resultId = props.resultId ?? Number(route.params.id);
 // 去重接口期望的是任务 id（task），而结果页 id 来自 latest_result_id（result）。
 // History 跳转时带 ?task= 参数，优先用它调去重；缺失时退回 resultId（兼容直接访问）。
@@ -29,17 +31,26 @@ const readingOrder = shallowRef<ReadingOrder | null>(null);
 const readingLoading = shallowRef(false);
 const readingSaving = shallowRef(false);
 const readingError = shallowRef("");
+const readingRestoreNotice = shallowRef("");
 
 async function generateReadingOrder(): Promise<void> {
   readingLoading.value = true;
   readingError.value = "";
   try {
     readingOrder.value = await literatureSearchApi.generateReadingOrder(resultId);
+    readingRestoreNotice.value = readingOrder.value.order_source === "manual"
+      ? "已恢复您保存的人工阅读顺序"
+      : "";
   } catch (error) {
     readingError.value = error instanceof Error ? error.message : "阅读顺序生成失败";
   } finally {
     readingLoading.value = false;
   }
+}
+
+function returnToSearchHistory(): void {
+  // 结果页同时可能来自历史列表、书签和直接 URL；统一回到可恢复的历史标签页。
+  void router.push({ path: "/literature-search", query: { tab: "history" } });
 }
 
 async function saveReadingOrder(manualOrder: string[]): Promise<void> {
@@ -88,6 +99,12 @@ const {
   nextPage,
   updateState,
 } = useLiteratureResults(resultId);
+
+onMounted(() => {
+  // 该既有端点会优先返回服务端已保存的人工顺序；没有人工顺序时仅生成规则顺序，
+  // 不会重跑检索或改写结果快照。
+  void generateReadingOrder();
+});
 </script>
 
 <template>
@@ -97,10 +114,12 @@ const {
       <h1 class="page-title">检索结果 · 任务 #{{ resultId }}</h1>
       <p v-if="page" class="page-copy">检索式：{{ page.query }}。结果来自真实 PubMed 检索快照；本页只展示服务端已返回的数据。</p>
       <p v-else class="page-copy">正在按服务端返回的检索快照展示筛选、排序与分页。</p>
+      <button class="back-button" type="button" aria-label="返回检索历史" @click="returnToSearchHistory">← 返回历史记录</button>
     </header>
 
     <section class="results-workspace" aria-label="检索结果工作区">
       <LiteratureFilters :filters="filters" :disabled="loading" @apply="applyFilters" />
+      <p v-if="readingRestoreNotice" class="library-status workspace-status" role="status">{{ readingRestoreNotice }}</p>
       <p v-if="error" class="request-error workspace-error" role="alert">{{ error }}</p>
       <p v-if="deduplicationError" class="request-error workspace-error" role="alert">{{ deduplicationError }}</p>
       <p v-if="libraryStatus" class="library-status workspace-status">{{ libraryStatus }}</p>
@@ -119,7 +138,7 @@ const {
       @go-to-page="goToPage"
       @toggle-saved="(pmid, saved) => updateState(pmid, { saved })"
       @toggle-read="(pmid, read) => updateState(pmid, { read_status: read ? 'read' : 'unread' })"
-        @saved-to-library="(item) => libraryStatus = item.fulltext_status_reason"
+        @saved-to-library="(item) => libraryStatus = libraryStatusMessage(item.fulltext_status)"
       />
     </section>
     <details class="utility-disclosure">
@@ -142,6 +161,8 @@ const {
 
 <style scoped>
 .results-view { max-width: 1440px; margin: auto; padding: 0; display: grid; gap: .8rem; }
+.back-button { width: fit-content; padding: .45rem .7rem; border: 1px solid var(--border-strong, #cbd5e1); border-radius: 6px; background: var(--surface, #fff); color: var(--color-primary, #2563eb); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.back-button:hover { background: var(--color-primary-soft, #eff6ff); }.back-button:focus-visible { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 2px; }
 .eyebrow { margin: 0; color: var(--color-primary); font-weight: 800; letter-spacing: 0.12em; font-size: 0.72rem; }
 .page-title { margin: 0.25rem 0; color: var(--text-primary); font-size: clamp(1.6rem, 3.5vw, 2.6rem); line-height: 1.15; }
 .page-copy { max-width: 760px; margin: 0; color: var(--text-muted); line-height: 1.6; overflow-wrap: anywhere; }

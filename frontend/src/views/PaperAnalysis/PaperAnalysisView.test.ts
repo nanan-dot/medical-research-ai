@@ -1,74 +1,21 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createMemoryHistory, createRouter } from "vue-router";
 import { afterEach, expect, test, vi } from "vitest";
 import PaperAnalysisView from "./PaperAnalysisView.vue";
 
+const indexed = { items: [{ document_id: 42, title: "Indexed trial.pdf", year: 2024, pmid: "12345" }], total: 1, offset: 0, limit: 10 };
+const emptyOverview = { recent_analyses: [], pending_confirmations: [], recent_conversations: [] };
+function response(body: unknown, status = 200): Response { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }); }
+async function mountPage(path = "/analysis") { const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/analysis", component: PaperAnalysisView }, { path: "/chat", component: { template: "<p>chat</p>" } }] }); await router.push(path); await router.isReady(); return { router, wrapper: mount(PaperAnalysisView, { global: { plugins: [router] } }) }; }
 afterEach(() => vi.restoreAllMocks());
 
-function mockAnalysisResponse() {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 3,
-        document_id: 1,
-        analysis_status: "succeeded",
-        template_version: "general-v1",
-        model_version: "test",
-        generation: 1,
-        structured_result: {
-          basic_information: { value: "Current study title\nFirst Author", kind: "fact", source_indices: [0] },
-          study_type: { value: "Randomized trial", kind: "fact", source_indices: [0] },
-          sample_size: { value: "", kind: "not_found", source_indices: [] },
-        },
-        sources: [{ citation: "Trial", title: null, page_start: 4, page_end: 5, excerpt: "Source excerpt", score: 0.9 }],
-        pending_confirmations: ["sample_size"],
-        error_code: null,
-        error_message: null,
-      }),
-    }),
-  );
-}
-
-test("shows only the implemented paper-analysis entry before an analysis is generated", () => {
-  const wrapper = mount(PaperAnalysisView);
-
-  expect(wrapper.text()).toContain("PAPER RESEARCH · SINGLE-PAPER ANALYSIS");
-  expect(wrapper.text()).toContain("论文分析");
-  expect(wrapper.get('label[for="document-id"]').text()).toContain("已索引文档 ID");
-  expect(wrapper.find('[aria-label="论文研究二级导航"]').text()).toBe("论文分析");
-  expect(wrapper.text()).not.toContain("创建组会汇报");
-  expect(wrapper.text()).not.toContain("证据问答");
-  expect(wrapper.text()).not.toContain("笔记与标注");
+test("loads real indexed and overview APIs and has no document ID input", async () => {
+  const fetchMock = vi.fn((input: RequestInfo | URL) => Promise.resolve(response(String(input).includes("indexed-documents") ? indexed : emptyOverview)));
+  vi.stubGlobal("fetch", fetchMock); const { wrapper } = await mountPage(); await flushPromises();
+  expect(wrapper.get("h1").text()).toBe("论文研究"); expect(wrapper.text()).toContain("研究概览"); expect(wrapper.text()).toContain("Indexed trial.pdf"); expect(wrapper.find('input[type="number"]').exists()).toBe(false);
+  expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/v1/paper-research/indexed-documents"), undefined);
 });
+test("shows actionable API failure without mock fallback", async () => { vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(response({ detail: "overview unavailable" }, 500)))); const { wrapper } = await mountPage(); await flushPromises(); expect(wrapper.text()).toContain("overview unavailable"); expect(wrapper.text()).not.toContain("Indexed trial.pdf"); });
+test("selecting an indexed paper carries its real ID into single-paper reading", async () => { vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => { const url = String(input); if (url.includes("indexed-documents")) return Promise.resolve(response(indexed)); if (url.includes("/documents?")) return Promise.resolve(response({ items: [], total: 0, offset: 0, limit: 10 })); if (url.endsWith("/documents/42")) return Promise.resolve(response({ detail: "not found" }, 404)); return Promise.resolve(response(emptyOverview)); })); const { router, wrapper } = await mountPage(); await flushPromises(); await wrapper.get(".paper-list button").trigger("click"); await flushPromises(); expect(router.currentRoute.value.query).toMatchObject({ documentId: "42", tab: "reading" }); });
 
-test("renders only grounded analysis context, missing values, and derived evidence status", async () => {
-  mockAnalysisResponse();
-  const wrapper = mount(PaperAnalysisView);
-
-  await wrapper.get("input").setValue("1");
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-
-  expect(wrapper.text()).toContain("Current study title");
-  expect(wrapper.text()).toContain("文档 ID 1");
-  expect(wrapper.text()).toContain("分析完成");
-  expect(wrapper.text()).toContain("原文证据 1 条");
-  expect(wrapper.text()).toContain("Randomized trial");
-  expect(wrapper.text()).toContain("未提供");
-  expect(wrapper.text()).toContain("直接证据");
-  expect(wrapper.find('a[href="/api/v1/paper-analysis/3/export"]').exists()).toBe(true);
-});
-
-test("opens the evidence rail when a report source locator is selected", async () => {
-  mockAnalysisResponse();
-  const wrapper = mount(PaperAnalysisView);
-
-  await wrapper.get("input").setValue("1");
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-
-  await wrapper.get('button[aria-label="定位到第 4 页来源"]').trigger("click");
-
-  expect(wrapper.find(".grid-rail").classes()).toContain("rail-open");
-});
+test("evidence URL restores the selected document and its latest conversation in place", async () => { const activeDocument = { id: 42, original_filename: "live-paper.pdf", file_path: "papers/live.pdf", parse_status: "succeeded", index_status: "succeeded", paperqa_index_key: "index-42", knowledge_source_id: 1, media_type: "application/pdf", file_hash: "hash", file_size: 1, modified_time: "2026-01-01", scan_state: "pending", error_code: null, error_message: null, retry_count: 0, started_at: null, finished_at: null, parsed_is_scanned: false }; const fetchMock = vi.fn((input: RequestInfo | URL) => { const url = String(input); if (url.endsWith("/documents/42")) return Promise.resolve(response(activeDocument)); if (url.includes("/conversations/latest?document_id=42")) return Promise.resolve(response({ id: 5, document_ids: [42], title: null, research_context_id: null, messages: [] })); if (url.includes("/conversations")) return Promise.resolve(response([])); if (url.includes("/documents?")) return Promise.resolve(response({ items: [], total: 0, offset: 0, limit: 10 })); return Promise.resolve(response(emptyOverview)); }); vi.stubGlobal("fetch", fetchMock); const { wrapper } = await mountPage("/analysis?documentId=42&tab=evidence"); await flushPromises(); expect(wrapper.text()).toContain("live-paper.pdf"); expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/conversations/latest?document_id=42"), undefined); expect(wrapper.find(".evidence-workspace").exists()).toBe(true); });

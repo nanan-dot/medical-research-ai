@@ -6,6 +6,7 @@ import { literatureSearchApi, type LiteratureSearchTask } from "../../api/litera
 
 interface RecentResearch {
   id: number;
+  resultId: number | null;
   title: string;
   lastAction: string;
   meta: string;
@@ -20,6 +21,7 @@ onMounted(async () => {
     const page = await literatureSearchApi.listTasks(0, 10);
     items.value = page.items.map((task) => ({
       id: task.id,
+      resultId: task.latest_result_id,
       title: task.original_query,
       lastAction: task.status === "succeeded" ? `检索完成，共 ${task.result_count ?? "—"} 条结果` : `状态：${task.status}`,
       meta: `PubMed · ${task.search_string ?? "检索式"} · ${new Date(task.created_at).toLocaleString("zh-CN", { hour12: false })}`,
@@ -51,7 +53,7 @@ onMounted(async () => {
           <h3 class="record-title">{{ record.title }}</h3>
           <p class="record-action">{{ record.lastAction }}</p>
           <p class="record-meta">{{ record.meta }}</p>
-          <RouterLink class="link-btn" :to="`/literature-search/results/${record.id}`">查看结果</RouterLink>
+          <RouterLink v-if="record.resultId" class="link-btn" :to="`/literature-search/results/${record.resultId}?task=${record.id}`">查看结果</RouterLink>
         </div>
       </li>
     </ul>

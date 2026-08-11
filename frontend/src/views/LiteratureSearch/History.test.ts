@@ -22,6 +22,7 @@ const succeededTask: LiteratureSearchTask = {
   created_at: "2026-08-05T10:00:00Z",
   searched_at: "2026-08-05T10:01:00Z",
   latest_result_id: 101,
+  strategy_fingerprint: "fp-1",
   versions: [
     { version: 1, result_id: 101, searched_at: "2026-08-05T10:01:00Z", result_count: 1, change: null },
   ],
@@ -42,7 +43,10 @@ test("renders the task list with topic, search string, status and rerun action",
   expect(wrapper.text()).toContain("检索历史");
   expect(wrapper.text()).toContain("胃癌 EGFR 免疫治疗");
   expect(wrapper.text()).toContain("已完成");
-  expect(wrapper.text()).toContain("v1");
+  // 策略分组视图：显示执行次数与最新版本，历史行保留
+  expect(wrapper.text()).toContain("执行 1 次");
+  expect(wrapper.findAll(".strategy-group")).toHaveLength(1);
+  expect(wrapper.findAll(".history-item")).toHaveLength(1);
   expect(wrapper.text()).toContain("重跑");
 });
 
@@ -95,8 +99,21 @@ test("rerun posts to the rerun endpoint and shows the version change summary", a
     "/api/v1/literature-search/1/rerun",
     expect.objectContaining({ method: "POST" }),
   );
-  expect(wrapper.text()).toContain("新增 2 条");
-  expect(wrapper.text()).toContain("减少 0 条");
-  expect(wrapper.text()).toContain("39000401");
   expect(wrapper.emitted("rerunSucceeded")?.[0]).toEqual([{ resultId: 102, taskId: 1 }]);
+});
+
+test("groups equivalent strategies while keeping every audit row visible", async () => {
+  const olderTask: LiteratureSearchTask = { ...succeededTask, id: 2, latest_result_id: 201, result_count: 1, searched_at: "2026-08-05T09:00:00Z" };
+  const latestTask: LiteratureSearchTask = { ...succeededTask, id: 3, latest_result_id: 301, result_count: 9, searched_at: "2026-08-05T11:00:00Z" };
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ total: 2, offset: 0, limit: 10, items: [olderTask, latestTask] }))));
+
+  const wrapper = mount(History, { global: { stubs: routerStubs } });
+  await flushPromises();
+
+  // 等价策略归为同一分组，但两条审计记录都保留可见（不删除、不覆盖）
+  expect(wrapper.findAll(".strategy-group")).toHaveLength(1);
+  expect(wrapper.findAll(".history-item")).toHaveLength(2);
+  expect(wrapper.text()).toContain("执行 2 次");
+  expect(wrapper.html()).toContain("/literature-search/results/301?task=3");
+  expect(wrapper.html()).toContain("/literature-search/results/201?task=2");
 });
