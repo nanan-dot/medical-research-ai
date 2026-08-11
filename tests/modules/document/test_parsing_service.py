@@ -54,7 +54,10 @@ async def test_invalid_docx_records_parse_failure(session, tmp_path: Path):
     docx = next(
         document for document in documents if document.file_path == "paper.docx"
     )
-    with pytest.raises(ConflictError, match="Word document extraction failed"):
-        await DocumentService(session).parse(docx.id)
+    # 同步完成后已自动尝试解析；损坏 DOCX 应直接留下真实失败记录，
+    # 而不是要求用户再次手动触发同一解析。
+    # failed 仅代表扫描/文件系统层失败（本用例无），解析失败体现在文档状态。
+    assert summary.failed == 0
     assert docx.parse_status == "failed"
     assert docx.error_code == "document_parse_failed"
+    assert docx.error_message is not None

@@ -1,5 +1,5 @@
 import { computed, shallowRef } from "vue";
-import { literatureSearchApi, type BuiltQuery, type ExpandedTerms, type LiteratureSearchTask, type SearchIntentCandidate, type SearchTermGroup } from "../api/literatureSearch";
+import { literatureSearchApi, type BuiltQuery, type ExpandedTerms, type LiteratureSearchTaskCreateResult, type SearchIntentCandidate, type SearchTermGroup } from "../api/literatureSearch";
 
 export function useSearchTerms() {
   const expanded = shallowRef<ExpandedTerms | null>(null);
@@ -33,7 +33,7 @@ export function useSearchTerms() {
     model_version: string;
     user_edits: string;
     retmax: number;
-  }): Promise<LiteratureSearchTask | null> {
+  }): Promise<LiteratureSearchTaskCreateResult | null> {
     taskLoading.value = true; taskError.value = null;
     try {
       const task = await literatureSearchApi.createTask({

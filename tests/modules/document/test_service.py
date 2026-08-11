@@ -102,6 +102,18 @@ async def test_filter_pagination_and_total_are_consistent(session, tmp_path: Pat
 
 
 @pytest.mark.asyncio
+async def test_unfiltered_total_counts_all_documents(session, tmp_path: Path):
+    await create_document(session, tmp_path / "first")
+    await create_document(session, tmp_path / "second")
+    await create_document(session, tmp_path / "third")
+
+    page = await DocumentService(session).list(offset=0, limit=20)
+
+    assert page.total == 3
+    assert len(page.items) == 3
+
+
+@pytest.mark.asyncio
 async def test_list_filters_documents_by_knowledge_source(session, tmp_path: Path):
     first, _ = await create_document(session, tmp_path / "first")
     second, _ = await create_document(session, tmp_path / "second")

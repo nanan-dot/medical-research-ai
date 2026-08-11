@@ -67,6 +67,8 @@ EXPECTED_TABLES = {
     "literature_status_records",
     "writings",
     "writing_evidence_references",
+    "writing_ai_suggestions",
+    "writing_reviews",
 }
 
 
