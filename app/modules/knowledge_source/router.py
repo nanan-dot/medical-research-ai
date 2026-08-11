@@ -7,6 +7,7 @@ from app.core.database import get_session
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
     KnowledgeSourceRead,
+    KnowledgeSourceStats,
     KnowledgeSourceSyncSummary,
     KnowledgeSourceUpdate,
 )
@@ -37,9 +38,17 @@ async def list_knowledge_sources(
     offset: int = 0,
     limit: int = 20,
     session: AsyncSession = Depends(get_session),
-):
+) -> list[KnowledgeSourceRead]:
     service = KnowledgeSourceService(session)
     return await service.list(offset=offset, limit=limit)
+
+
+@router.get("/{id}/stats", response_model=KnowledgeSourceStats)
+async def get_knowledge_source_stats(
+    id: int,
+    session: AsyncSession = Depends(get_session),
+) -> KnowledgeSourceStats:
+    return await KnowledgeSourceService(session).stats(id)
 
 
 @router.post(
@@ -50,16 +59,16 @@ async def create_knowledge_source(
     session: AsyncSession = Depends(get_session),
 ) -> KnowledgeSourceRead:
     service = KnowledgeSourceService(session)
-    return KnowledgeSourceRead.model_validate(await service.create(data))
+    entity = await service.create(data)
+    return await service.read(entity.id)
 
 
 @router.get("/{id}", response_model=KnowledgeSourceRead)
 async def get_knowledge_source(
     id: int,
     session: AsyncSession = Depends(get_session),
-):
-    service = KnowledgeSourceService(session)
-    return await service.get(id)
+) -> KnowledgeSourceRead:
+    return await KnowledgeSourceService(session).read(id)
 
 
 @router.patch("/{id}", response_model=KnowledgeSourceRead)
@@ -69,7 +78,8 @@ async def update_knowledge_source(
     session: AsyncSession = Depends(get_session),
 ) -> KnowledgeSourceRead:
     service = KnowledgeSourceService(session)
-    return KnowledgeSourceRead.model_validate(await service.update(id, data))
+    entity = await service.update(id, data)
+    return await service.read(entity.id)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

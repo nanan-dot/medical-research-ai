@@ -30,10 +30,20 @@ async def list_document(
     query: str | None = Query(default=None, max_length=MAX_DOCUMENT_QUERY_LENGTH),
     research_ready: bool = False,
     previewable_only: bool = False,
+    knowledge_source_id: int | None = Query(default=None, ge=1),
     session: AsyncSession = Depends(get_session),
 ) -> DocumentPage:
     service = DocumentService(session)
-    return await service.list(offset, limit, parse_status, index_status, query, research_ready, previewable_only)
+    return await service.list(
+        offset,
+        limit,
+        parse_status,
+        index_status,
+        query,
+        research_ready,
+        previewable_only,
+        knowledge_source_id,
+    )
 
 
 @router.post("/batch-index", response_model=BatchIndexResult)

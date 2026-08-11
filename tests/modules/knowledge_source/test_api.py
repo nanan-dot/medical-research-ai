@@ -73,11 +73,25 @@ def test_crud_enable_disable_and_delete_preserves_files(
     listed = client.get("/api/v1/knowledge-sources")
     assert listed.status_code == 200
     assert [item["id"] for item in listed.json()] == [source_id]
+    assert listed.json()[0]["stats"] == {
+        "total_files": 0,
+        "parsed": 0,
+        "indexed": 0,
+        "pending": 0,
+        "failed": 0,
+    }
+    stats = client.get(f"/api/v1/knowledge-sources/{source_id}/stats")
+    assert stats.status_code == 200 and stats.json()["total_files"] == 0
 
     deleted = client.delete(f"/api/v1/knowledge-sources/{source_id}")
     assert deleted.status_code == 204
     assert paper.read_text(encoding="utf-8") == "do not delete"
     assert client.get(f"/api/v1/knowledge-sources/{source_id}").status_code == 404
+
+
+def test_stats_for_missing_source_returns_404(client: TestClient):
+    response = client.get("/api/v1/knowledge-sources/99999/stats")
+    assert response.status_code == 404
 
 
 def test_missing_path_returns_clear_400(client: TestClient, tmp_path: Path):

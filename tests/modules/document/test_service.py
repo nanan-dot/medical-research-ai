@@ -102,6 +102,22 @@ async def test_filter_pagination_and_total_are_consistent(session, tmp_path: Pat
 
 
 @pytest.mark.asyncio
+async def test_list_filters_documents_by_knowledge_source(session, tmp_path: Path):
+    first, _ = await create_document(session, tmp_path / "first")
+    second, _ = await create_document(session, tmp_path / "second")
+
+    filtered = await DocumentService(session).list(
+        knowledge_source_id=first.knowledge_source_id
+    )
+    unfiltered = await DocumentService(session).list()
+    missing_source = await DocumentService(session).list(knowledge_source_id=99999)
+
+    assert [document.id for document in filtered.items] == [first.id]
+    assert {document.id for document in unfiltered.items} == {first.id, second.id}
+    assert missing_source.items == [] and missing_source.total == 0
+
+
+@pytest.mark.asyncio
 async def test_selector_filters_query_readiness_and_pdf_media_type(session, tmp_path: Path):
     ready, _ = await create_document(
         session, tmp_path / "ready", "Report_100%.pdf", "succeeded", "succeeded"

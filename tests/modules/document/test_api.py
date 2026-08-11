@@ -97,6 +97,21 @@ def test_document_list_detail_retry_and_delete_index_api(api_context):
     assert paper.read_text(encoding="utf-8") == "API test fixture"
 
 
+def test_document_list_filters_by_knowledge_source(api_context):
+    client, document_id, _ = api_context
+    detail = client.get(f"/api/v1/documents/{document_id}")
+    source_id = detail.json()["knowledge_source_id"]
+
+    filtered = client.get("/api/v1/documents", params={"knowledge_source_id": source_id})
+    unfiltered = client.get("/api/v1/documents")
+    missing_source = client.get("/api/v1/documents", params={"knowledge_source_id": 99999})
+
+    assert [item["id"] for item in filtered.json()["items"]] == [document_id]
+    assert [item["id"] for item in unfiltered.json()["items"]] == [document_id]
+    assert missing_source.json()["items"] == []
+    assert missing_source.json()["total"] == 0
+
+
 def test_parse_and_content_summary_api(api_context):
     client, document_id, paper = api_context
     paper.write_text("# API Notes\nBody", encoding="utf-8")

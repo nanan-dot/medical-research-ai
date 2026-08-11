@@ -37,9 +37,15 @@ class DocumentRepository:
         query: str | None = None,
         research_ready: bool = False,
         previewable_only: bool = False,
+        knowledge_source_id: int | None = None,
     ) -> list[Document]:
         statement = self._filtered_statement(
-            parse_status, index_status, query, research_ready, previewable_only
+            parse_status,
+            index_status,
+            query,
+            research_ready,
+            previewable_only,
+            knowledge_source_id,
         ).order_by(Document.id).options(selectinload(Document.asset))
         result = await self.session.execute(statement.offset(offset).limit(limit))
         return list(result.scalars().all())
@@ -48,9 +54,15 @@ class DocumentRepository:
         self, parse_status: str | None = None, index_status: str | None = None,
         query: str | None = None, research_ready: bool = False,
         previewable_only: bool = False,
+        knowledge_source_id: int | None = None,
     ) -> int:
         statement = self._filtered_statement(
-            parse_status, index_status, query, research_ready, previewable_only
+            parse_status,
+            index_status,
+            query,
+            research_ready,
+            previewable_only,
+            knowledge_source_id,
         ).with_only_columns(func.count()).order_by(None)
         result = await self.session.execute(statement)
         return result.scalar_one()
@@ -59,12 +71,17 @@ class DocumentRepository:
     def _filtered_statement(
         parse_status: str | None, index_status: str | None, query: str | None,
         research_ready: bool, previewable_only: bool,
+        knowledge_source_id: int | None,
     ):
         statement = select(Document)
         if parse_status is not None:
             statement = statement.where(Document.parse_status == parse_status)
         if index_status is not None:
             statement = statement.where(Document.index_status == index_status)
+        if knowledge_source_id is not None:
+            statement = statement.where(
+                Document.knowledge_source_id == knowledge_source_id
+            )
         if query is not None or previewable_only:
             statement = statement.outerjoin(DocumentAsset)
         if query is not None:

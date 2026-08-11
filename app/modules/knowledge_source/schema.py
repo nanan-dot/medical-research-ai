@@ -52,6 +52,16 @@ class KnowledgeSourceUpdate(BaseModel):
         return value
 
 
+class KnowledgeSourceStats(BaseModel):
+    """一个知识源的实时文档处理统计。"""
+
+    total_files: int = 0
+    parsed: int = 0
+    indexed: int = 0
+    pending: int = 0
+    failed: int = 0
+
+
 class KnowledgeSourceRead(BaseModel):
     """查询响应"""
 
@@ -64,6 +74,7 @@ class KnowledgeSourceRead(BaseModel):
     sync_status: KnowledgeSourceSyncStatus
     last_sync_time: datetime | None
     error_message: str | None
+    stats: KnowledgeSourceStats = Field(default_factory=KnowledgeSourceStats)
 
 
 class KnowledgeSourceSyncSummary(BaseModel):

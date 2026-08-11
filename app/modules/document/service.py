@@ -63,6 +63,7 @@ class DocumentService:
         query: str | None = None,
         research_ready: bool = False,
         previewable_only: bool = False,
+        knowledge_source_id: int | None = None,
     ) -> DocumentPage:
         parse_value = parse_status.value if parse_status else None
         index_value = index_status.value if index_status else None
@@ -71,10 +72,26 @@ class DocumentService:
             normalized_query = None
         for entity in await self.repo.list_all():
             await self._reconcile(entity)
-        entities = await self.repo.list(offset, limit, parse_value, index_value, normalized_query, research_ready, previewable_only)
+        entities = await self.repo.list(
+            offset,
+            limit,
+            parse_value,
+            index_value,
+            normalized_query,
+            research_ready,
+            previewable_only,
+            knowledge_source_id,
+        )
         return DocumentPage(
             items=[DocumentRead.model_validate(entity) for entity in entities],
-            total=await self.repo.count(parse_value, index_value, normalized_query, research_ready, previewable_only),
+            total=await self.repo.count(
+                parse_value,
+                index_value,
+                normalized_query,
+                research_ready,
+                previewable_only,
+                knowledge_source_id,
+            ),
             offset=offset,
             limit=limit,
         )

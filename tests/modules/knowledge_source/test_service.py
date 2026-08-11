@@ -1,14 +1,41 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.common.exceptions import ConflictError, PermissionDeniedError
+from app.common.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.database import Base
+from app.modules.document.model import Document
+from app.modules.document.repository import DocumentRepository
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
     KnowledgeSourceType,
 )
+
+
+async def create_document_with_statuses(
+    session,
+    source_id: int,
+    file_name: str,
+    parse_status: str,
+    index_status: str,
+) -> Document:
+    now = datetime.now(UTC)
+    return await DocumentRepository(session).create(
+        Document(
+            knowledge_source_id=source_id,
+            file_path=file_name,
+            normalized_file_path=file_name,
+            file_hash="a" * 64,
+            file_size=1,
+            modified_time=now,
+            modified_time_ns=1,
+            scan_state="pending",
+            parse_status=parse_status,
+            index_status=index_status,
+        )
+    )
 from app.modules.knowledge_source.service import (
     KnowledgeSourceService,
     normalize_authorized_directory,
@@ -134,3 +161,58 @@ async def test_delete_only_removes_record(session, tmp_path: Path):
     await service.delete(entity.id)
     assert await service.repo.get(entity.id) is None
     assert paper.read_text(encoding="utf-8") == "private content is never read"
+
+
+@pytest.mark.asyncio
+async def test_stats_grouped_for_mixed_and_empty_sources(session, tmp_path: Path):
+    service = KnowledgeSourceService(session)
+    populated_root = tmp_path / "populated"
+    populated_root.mkdir()
+    empty_root = tmp_path / "empty"
+    empty_root.mkdir()
+    populated = await service.create(
+        KnowledgeSourceCreate(
+            name="populated",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(populated_root),
+        )
+    )
+    empty = await service.create(
+        KnowledgeSourceCreate(
+            name="empty",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(empty_root),
+        )
+    )
+    await create_document_with_statuses(
+        session, populated.id, "indexed.pdf", "succeeded", "succeeded"
+    )
+    await create_document_with_statuses(
+        session, populated.id, "pending.pdf", "pending", "pending"
+    )
+    await create_document_with_statuses(
+        session, populated.id, "parse-failed.pdf", "failed", "pending"
+    )
+    await create_document_with_statuses(
+        session, populated.id, "index-failed.pdf", "succeeded", "failed"
+    )
+
+    sources = await service.list()
+    source_by_id = {source.id: source for source in sources}
+    assert source_by_id[populated.id].stats.model_dump() == {
+        "total_files": 4,
+        "parsed": 2,
+        "indexed": 1,
+        "pending": 1,
+        "failed": 2,
+    }
+    assert source_by_id[empty.id].stats.model_dump() == {
+        "total_files": 0,
+        "parsed": 0,
+        "indexed": 0,
+        "pending": 0,
+        "failed": 0,
+    }
+    assert (await service.stats(populated.id)).total_files == 4
+    with pytest.raises(NotFoundError, match="not found"):
+        await service.stats(99999)

@@ -13,9 +13,14 @@ from app.common.exceptions import (
     TemporarilyUnavailableError,
 )
 from app.modules.knowledge_source.model import KnowledgeSource
-from app.modules.knowledge_source.repository import KnowledgeSourceRepository
+from app.modules.knowledge_source.repository import (
+    KnowledgeSourceRepository,
+    KnowledgeSourceStatsRecord,
+)
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
+    KnowledgeSourceRead,
+    KnowledgeSourceStats,
     KnowledgeSourceSyncStatus,
     KnowledgeSourceUpdate,
 )
@@ -67,11 +72,30 @@ class KnowledgeSourceService:
         await self._refresh_availability(entity)
         return entity
 
-    async def list(self, offset: int = 0, limit: int = 20) -> list[KnowledgeSource]:
+    async def list(
+        self, offset: int = 0, limit: int = 20
+    ) -> list[KnowledgeSourceRead]:
         entities = await self.repo.list(offset=offset, limit=limit)
         for entity in entities:
             await self._refresh_availability(entity)
-        return entities
+        stats_by_source_id = await self.repo.stats_by_source_ids(
+            [entity.id for entity in entities]
+        )
+        return [
+            self._read(
+                entity,
+                self._stats_from_record(stats_by_source_id.get(entity.id)),
+            )
+            for entity in entities
+        ]
+
+    async def read(self, id: int) -> KnowledgeSourceRead:
+        entity = await self.get(id)
+        return await self._read_with_stats(entity)
+
+    async def stats(self, id: int) -> KnowledgeSourceStats:
+        entity = await self.get(id)
+        return await self._stats_for_entity(entity)
 
     async def create(self, data: KnowledgeSourceCreate) -> KnowledgeSource:
         try:
@@ -120,3 +144,32 @@ class KnowledgeSourceService:
                 entity.sync_status = KnowledgeSourceSyncStatus.IDLE.value
                 entity.error_message = None
                 await self.repo.save(entity)
+
+    async def _read_with_stats(self, entity: KnowledgeSource) -> KnowledgeSourceRead:
+        return self._read(entity, await self._stats_for_entity(entity))
+
+    async def _stats_for_entity(self, entity: KnowledgeSource) -> KnowledgeSourceStats:
+        stats_by_source_id = await self.repo.stats_by_source_ids([entity.id])
+        return self._stats_from_record(stats_by_source_id.get(entity.id))
+
+    @staticmethod
+    def _read(
+        entity: KnowledgeSource, stats: KnowledgeSourceStats
+    ) -> KnowledgeSourceRead:
+        return KnowledgeSourceRead.model_validate(entity).model_copy(
+            update={"stats": stats}
+        )
+
+    @staticmethod
+    def _stats_from_record(
+        stats_record: KnowledgeSourceStatsRecord | None,
+    ) -> KnowledgeSourceStats:
+        if stats_record is None:
+            return KnowledgeSourceStats()
+        return KnowledgeSourceStats(
+            total_files=stats_record.total_files,
+            parsed=stats_record.parsed,
+            indexed=stats_record.indexed,
+            pending=stats_record.pending,
+            failed=stats_record.failed,
+        )
