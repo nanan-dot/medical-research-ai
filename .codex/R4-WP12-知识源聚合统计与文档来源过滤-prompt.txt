@@ -1,0 +1,122 @@
+# R4-WP12：文档与知识后端能力补全 — 知识源聚合统计 + 文档按来源过滤
+
+## 唯一目标
+
+在仓库 `H:\AI_project\rag_medicine` 中补全「文档与知识」页面的两块后端能力，供前端知识库卡片展示真实聚合统计、以及"查看文档"跳转后按来源限定文档列表：
+
+1. **知识源聚合统计**：`GET /api/v1/knowledge-sources`（列表）返回每个知识源的文档聚合统计（文件总数、已解析、已索引、待处理、异常），并新增 `GET /api/v1/knowledge-sources/{id}/stats` 单源统计端点。
+2. **文档按来源过滤**：`GET /api/v1/documents` 增加 `knowledge_source_id` 查询参数，只返回该知识源下的文档。
+
+## 0. 背景与设计依据
+
+- 设计文档：`H:\AI_project\rag_medicine\docs\design\知识库与文档库_页面设计说明.md`
+  - 知识库卡片需显示：`126 个文件 · 112 已索引 · 8 待处理 · 6 异常`（文件总数、已索引、待处理、异常）
+  - "查看文档"点击后跳转文档库并自动限定当前 `knowledgeSourceId`
+- 现有后端：`app/modules/knowledge_source/`（router / schema / service / repository / sync_service）、`app/modules/document/`（router / service / repository / model）
+- 现有测试：`tests/modules/knowledge_source/test_api.py`、`test_service.py`，`tests/modules/document/` 下相关测试
+
+## 1. 必须阅读的文件
+
+- `AGENTS.md`
+- `docs/CODE_STANDARDS.md`
+- `app/modules/knowledge_source/router.py`、`schema.py`、`service.py`、`repository.py`、`model.py`
+- `app/modules/document/router.py`、`schema.py`、`service.py`、`repository.py`、`model.py`
+- `tests/modules/knowledge_source/test_api.py`、`test_service.py`
+- `tests/modules/document/` 相关测试（了解现有断言风格）
+- `frontend/src/api/knowledgeSources.ts`、`frontend/src/api/documents.ts`（了解前端期望的字段命名风格，保持 snake_case）
+
+## 2. 聚合统计字段定义（必须与设计说明一致）
+
+对每个知识源（按 `documents.knowledge_source_id` 分组统计）：
+
+| 字段 | 含义 | SQL 条件 |
+|---|---|---|
+| `total_files` | 文件总数 | `COUNT(*)` |
+| `parsed` | 已解析成功 | `parse_status = 'succeeded'` |
+| `indexed` | 已建立索引 | `index_status = 'succeeded'` |
+| `pending` | 待处理（尚未解析成功且未失败） | `parse_status IN ('pending','parsing')` |
+| `failed` | 异常（解析失败或索引失败） | `parse_status = 'failed' OR index_status = 'failed'` |
+
+补充约束：
+
+- `total_files` 恒等于 `parsed + pending + failed` 不强制成立（文档可能解析成功但尚未建立索引），字段含义以表格为准，不做人为凑数。
+- 统计基于 `documents` 表的**实时查询**（`COUNT` + `CASE WHEN` 聚合），不做缓存、不加新表、不加迁移（若现有表结构已足够）。
+- 若现有 `scan_state` 语义与上述条件冲突（如 `outdated` 应计入哪一类），按代码中真实语义归类并写中文注释说明理由。
+
+## 3. API 变更
+
+### 3.1 列表带统计
+
+`GET /api/v1/knowledge-sources` 响应模型 `KnowledgeSourceRead` 增加字段：
+
+```python
+class KnowledgeSourceStats(BaseModel):
+    total_files: int = 0
+    parsed: int = 0
+    indexed: int = 0
+    pending: int = 0
+    failed: int = 0
+
+class KnowledgeSourceRead(BaseModel):
+    # ...现有字段不变...
+    stats: KnowledgeSourceStats
+```
+
+列表查询在 `service.list()` 中对每个知识源执行一次文档统计查询（或一次性 `GROUP BY knowledge_source_id` 聚合后映射，优先后者，避免 N+1）。
+
+### 3.2 单源统计端点
+
+`GET /api/v1/knowledge-sources/{id}/stats`，响应 `KnowledgeSourceStats`。知识源不存在时返回现有 `NotFoundError` 语义。
+
+### 3.3 文档按来源过滤
+
+`GET /api/v1/documents` 增加可选参数 `knowledge_source_id: int | None = None`，透传到 `DocumentService.list()` 与 `DocumentRepository` 的查询条件（`WHERE knowledge_source_id = :id`）。现有行为（不传时返回全部）保持不变。
+
+## 4. 范围边界
+
+**只允许修改：**
+
+- `app/modules/knowledge_source/schema.py`、`service.py`、`repository.py`、`router.py`
+- `app/modules/document/router.py`、`schema.py`、`service.py`、`repository.py`
+- 对应测试文件（新增/更新）
+
+**不得修改：**
+
+- `app/modules/document/model.py`（不加列、不加表；如需索引辅助字段必须说明并请示）
+- 数据库迁移文件（除非上述需求必须加列，且应先说明理由）
+- 前端任何文件
+- 知识源扫描/同步逻辑（`sync_service.py`、`scanner.py` 不动）
+- 文档解析、索引服务（`parse`/`index` 流程不动）
+- 全局配置、路由挂载（`app/api/v1/__init__.py` 不动，除非必须挂载新端点且说明）
+
+## 5. 测试要求
+
+新增或更新测试，至少覆盖：
+
+1. 列表返回每个知识源的 `stats` 字段，统计数字与造的数据一致（含 0 文件、混合状态场景）；
+2. 单源统计端点：存在返回正确统计；不存在返回 404；
+3. 文档列表按 `knowledge_source_id` 过滤：只返回该来源文档；不传参数时行为不变；不存在的来源返回空列表（不报错）；
+4. 现有知识源、文档测试全部保持通过。
+
+运行：
+
+```bash
+cd H:\AI_project\rag_medicine
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m pytest tests/modules/knowledge_source/ tests/modules/document/ -q
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m pytest tests/ -q
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m alembic check
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -c "from app.main import app; print('OK')"
+```
+
+## 6. 交付报告
+
+完成后如实报告：
+
+1. 新增/修改文件清单；
+2. 每个 API 变更的字段与示例响应；
+3. 统计字段归类逻辑（pending/failed 的边界说明）；
+4. 实际运行的测试命令与真实结果（测试数量、通过情况）；
+5. alembic check 结果（应无迁移变更）；
+6. 已知限制与【未实测】项。
+
+完成后提交（git add + commit，commit message 遵循仓库现有约定，如 `feat(api): knowledge source aggregation stats and document source filter`）。不要 push。

@@ -1,0 +1,193 @@
+# FE-11：文档与知识「知识库 + 文档库」页面 — 高保真预览图生成任务
+
+## 唯一目标
+
+在仓库 `H:\AI_project\rag_medicine` 中，为「文档与知识」工作空间的两个二级页面（知识库 `/sources`、文档库 `/documents`）生成**高保真静态预览图**（HTML 文件，可浏览器打开），作为后续前端实现的视觉基准。
+
+本轮**只产出预览图 HTML + CSS**，不修改任何 Vue/TS 业务代码。
+
+## 0. 设计依据（按优先级）
+
+1. `H:\AI_project\rag_medicine\docs\design\知识库与文档库_页面设计说明.md` —— **最高设计依据**，信息架构、功能清单、布局、跳转、设计边界全部以它为准。
+2. 现有前端真实代码（见 §1 审计清单）—— 真实字段、真实状态枚举、真实 API 语义。
+3. `H:\AI_project\rag_medicine\docs\design\文档与知识\素问_文档与知识_知识库预览_V1.png` 和 `素问_文档库预览_V1.png` —— 视觉气质参考（冷白、深海军蓝、钴蓝）。
+4. `H:\AI_project\rag_medicine\docs\design\医学科研智能平台界面总览.png` —— 全平台视觉基调。
+
+**Design Read：**面向医学研究者的本地研究材料管理工作区，冷静、可信、紧凑的医学科研产品语言，接近高质量研究工具和 PubMed 周边产品，不是泛化 AI SaaS、营销页或网盘。
+
+设计参数：
+
+- `DESIGN_VARIANCE: 3`：信息结构稳定、严格对齐，设计说明优先。
+- `MOTION_INTENSITY: 2`：仅 hover/focus/按下/状态变化，不做装饰动画。
+- `VISUAL_DENSITY: 6`：桌面端高可读性承载表格、筛选、状态与操作，但不拥挤。
+- 实现方式：单文件 HTML + 内联 CSS（或同目录独立 CSS），**不引入任何外部依赖**（无 CDN、无框架、无图标库），字体用系统无衬线栈。
+
+## 1. 开始前必须完成的审计
+
+先读取以下文件，把真实字段、状态枚举、API 语义记下来，预览图中的**每一项展示内容都必须能在这些代码里找到对应来源**：
+
+- `frontend/src/api/knowledgeSources.ts`（KnowledgeSource 字段：name / source_type / root_path / enabled / sync_status / last_sync_time / error_message）
+- `frontend/src/api/documents.ts`（DocumentRecord 字段：knowledge_source_id / file_path / original_filename / media_type / file_size / modified_time / scan_state / parse_status / index_status / error_message / retry_count）
+- `frontend/src/views/KnowledgeBase/KnowledgeBaseView.vue`（现有页面骨架）
+- `frontend/src/views/Documents/DocumentsView.vue`
+- `frontend/src/components/knowledge-source/KnowledgeSourceList.vue`（现有展示结构）
+- `frontend/src/components/document/DocumentManager.vue`、`DocumentTable.vue`、`DocumentFilters.vue`、`DocumentUploadPanel.vue`
+- `frontend/src/composables/useKnowledgeSources.ts`、`useDocuments.ts`
+- `frontend/src/config/features.ts`（导航配置）
+- `frontend/src/router/index.ts`（路由）
+- `frontend/src/styles/tokens.css`（颜色 token）
+
+**状态枚举（来自真实代码，预览必须使用）：**
+
+- `source_type`: local_folder / obsidian_vault / temporary_import
+- `sync_status`: idle / scanning / completed / completed_with_errors / unavailable
+- `parse_status`: pending / parsing / succeeded / failed
+- `index_status`: pending / indexing / succeeded / failed / outdated
+
+## 2. 预览图交付物
+
+在 `.codex/previews/` 下新建 `docs-knowledge/` 目录，产出：
+
+```
+.codex/previews/docs-knowledge/
+├── knowledge-base-preview.html   ← 知识库页面预览
+├── document-library-preview.html ← 文档库页面预览
+└── preview.css                   ← 两个页面共用的预览样式
+```
+
+两个 HTML 都可以**直接用浏览器打开**（file:// 或 localhost 均可），打开即渲染完整页面。
+
+## 3. 知识库页面预览（knowledge-base-preview.html）
+
+严格按设计说明 §2 实现以下结构：
+
+### 3.1 页面骨架
+
+- 左测栏（模拟 AppSidebar）：素问品牌标识 + 主导航（工作台/文献检索/**文档与知识(激活)**/论文研究/多论文证据/研究设计/写作与汇报）+ 底部（后台任务/设置）。当前项用浅蓝底 + 深蓝字。
+- 顶栏（模拟 AppTopbar）：面包屑「文档与知识 / 示例研究项目▾」+ 搜索与跳转（⌕ 搜索与跳转 Ctrl K）+ 右侧任务/头像。
+- 主内容区：h1「文档与知识」+ 副标题「让本地研究材料成为可追溯的证据资产。」+ 二级 Tab（知识库激活 / 文档库）。
+
+### 3.2 筛选 Tabs（设计说明 §2.2，必须实现）
+
+Tab 下方放筛选条：`[全部] [已启用] [异常] [最近同步]`，当前项钴蓝文字 + 2px 底边。右侧对齐主按钮「+ 添加资料文件夹」。
+
+### 3.3 资料文件夹列表（设计说明 §2.3，安静行风格）
+
+每条记录（用演示数据，但格式必须与真实字段对应）：
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ [类型图标] 肝癌免疫治疗资料        本地文件夹        [更多 ▾]    │
+│            H:\research\HCC-immunotherapy                        │
+│            126 个文件 · 112 已索引 · 8 待处理 · 6 异常           │
+│            上次同步：今天 14:32      ● 已同步                    │
+│            [同步] [查看文档]                                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- 左侧：来源类型标识（本地文件夹/Obsidian/临时导入的简洁图标或文本）、名称、目录路径。
+- 中部：聚合状态行（文件总数/已索引/待处理/异常——演示数字）、上次同步时间、同步状态（带颜色的状态点+文字）。
+- 右侧：同步按钮、启用开关（语义化开关）、「查看文档」（主操作，钴蓝链接）、「更多操作」菜单（含移除）。
+- 异常文件夹（completed_with_errors / unavailable）必须在聚合行用红色强调异常数字，并显示真实错误文案示例。
+- 列表上方标题「知识来源」+ 副标题「3 个来源 · 2 个已启用」。
+
+### 3.4 添加资料文件夹（设计说明 §2.3，抽屉）
+
+预览图中实现一个**右侧抽屉**（默认隐藏，放一个可点击的「+ 添加资料文件夹」按钮触发，或提供静态展示的抽屉状态）：
+
+- 标题「添加资料文件夹」
+- 名称（label + input）
+- 来源类型（select：本地文件夹/Obsidian Vault/临时导入目录）
+- 授权目录（label + input + 「选择目录」按钮）
+- 底部按钮：「取消」+「添加」（主按钮钴蓝）
+- 底部提示：「仅添加系统记录，不会读取或上传目录外内容」
+
+### 3.5 页尾流程说明
+
+「同步后发生什么」浅色面板：识别新增与变更文件 → 解析支持的文档 → 建立可用于证据问答的索引。加「仅扫描你授权的本地目录」说明。
+
+## 4. 文档库页面预览（document-library-preview.html）
+
+严格按设计说明 §3 实现以下结构：
+
+### 4.1 页面骨架
+
+- 左测栏、顶栏同知识库（当前 Tab 切换为「文档库」激活）。
+- h1「文档与知识」+ 副标题「查看每份材料的解析与索引状态，修复失败后再用于证据问答。」
+- 面包屑：`文档库 / 肝癌免疫治疗资料 / 临床试验`。
+
+### 4.2 三栏布局（设计说明 §3.2，必须实现）
+
+**左侧：资料目录树**
+
+- 全部资料（顶层）
+- 肝癌免疫治疗资料（展开）
+  - 临床试验（当前选中）
+  - 机制研究
+- 肺癌靶向治疗资料
+- 每个文件夹节点显示名称 + 计数徽标（如 36/12/8）
+- 树节点 hover/选中态清晰
+
+**中间：文档列表**
+
+- 顶部「AI 查找资料……」搜索框 + 「仅已索引」复选框 + 范围切换（当前资料文件夹/全部知识源）
+- 筛选行：解析状态 select、索引状态 select、文件类型 select
+- 文档表格（高密度，列）：选择 checkbox / 文档（文件类型图标+文件名+所属目录）/ 解析状态 / 索引状态 / 更新时间 / 操作（重试解析/重试索引/删除索引/详情）
+- 状态用「图标+文字」双表达：解析成功（绿✓）、解析失败（红!）、等待解析（灰时钟）、索引成功（绿✓）、索引过期（琥珀⚠）、索引失败（红!）
+- 批量操作条：勾选后显示「已选择 N 篇」+「批量建立索引」（真实禁用/启用状态）
+- 分页：上一页/下一页 + 页码
+- 提示：「仅显示系统已同步或上传的本地材料」
+
+**右侧：文档详情与证据栏（常驻）**
+
+- 未选中文档：当前文件夹状态摘要（文件数/已索引/异常）+ 使用提示
+- 选中文档：文档元数据（名称/路径/类型/大小/修改时间）+ 解析摘要（页数/章节）+ 索引状态 + 错误原因 + 「打开文档详情」链接
+- AI 命中时（演示一个命中状态）：来源页码/章节 + 原文摘录 + 「打开文档详情」
+
+### 4.3 页尾说明
+
+「文档何时可用于证据问答？」浅色提示面板：解析成功并完成当前索引后，文档才可作为本地证据来源。
+
+## 5. 视觉系统（两页统一）
+
+#### 颜色和材料
+
+- 主画布：冷白或极浅灰蓝 `#F6F8FB`；内容面：白色，边界低对比蓝灰 `#DCE5F2`。
+- 标题/主要文字：深海军蓝 `#10213D`；辅助文字：蓝灰 `#667995`。
+- 唯一主强调色：钴蓝 `#2563EB`。
+- 成功：低饱和绿；警告：琥珀；错误：红。状态必须文字+图标双表达。
+- 禁止：紫色 AI 渐变、玻璃拟态、霓虹、暖米色、青绿主题、大面积投影、营销 Hero、插画。
+
+#### 字体、圆角、阴影
+
+- 系统无衬线栈（与项目一致：Inter / PingFang SC / Noto Sans SC / Microsoft YaHei）。
+- H1 32-36px / 700；H2 20-22px；正文 14-16px；状态元信息 13-14px。
+- 按钮/输入圆角 8px，面板 12px；普通信息区 1px 边框 + 留白，阴影近乎不可见。
+- 表格行 hover 用极浅蓝；选中行浅蓝底。
+
+## 6. 数据与标注规则
+
+- 预览图允许使用**演示数据**（文件数、来源、时间、文件名），但必须在页面顶部或角落标注「设计预览 · 演示数据」。
+- 演示数据必须**符合真实字段语义**：不出现真实代码中不存在的状态值（如"已同步云端"）、不出现设计说明之外的功能（无云协作、无团队权限、无全文搜索、无 OCR 完成）。
+- 演示数据命名贴合医学研究场景（如 肝癌免疫治疗、IMbrave150.pdf、EGFR_肺癌免疫治疗综述.pdf），但不要伪造真实存在的论文结论。
+- 每张预览图右下角标注：`FE-11 设计预览 · 演示数据 · 非最终实现`。
+
+## 7. 验收
+
+完成后实际运行（用 Node 或 Python 做基础校验）：
+
+```bash
+cd H:\AI_project\rag_medicine\.codex\previews\docs-knowledge
+# 两个 HTML 文件存在且非空
+# HTML 内无外部依赖引用（无 http://、https://、cdn 引用）
+```
+
+然后如实报告：
+
+1. 两个预览文件路径；
+2. 与设计说明的功能对照表（每项功能 → 预览中位置）；
+3. 演示数据清单（哪些是编造的演示值）；
+4. 未实现的设计说明项（如有）及原因；
+5. 已知限制与【未实测】项。
+
+完成后立即停止。不修改任何 Vue/TS/后端代码，不提交，不 push。

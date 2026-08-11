@@ -10,6 +10,7 @@ Status terms: **LIVE** is registered in the FastAPI application and covered by r
 | Knowledge sources | GET, POST, PATCH, DELETE | `/api/v1/knowledge-sources[/{id}]` | `KnowledgeSourceCreate`, `KnowledgeSourceUpdate` | `KnowledgeSourceRead` | LIVE | `app/modules/knowledge_source/router.py`, `schema.py` |
 | Knowledge-source sync | POST, GET | `/api/v1/knowledge-sources/{id}/sync[-status]` | — | `KnowledgeSourceSyncSummary` | LIVE | `app/modules/knowledge_source/router.py` |
 | Document library | GET | `/api/v1/documents` | query `offset`, `limit`, filters | `DocumentPage` | LIVE | `app/modules/document/router.py`, `schema.py` |
+| AI document navigation | POST | `/api/v1/document-navigation/search` | `DocumentNavigationRequest` | `DocumentNavigationResponse`（策略、降级原因、条件验证、来源定位） | LIVE | `app/modules/document_navigation/router.py`, `schema.py` |
 | Document processing | POST, DELETE | `/api/v1/documents/{id}/parse`, `/index`, retry paths | — | `DocumentRead` / `DocumentIndexResult` | LIVE | `app/modules/document/router.py` |
 | Paper analysis | POST, GET, PATCH | `/api/v1/paper-analysis[/{id}]` | `PaperAnalysisCreate`, `PaperAnalysisCorrection` | `PaperAnalysisRead` | LIVE | `app/modules/paper_analysis/router.py`, `schema.py` |
 | Evidence Q&A | GET, POST, DELETE | `/api/v1/conversations[/{id}]` and message paths | `ConversationCreate`, `MessageCreate`, `FeedbackCreate` | `ConversationRead`, `MessageRead` | LIVE | `app/modules/conversation/router.py`, `schema.py` |

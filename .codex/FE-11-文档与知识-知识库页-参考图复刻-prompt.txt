@@ -1,0 +1,252 @@
+# FE-11：文档与知识「知识库」页面 — 参考图复刻实施提示词
+
+## 唯一目标
+
+在仓库 `H:\AI_project\rag_medicine` 中，将「文档与知识」的**知识库页面**（`frontend/src/views/KnowledgeBase/KnowledgeBaseView.vue`，路由 `/sources`）重构为高度贴近给定参考图的 Vue 3 页面，同时保留真实后端能力与现有产品壳层。
+
+本轮**只做知识库页**。文档库页（`/documents`）下一轮再做，本任务不得顺手改动文档库页面结构。
+
+## 0. 参考文件与设计读法
+
+先打开并视觉检查参考图：
+
+- `H:\AI_project\rag_medicine\docs\design\文档与知识\素问_文档与知识_知识库预览_V1.png`
+
+**Design Read：**这是面向医学研究者的本地研究材料管理工作区，采用冷静、可信、紧凑的医学科研产品语言，接近高质量研究工具和 PubMed 周边产品，而不是泛化 AI SaaS、营销页或网盘。
+
+设计参数：
+
+- `DESIGN_VARIANCE: 3`：信息结构稳定、严格对齐，参考图优先。
+- `MOTION_INTENSITY: 2`：仅保留 hover、focus、按下与状态变化，不做装饰动画。
+- `VISUAL_DENSITY: 6`：桌面端以高可读性承载表格、筛选、状态与操作，但不能拥挤。
+- 实现方式：沿用项目 Vue 3、TypeScript、原生 scoped CSS、已有 API/composable/组件。**不引入 UI 框架、图标库或字体依赖**，除非审计证明仓库已有依赖可复用。
+
+## 1. 开始前必须完成的审计
+
+完整阅读并遵守：
+
+- `H:\AI_project\rag_medicine\AGENTS.md`
+- `H:\AI_project\rag_medicine\docs\CODE_STANDARDS.md`
+- `H:\AI_project\rag_medicine\docs\frontend\FRONTEND_MASTER_PROMPT_R2_WP02.md`（只作为规范参考，功能状态必须以现代码为准）
+- `C:\Users\ADMIN\Desktop\rag医学科研项目修改1.1版\文档\前端设计\素问_文档与知识_页面分布设计_V1.1.md`（信息架构与职责边界）
+- `C:\Users\ADMIN\Desktop\rag医学科研项目修改1.1版\文档\实现报告\素问_文档与知识_预览图后端能力核对_2026-08-10.md`（后端能力矩阵）
+
+然后审查至少这些当前文件：
+
+- `frontend/src/views/KnowledgeBase/KnowledgeBaseView.vue`
+- `frontend/src/components/knowledge-source/KnowledgeSourceManager.vue`
+- `frontend/src/components/knowledge-source/KnowledgeSourceForm.vue`
+- `frontend/src/components/knowledge-source/KnowledgeSourceList.vue`
+- `frontend/src/composables/useKnowledgeSources.ts`
+- `frontend/src/api/knowledgeSources.ts`
+- `frontend/src/api/client.ts`
+- `frontend/src/router/index.ts`
+- `frontend/src/components/layout/AppSidebar.vue`
+- `frontend/src/components/layout/AppTopbar.vue`
+- `frontend/src/styles/` 下的 token 与全局样式
+
+还要读取后端实际路由及 Schema，核实接口字段与错误语义：
+
+- `app/modules/knowledge_source/router.py`
+- `app/modules/knowledge_source/schema.py`
+
+先执行只读审计，输出“现状、真实 API 矩阵、复用/替换决策、文件计划”。确认后再写代码。不要先凭参考图假设数据或接口。
+
+## 2. 重构还是局部重写的决策规则
+
+本任务允许你在实际审计后自行选择，但必须在动手前记录理由。
+
+**优先局部重构**：保留现有 API 文件、composable、真实请求、状态管理、路由和已有测试；替换 View、展示组件结构及 CSS。只要现有逻辑可复用，就不要另起平行请求层。
+
+**允许重写知识库页面的展示组件**：仅当现有页面结构阻碍参考布局，例如大面积视觉强耦合、组件承担多个职责、样式覆盖成本明显高于清晰拆分。重写时仍必须保留或复用：
+
+- `useKnowledgeSources.ts` 和 `knowledgeSourcesApi` 全局请求语义；
+- 路由 `/sources`；
+- 所有真实 loading、error、retry、disabled、空状态逻辑；
+- 已有功能测试，并按新结构更新断言。
+
+不得因为视觉重做而复制 API、写静态文献、伪造来源数量、模拟同步成功，或把真实请求失败显示成成功。
+
+## 3. 严格范围
+
+本轮**只修改**下列范围内确有必要的前端文件：
+
+- `frontend/src/views/KnowledgeBase/KnowledgeBaseView.vue`；
+- `frontend/src/components/knowledge-source/**`（知识库页直接使用的知识源展示组件）；
+- 极少量可复用的本模块局部组件、样式或测试。
+
+本轮**不得修改**：
+
+- 后端代码、数据库、迁移、API 合约；
+- `frontend/src/views/Documents/**`、`frontend/src/components/document/**`（文档库下一轮）；
+- `AppSidebar.vue`、`AppTopbar.vue`；
+- `features.ts`、路由路径和左侧一级导航配置；
+- 顶栏“搜索与跳转”、项目选择、书签、任务、头像的全局业务；
+- 文档详情页的阅读器、批注、OCR 业务逻辑；
+- 论文研究、多论文证据、研究设计、写作与汇报。
+
+如果参考图中的全局顶栏或侧栏与当前实际壳层不完全一致，只复刻**主内容区域在壳层内的视觉关系**，不要破坏已存在的全局布局。
+
+## 4. 已确认必须接入的真实能力（知识库 /sources）
+
+必须继续使用真实的知识来源接口：
+
+- `GET /api/v1/knowledge-sources`：来源列表；
+- `POST /api/v1/knowledge-sources`：创建来源；
+- `PATCH /api/v1/knowledge-sources/{id}`：启用/停用；
+- `POST /api/v1/knowledge-sources/{id}/sync`：同步；
+- `DELETE /api/v1/knowledge-sources/{id}`：移除系统记录。
+
+必须保留字段：名称、来源类型、授权目录、启用状态、同步状态、最近同步时间、真实错误原因。
+
+来源类型只允许：`local_folder`、`obsidian_vault`、`temporary_import`。不要新增云盘、PubMed、Zotero、上传文件等不存在的来源类型。
+
+## 5. 知识库页面骨架
+
+页面必须被明确识别为「文档与知识」工作空间的二级页面之一。
+
+1. 内容区最大宽度约 1280-1320px，桌面端左右留白稳定，不贴边。
+2. 页面唯一 `h1` 为“文档与知识”。
+3. 标题下的说明：`让本地研究材料成为可追溯的证据资产。`
+4. 标题下放紧凑的二级 Tab：
+   - 知识库 → `/sources`
+   - 文档库 → `/documents`
+   使用 RouterLink，当前项为钴蓝文字加 2px 底边；不是肥大胶囊，不增加第二个 h1。
+
+## 6. 视觉系统与精确复刻要求
+
+以参考图为目标，优先匹配层级、密度、间距、状态层次与交互位置，不要逐像素拷贝无关的顶栏/侧栏。
+
+#### 颜色和材料
+
+- 整体主画布：冷白或极浅灰蓝，约 `#F6F8FB`。
+- 内容面：白色，边界用低对比蓝灰色，约 `#DCE5F2`。
+- 标题和主要文字：深海军蓝，约 `#10213D`。
+- 辅助文字：蓝灰，约 `#667995`。
+- 唯一主强调色：钴蓝，接近 `#2563EB` 或现有 token 中最接近的主蓝。
+- 成功：低饱和绿色；警告：琥珀；错误：红色。状态必须同时有文字和图标/形状，不能只靠颜色。
+- 禁止紫色 AI 渐变、玻璃拟态、霓虹、暖米色、青绿色主题、大面积投影、营销 Hero、插画和假数据图表。
+
+#### 字体、圆角和阴影
+
+- 沿用项目现有无衬线字体栈；本模块禁止把 Georgia 或其他衬线当标题字体。
+- H1 约 32-36px，700-750 字重；H2 20-22px；正文 14-16px；状态和元信息 13-14px。
+- 输入、按钮圆角约 8px；面板约 12px；不要混用夸张圆角。
+- 普通信息区只使用 1px 边框和留白，阴影近乎不可见。按钮 hover 可有极轻上浮或背景变化。
+- 所有 CSS 优先使用现有 token；若当前 token 不足，只新增少量通用、语义化 token，禁止在多个组件散落硬编码色值。
+
+#### 动效和可访问性
+
+- 仅 120-180ms 的颜色、边框、背景和 transform 微过渡；支持 `prefers-reduced-motion`。
+- 所有输入必须有 label；图标按钮有 `aria-label`；键盘可访问 Tab、开关、筛选、上传、批量操作和删除确认。
+- `:focus-visible` 使用清晰的钴蓝焦点环。
+- 全部主要文字和按钮满足 WCAG AA 对比度。
+
+## 7. 知识库页面具体实现 /sources
+
+目标是复刻参考图的结构：标题、Tab、低高度流程带、知识来源面板、来源行、页尾流程说明。
+
+#### 7.1 流程带
+
+放在 Tab 下方，白底、细边框、约 68px 高度，宽屏横向：
+
+`1 知识来源  →  2 同步目录  →  3 文档解析与索引`，右侧为“仅扫描你授权的本地目录”。
+
+- 编号是流程语义，不是装饰性章节编号。
+- 用小型蓝色圆形数字、细箭头和留白组织，不能做成三张等宽卡片。
+- 窄屏改为纵向说明，保留顺序和含义。
+
+#### 7.2 知识来源面板
+
+面板标题为“知识来源”，副标题只基于真实数据显示：`{sources.length} 个来源 · {enabledCount} 个已启用`。数据未加载时显示骨架或“正在读取知识来源”，禁止静态数字。
+
+创建区在同一面板内，桌面端为一行三字段加主按钮：
+
+- 名称：可见 label；
+- 类型：select，默认 `local_folder`；
+- 授权目录：可见 label；
+- 主按钮：“添加知识源”。
+
+平板与移动端纵向排列。提交期间禁用重复提交；保留真实错误信息。
+
+来源列表采用参考图的“安静行”而不是现有大卡片：
+
+- 左侧：来源类型的项目既有图标或简洁文本标识、名称、目录路径；
+- 中部：同步状态、最近同步时间或真实错误；
+- 右侧：同步按钮、语义化开关、移除菜单/操作；
+- `scanning` 时禁止重复同步；`unavailable`、`completed_with_errors` 必须显式展示错误；
+- 移除前必须二次确认，并说明“仅移除系统记录，不会删除原始目录中的文件”。
+
+如果当前代码没有来源详情页，参考图行末箭头不得做成无效按钮。可省略，或仅在已有有效目标时显示。
+
+#### 7.3 页尾说明
+
+标题“同步后发生什么”。在同一浅色面板内用横向流程表达：识别新增与变更文件 → 解析支持的文档 → 建立可用于证据问答的索引。
+
+只解释真实工作流，不显示虚构文档量、进度百分比、耗时或 AI 结论。
+
+## 8. 不得伪造或越权
+
+- 不显示或实现本轮不存在的云端协作、团队权限、全文搜索、自动摘要、引用质量评分、AI 推荐、研究质量评分。
+- 不把 OCR、批注、PDF/Word 阅读器塞到知识库页面中；它们属于文档详情或文档库。
+- 不修改后端、数据库或 API，不能为了界面增加假字段。
+- 不改变全局侧栏、顶栏、项目上下文、全局搜索和路由配置。
+- 不使用 Mock 回退掩盖 Live API 失败。
+
+## 9. 组件和代码质量
+
+页面 View 只负责编排，真实请求仍在 composable/API 层。可按审计结果新建少量职责单一的局部组件，例如：
+
+- `DocumentKnowledgeWorkspaceHeader.vue`：h1、说明、Tab（可复用给下一轮文档库）；
+- `KnowledgeWorkflowStrip.vue`：知识库流程带；
+- `KnowledgeSourceRows.vue`：来源行展示。
+
+这只是建议，不要为了凑结构创建未使用组件。每个新增文件只负责一个明确任务；Props 与 emits 显式标注类型；复杂异步、状态竞争或安全边界用中文注释解释“为什么”。不要写 `any`、死代码或仅用于外观的假 API。
+
+## 10. 环境注意（Windows）
+
+- 本机 Python 命令前必须加 `env PYTHONPATH=""`（Hermes 全局 PYTHONPATH 污染 conda 环境）。
+- 前端命令在 `H:\AI_project\rag_medicine\frontend` 下执行。
+
+## 11. 验收和交付
+
+实现完成后必须实际运行，并如实报告：
+
+```powershell
+Set-Location H:\AI_project\rag_medicine\frontend
+npm run typecheck
+npm test
+npm run build
+```
+
+如仓库没有 lint 脚本，不要虚构 lint 结果。新增或更新与本轮组件对应的 Vitest 测试，至少覆盖：
+
+1. `/sources` 的真实加载、创建、启用/停用、同步、错误和移除提示；
+2. Live 请求失败时显示错误，不降级为示例数据；
+3. Tab 当前态和路由跳转；
+4. 窄屏布局不会横向溢出。
+
+若可启动本地服务，使用参考图在约 1440px 宽度下做视觉核对，并说明【已实测】或【未实测】。至少检查：
+
+- 只有一个 h1；
+- 当前 Tab 显示正确；
+- 主内容区无青绿/衬线遗留风格；
+- 全局侧栏和顶栏未变化；
+- 来源行信息密度、工具栏与参考图相近；
+- 375px、768px、1024px、1440px 均可用；
+- loading、empty、error、disabled、成功与异常状态都有清晰表达；
+- 键盘焦点、按钮对比度、label 与 reduced motion 合格。
+
+最终输出必须包含：
+
+1. 当前任务与审计结论；
+2. 重构/重写决策及理由；
+3. 真实 API 可用性矩阵；
+4. 修改和新增文件清单；
+5. 未修改的全局文件；
+6. 实际运行的命令和真实结果；
+7. 截图或手工验收结果；
+8. 已知限制和【未实测】项；
+9. 建议的单一下一任务（文档库页），但不要自动进入下一任务。
+
+完成后立即停止。

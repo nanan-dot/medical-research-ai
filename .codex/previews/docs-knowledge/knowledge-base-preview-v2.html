@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>知识库｜精修预览 V2</title>
+<style>
+/* ===== 素问 · 知识库精修预览 V2 =====
+   设计要点：收窄内容区 1280px、低语边框、来源行主次分层、
+   顶栏品牌化、大留白呼吸感、状态 pill 轻量化 */
+:root{
+  --canvas:#F6F8FB; --surface:#FFFFFF;
+  --border-whisper:1px solid rgba(16,33,61,.08);
+  --border-soft:1px solid rgba(16,33,61,.12);
+  --ink:#10213D; --ink-2:#33466B; --muted:#667995; --muted-2:#8CA0BC;
+  --accent:#2563EB; --accent-soft:#EFF4FF;
+  --success:#1B8A5A; --success-soft:#E8F7F0;
+  --warn:#B7791F; --warn-soft:#FBF3E2;
+  --danger:#C62828; --danger-soft:#FDECEC;
+  --radius-btn:8px; --radius-panel:12px;
+  --shadow-whisper:0 1px 2px rgba(16,33,61,.04),0 4px 16px rgba(16,33,61,.03);
+  --font:Inter,"SF Pro Text","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--canvas);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+:focus-visible{outline:3px solid rgba(37,99,235,.4);outline-offset:2px;border-radius:4px}
+
+/* ===== 应用壳 ===== */
+.app-shell{display:grid;grid-template-columns:232px minmax(0,1fr);grid-template-rows:auto 1fr;min-height:100vh}
+
+/* ===== 侧栏 ===== */
+.sidebar{grid-row:1 / -1;background:var(--surface);border-right:var(--border-whisper);display:flex;flex-direction:column;padding:20px 12px 16px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px}
+.brand-mark{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;letter-spacing:.5px}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:.4px}
+.brand-sub{display:block;font-size:10px;color:var(--muted-2);font-weight:500;letter-spacing:.8px;margin-top:1px}
+.nav-label{font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:1px;padding:10px 12px 6px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:7px;color:var(--ink-2);font-size:13.5px;font-weight:500;transition:background .15s,color .15s}
+.nav a:hover{background:rgba(16,33,61,.04);color:var(--ink)}
+.nav a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav-icon{width:18px;text-align:center;font-size:14px;opacity:.85}
+.sidebar-bottom{margin-top:auto;padding-top:16px;border-top:var(--border-whisper)}
+
+/* ===== 顶栏 ===== */
+.topbar{grid-column:2;grid-row:1;display:flex;align-items:center;justify-content:space-between;padding:14px 36px;background:var(--canvas)}
+.crumb{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.crumb b{color:var(--ink-2);font-weight:600}
+.crumb .proj{display:inline-flex;align-items:center;gap:5px;color:var(--ink);font-weight:600;background:var(--surface);border:var(--border-soft);border-radius:6px;padding:3px 10px;font-size:12.5px}
+.top-actions{display:flex;align-items:center;gap:14px}
+.global-search{display:flex;align-items:center;gap:10px;background:var(--surface);border:var(--border-soft);border-radius:var(--radius-btn);padding:6px 12px;color:var(--muted-2);font-size:12.5px;min-width:230px}
+.global-search kbd{font-family:var(--font);font-size:11px;border:1px solid rgba(16,33,61,.15);border-radius:4px;padding:1px 6px;color:var(--muted)}
+.top-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--muted);background:var(--surface);border:var(--border-whisper);font-size:13px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+
+/* ===== 主内容 ===== */
+.page{grid-column:2;grid-row:2;padding:10px 36px 48px;max-width:1280px;width:100%;margin:0 auto}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:1.6px;color:var(--muted-2);margin-bottom:6px}
+h1{font-size:33px;font-weight:750;letter-spacing:-.4px;line-height:1.15}
+.page-lead{color:var(--muted);font-size:15px;margin-top:6px;max-width:640px}
+.demo-label{display:inline-block;margin-top:12px;font-size:11px;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:3px 10px;font-weight:600;letter-spacing:.4px}
+
+/* ===== 二级 Tab ===== */
+.section-tabs{display:flex;gap:26px;margin:26px 0 0;border-bottom:var(--border-whisper)}
+.section-tabs a{font-size:14.5px;font-weight:600;color:var(--muted);padding:9px 2px 11px;position:relative;transition:color .15s}
+.section-tabs a:hover{color:var(--ink)}
+.section-tabs a.active{color:var(--accent)}
+.section-tabs a.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);border-radius:2px}
+
+/* ===== 筛选条 ===== */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin:20px 0 22px}
+.filter-tabs{display:flex;gap:4px;background:var(--surface);border:var(--border-whisper);border-radius:9px;padding:3px}
+.filter-tabs button{padding:6px 16px;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);transition:all .15s}
+.filter-tabs button:hover{color:var(--ink)}
+.filter-tabs button.active{background:var(--accent-soft);color:var(--accent)}
+.button.primary{background:var(--accent);color:#fff;border-radius:var(--radius-btn);padding:8px 18px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-whisper);transition:background .15s,transform .1s}
+.button.primary:hover{background:#1D4FD7}
+
+/* ===== 知识来源面板 ===== */
+.panel{background:var(--surface);border:var(--border-whisper);border-radius:var(--radius-panel);overflow:hidden;box-shadow:var(--shadow-whisper)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:20px 26px 16px}
+.panel-head h2{font-size:17px;font-weight:700;letter-spacing:-.2px}
+.panel-head p{color:var(--muted);font-size:12.5px;margin-top:2px}
+.button.ghost{border:var(--border-soft);border-radius:var(--radius-btn);padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface);transition:border-color .15s}
+.button.ghost:hover{border-color:rgba(16,33,61,.28)}
+
+/* ===== 来源行：安静行 ===== */
+.source-row{display:grid;grid-template-columns:minmax(280px,1.4fr) minmax(220px,1fr) auto;gap:20px;align-items:center;padding:18px 26px;transition:background .15s}
+.source-row:hover{background:#FAFCFF}
+.source-row+.source-row{border-top:var(--border-whisper)}
+.source-info{display:flex;gap:13px;align-items:flex-start;min-width:0}
+.source-type{width:36px;height:36px;flex:0 0 36px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:15px}
+.source-name{font-size:15px;font-weight:700;letter-spacing:-.1px}
+.source-path{color:var(--muted);font-size:12.5px;margin-top:3px;font-family:ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+.source-kind{display:inline-block;margin-top:6px;font-size:11px;color:var(--muted-2);background:#F3F6FB;border-radius:5px;padding:2px 8px;font-weight:500}
+.stats-line{display:flex;flex-wrap:wrap;gap:6px 16px}
+.stats-line span{font-size:12.5px;color:var(--muted)}
+.stats-line strong{color:var(--ink-2);font-weight:700;font-size:13.5px}
+.stats-line span.danger strong{color:var(--danger)}
+.source-meta{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.source-meta>span{font-size:12px;color:var(--muted)}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2);background:#F3F6FB;border-radius:999px;padding:3px 10px}
+.status .dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+.status.ok{color:var(--success);background:var(--success-soft)}
+.status.warn{color:var(--warn);background:var(--warn-soft)}
+.status.warn .dot{background:var(--warn)}
+.status.err{color:var(--danger);background:var(--danger-soft)}
+.status.err .dot{background:var(--danger)}
+.source-error{font-size:12px;color:var(--danger);line-height:1.45;max-width:340px}
+.source-controls{display:flex;align-items:center;gap:10px}
+.button{border:var(--border-soft);border-radius:var(--radius-btn);padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface);transition:all .15s}
+.button:hover{border-color:rgba(16,33,61,.3);color:var(--ink)}
+.button.link{color:var(--accent);border-color:transparent;padding:6px 10px}
+.button.link:hover{background:var(--accent-soft)}
+.switch{width:36px;height:20px;border-radius:999px;background:#D3DCE8;position:relative;transition:background .15s;flex:0 0 auto}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.switch.on{background:var(--accent)}
+.switch.on::after{transform:translateX(16px)}
+.kebab{width:30px;height:30px;border-radius:7px;color:var(--muted);font-size:16px;display:grid;place-items:center;transition:background .15s}
+.kebab:hover{background:#F0F4FA;color:var(--ink)}
+
+/* ===== 页尾流程 ===== */
+.workflow-note{display:flex;align-items:center;gap:14px;margin-top:22px;background:var(--surface);border:var(--border-whisper);border-radius:var(--radius-panel);padding:16px 24px;font-size:13px;color:var(--ink-2)}
+.workflow-note strong{font-size:13.5px;font-weight:700}
+.workflow-note .arrow{color:var(--muted-2);font-weight:400;font-style:normal}
+.workflow-note .scope{margin-left:auto;color:var(--muted);font-size:12.5px}
+
+/* ===== 抽屉 ===== */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:420px;background:var(--surface);border-left:var(--border-soft);box-shadow:-12px 0 40px rgba(16,33,61,.12);transform:translateX(105%);transition:transform .22s ease;display:flex;flex-direction:column;z-index:50}
+.drawer:target{transform:translateX(0)}
+.drawer-head{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 26px 18px;border-bottom:var(--border-whisper)}
+.drawer-head h2{font-size:18px;font-weight:700}
+.drawer-head p{color:var(--muted);font-size:12.5px;margin-top:3px}
+.close{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--muted);font-size:18px}
+.close:hover{background:#F0F4FA}
+.drawer-body{padding:22px 26px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.field input,.field select{border:var(--border-soft);border-radius:var(--radius-btn);padding:9px 12px;font-size:13.5px;font-family:var(--font);color:var(--ink);background:#fff;transition:border-color .15s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.path-field{display:flex;gap:8px}
+.path-field input{flex:1}
+.drawer-footer{margin-top:auto;padding:18px 26px 22px;border-top:var(--border-whisper)}
+.drawer-footer p{font-size:12px;color:var(--muted);margin-bottom:14px}
+.drawer-actions{display:flex;justify-content:flex-end;gap:10px}
+.preview-stamp{position:fixed;right:14px;bottom:10px;font-size:10.5px;color:var(--muted-2);letter-spacing:.3px;z-index:60}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">素</span><span class="brand-name">素问<small class="brand-sub">医学循证研究平台</small></span></div>
+    <div class="nav-label">研究空间</div>
+    <nav class="nav">
+      <a href="#"><span class="nav-icon">⌂</span>工作台</a>
+      <a href="#"><span class="nav-icon">⌕</span>文献检索</a>
+      <a class="active" href="#"><span class="nav-icon">▣</span>文档与知识</a>
+      <a href="#"><span class="nav-icon">◈</span>论文研究</a>
+      <a href="#"><span class="nav-icon">▤</span>多论文证据</a>
+      <a href="#"><span class="nav-icon">↗</span>研究设计</a>
+      <a href="#"><span class="nav-icon">✦</span>写作与汇报</a>
+    </nav>
+    <div class="sidebar-bottom"><nav class="nav">
+      <a href="#"><span class="nav-icon">◌</span>后台任务</a>
+      <a href="#"><span class="nav-icon">⚙</span>设置</a>
+    </nav></div>
+  </aside>
+
+  <header class="topbar">
+    <div class="crumb"><b>文档与知识</b><span>/</span><span class="proj">示例研究项目 ▾</span></div>
+    <div class="top-actions">
+      <div class="global-search"><span>⌕ 搜索与跳转</span><kbd>Ctrl K</kbd></div>
+      <span class="top-icon">◷</span>
+      <span class="avatar">YW</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="eyebrow">Knowledge Assets</div>
+    <h1>文档与知识</h1>
+    <p class="page-lead">让本地研究材料成为可追溯的证据资产。</p>
+    <span class="demo-label">设计预览 · 演示数据</span>
+
+    <nav class="section-tabs">
+      <a class="active" href="#">知识库</a>
+      <a href="document-library-preview-v2.html">文档库</a>
+    </nav>
+
+    <section class="toolbar">
+      <div class="filter-tabs">
+        <button class="active">全部</button><button>已启用</button><button>异常</button><button>最近同步</button>
+      </div>
+      <a class="button primary" href="#drawer">＋ 添加资料文件夹</a>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>知识来源</h2><p>3 个来源 · 2 个已启用</p></div>
+        <button class="button ghost">按最近同步排序 ⌄</button>
+      </div>
+
+      <article class="source-row">
+        <div class="source-info">
+          <div class="source-type">▰</div>
+          <div>
+            <div class="source-name">肝癌免疫治疗资料</div>
+            <div class="source-path">H:\research\HCC-immunotherapy</div>
+            <span class="source-kind">本地文件夹 · local_folder</span>
+          </div>
+        </div>
+        <div class="stats-line">
+          <span><strong>126</strong> 个文件</span><span><strong>112</strong> 已索引</span><span><strong>8</strong> 待处理</span><span><strong>6</strong> 异常</span>
+        </div>
+        <div class="source-meta">
+          <span>上次同步：今天 14:32</span>
+          <span class="status ok"><i class="dot"></i>已同步</span>
+        </div>
+        <div class="source-controls">
+          <button class="button">同步</button>
+          <button class="switch on" aria-label="已启用"></button>
+          <a class="button link" href="document-library-preview-v2.html">查看文档 →</a>
+          <button class="kebab">⋮</button>
+        </div>
+      </article>
+
+      <article class="source-row">
+        <div class="source-info">
+          <div class="source-type">◇</div>
+          <div>
+            <div class="source-name">肺癌靶向治疗笔记</div>
+            <div class="source-path">D:\Obsidian\oncology-notes</div>
+            <span class="source-kind">Obsidian Vault · obsidian_vault</span>
+          </div>
+        </div>
+        <div class="stats-line">
+          <span><strong>48</strong> 个文件</span><span><strong>41</strong> 已索引</span><span><strong>5</strong> 待处理</span><span><strong>2</strong> 异常</span>
+        </div>
+        <div class="source-meta">
+          <span>上次同步：昨天 18:06</span>
+          <span class="status"><i class="dot"></i>等待同步</span>
+        </div>
+        <div class="source-controls">
+          <button class="button">同步</button>
+          <button class="switch on" aria-label="已启用"></button>
+          <a class="button link" href="document-library-preview-v2.html">查看文档 →</a>
+          <button class="kebab">⋮</button>
+        </div>
+      </article>
+
+      <article class="source-row">
+        <div class="source-info">
+          <div class="source-type">⇥</div>
+          <div>
+            <div class="source-name">临床试验补充导入</div>
+            <div class="source-path">F:\imports\trial-supplements</div>
+            <span class="source-kind">临时导入目录 · temporary_import</span>
+          </div>
+        </div>
+        <div class="stats-line">
+          <span><strong>17</strong> 个文件</span><span><strong>9</strong> 已索引</span><span><strong>3</strong> 待处理</span><span class="danger"><strong>5</strong> 异常</span>
+        </div>
+        <div class="source-meta">
+          <span>上次同步：今天 09:18</span>
+          <span class="status err"><i class="dot"></i>同步含错误</span>
+          <span class="source-error">5 个文件解析失败，请检查原始文件后重试。</span>
+        </div>
+        <div class="source-controls">
+          <button class="button">同步</button>
+          <button class="switch" aria-label="未启用"></button>
+          <a class="button link" href="document-library-preview-v2.html">查看文档 →</a>
+          <button class="kebab">⋮</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="workflow-note">
+      <strong>同步后发生什么</strong>
+      <span>识别新增与变更文件</span><b class="arrow">→</b>
+      <span>解析支持的文档</span><b class="arrow">→</b>
+      <span>建立可用于证据问答的索引</span>
+      <span class="scope">仅扫描你授权的本地目录</span>
+    </section>
+  </main>
+</div>
+
+<aside id="drawer" class="drawer">
+  <div class="drawer-head">
+    <div><h2>添加资料文件夹</h2><p class="page-lead">登记可管理的本地研究来源。</p></div>
+    <a class="close" href="#">×</a>
+  </div>
+  <div class="drawer-body">
+    <label class="field">名称<input value="肿瘤临床试验资料"></label>
+    <label class="field">来源类型<select><option>本地文件夹</option><option>Obsidian Vault</option><option>临时导入目录</option></select></label>
+    <label class="field">授权目录<span class="path-field"><input value="H:\research\clinical-trials"><button class="button">选择目录</button></span></label>
+  </div>
+  <div class="drawer-footer">
+    <p>仅添加系统记录，不会读取或上传目录外内容。</p>
+    <div class="drawer-actions"><a class="button" href="#">取消</a><button class="button primary">添加</button></div>
+  </div>
+</aside>
+<div class="preview-stamp">知识库精修 V2 · 设计预览 · 演示数据 · 非最终实现</div>
+</body>
+</html>

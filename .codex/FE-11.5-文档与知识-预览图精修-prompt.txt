@@ -1,0 +1,96 @@
+# FE-11.5：文档与知识「知识库 + 文档库」预览图 — 高级科研质感精修
+
+## 唯一目标
+
+在仓库 `H:\AI_project\rag_medicine` 中，对 `H:\AI_project\rag_medicine\.codex\previews\docs-knowledge\` 下的两张预览图（`knowledge-base-preview.html`、`document-library-preview.html`）做**一轮高级科研质感精修**，产出 V2 版本：
+
+- `knowledge-base-preview-v2.html`（知识库精修版）
+- `document-library-preview-v2.html`（文档库精修版）
+
+本轮**只产出预览图 HTML + CSS**，不修改任何 Vue/TS/后端代码，不提交，不 push。
+
+## 参考基准
+
+**V2 精修版参照**：`H:\AI_project\rag_medicine\.codex\previews\docs-knowledge\knowledge-base-preview-v2.html`（助手已生成的知识库精修样板，含完整 CSS 设计系统：低语边框、留白呼吸感、来源行主次分层、状态 pill、顶栏品牌化）。文档库 V2 必须沿用同一套设计语言与 CSS 变量。
+
+**原版预览**（需要精修的对象，保留其功能结构）：
+- `H:\AI_project\rag_medicine\.codex\previews\docs-knowledge\knowledge-base-preview.html`
+- `H:\AI_project\rag_medicine\.codex\previews\docs-knowledge\document-library-preview.html`
+
+**设计依据（功能结构以此为准，不得增删功能）**：
+- `H:\AI_project\rag_medicine\docs\design\知识库与文档库_页面设计说明.md`
+
+**视觉参考**：
+- `H:\AI_project\rag_medicine\docs\design\文档与知识\素问_文档与知识_知识库预览_V1.png`
+- `H:\AI_project\rag_medicine\docs\design\文档与知识\素问_文档库预览_V1.png`
+- `H:\AI_project\rag_medicine\docs\design\医学科研智能平台界面总览.png`
+
+## 精修要点（对照 V1 的缺陷）
+
+### 1. 内容区收窄 + 留白呼吸感
+- 主内容区最大宽度约 **1280px**，居中，`margin: 0 auto`，左右留白稳定。
+- 页面垂直留白加大：主内容 `padding: 10px 36px 48px`；面板与筛选条间距 20-24px；来源行内 padding 18-20px 垂直。
+- 段落/区块间距参照"摄影网站留白"：不贴边、不顶天立地。
+
+### 2. 低语边框（whisper border）
+- 面板/行/输入框边框统一为 `1px solid rgba(16,33,61,.08)`（whisper）或 `.12`（soft）。
+- 阴影近乎不可见：`0 1px 2px rgba(16,33,61,.04), 0 4px 16px rgba(16,33,61,.03)`。
+- 禁止大面积投影、禁止重边框。
+
+### 3. 来源行"安静行"主次分层（知识库）
+- 左侧：类型图标（36px 圆角方块，accent-soft 底）+ 名称（15px/700）+ 路径（12.5px 等宽字体 muted）+ 类型标签（小 pill）。
+- 中部：聚合统计行（数字 strong + 标签 muted，间距 16px）；异常数字红色。
+- 右侧：上次同步时间（12px muted）+ 状态 pill（成功绿/等待灰/错误红，圆角 999px 轻底）+ 错误文案（红色 12px）。
+- 操作区：同步（ghost 按钮）、开关（语义化 switch）、查看文档（钴蓝 link 带 →）、⋮（kebab）。
+- 行 hover：极浅蓝 `#FAFCFF`；行间 `border-top: 1px solid rgba(16,33,61,.08)`。
+
+### 4. 顶栏品牌化
+- 面包屑：`文档与知识 / [项目名 ▾]`（项目名做成轻量 pill 带下拉箭头）。
+- 搜索框：白底、低语边框、`⌕ 搜索与跳转` + `Ctrl K` kbd。
+- 右侧：任务图标（32px 圆角方块）+ 头像（30px 圆形钴蓝底白字）。
+- 侧栏：品牌标识（素问 + 副标题）+ 研究空间分组 + 底部（后台任务/设置）；当前项 accent-soft 底 + accent 字。
+
+### 5. 状态 pill 轻量化（文档库表格）
+- 解析/索引状态改为小 pill：成功（success-soft 底 success 字）、失败（danger-soft 底 danger 字）、等待（灰底灰字）、过期（warn-soft 底 warn 字）。
+- pill 内保留状态点或图标 + 文字双表达。
+
+### 6. 视觉系统（沿用 V2 样板，两页统一）
+- 画布 `#F6F8FB`；内容面白色；标题深海军蓝 `#10213D`；辅助 `#667995`；主强调钴蓝 `#2563EB`。
+- 成功 `#1B8A5A` / 警告 `#B7791F` / 错误 `#C62828`，各带 soft 底色。
+- 圆角：按钮/输入 8px，面板 12px；状态 pill 999px。
+- 字体系统无衬线栈；H1 33px/750，H2 17px/700，正文 14px，元信息 12-13px。
+- 禁止：紫色渐变、玻璃拟态、霓虹、暖米色、青绿主题、营销 Hero、插画。
+
+## 功能结构（不得增删，只精修视觉）
+
+### 知识库 V2（沿用 V1 功能）
+- h1「文档与知识」+ 副标题 + 演示数据标注
+- 二级 Tab（知识库/文档库）
+- 筛选条：[全部][已启用][异常][最近同步] + 右侧「＋ 添加资料文件夹」主按钮
+- 知识来源面板：标题 + 「3 个来源 · 2 个已启用」+ 排序按钮 + 3 条来源行（含 1 条异常来源）
+- 右侧抽屉「添加资料文件夹」：名称/来源类型/授权目录 + 取消/添加
+- 页尾「同步后发生什么」流程
+
+### 文档库 V2（沿用 V1 功能）
+- 三栏：左侧资料目录树（节点带计数徽标）｜中间 AI 查找 + 筛选 + 高密度表格 + 批量操作 + 分页｜右侧详情证据栏（未选中/选中/AI 命中）
+- 表格列：选择/文档/解析状态/索引状态/更新时间/操作
+- 状态 pill：解析成功/解析失败/等待解析/已索引/索引过期/索引失败
+- 页尾「文档何时可用于证据问答？」
+
+## 数据与标注规则
+- 演示数据沿用 V1 的（肝癌免疫治疗、IMbrave150.pdf 等），标注「设计预览 · 演示数据」。
+- 右下角标注：`FE-11.5 设计预览 · 演示数据 · 非最终实现`。
+
+## 验收
+- 两个 V2 HTML 存在且非空；
+- 与 V1 功能对照：每个 V1 功能在 V2 中位置不变；
+- 无外部依赖（无 http://、https://、cdn 引用）；
+- 约 1440px 宽度浏览器打开渲染正常。
+
+## 最终报告
+1. 两个 V2 文件路径；
+2. 精修改动清单（每项 V1 缺陷 → V2 处理方式）；
+3. 功能对照确认（无功能丢失）；
+4. 已知限制与【未实测】项。
+
+完成后立即停止。不修改 Vue/TS/后端代码，不提交，不 push。

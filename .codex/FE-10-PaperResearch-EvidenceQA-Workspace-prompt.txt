@@ -1,0 +1,200 @@
+# FE-10：论文研究「证据问答」真实前端工作台重构
+
+## 唯一目标
+
+在仓库 `H:\AI_project\rag_medicine` 中，将 `frontend/src/views/PaperAnalysis/PaperAnalysisView.vue` 的「证据问答」局部 Tab 从当前的跳转/占位入口，重构为**真实可用、证据可追溯的单篇论文问答工作台**。
+
+视觉方向以已确认的静态预览为准：
+
+- `H:\AI_project\rag_medicine\docs\design\论文研究_证据问答_桌面预览_v2.png`
+- `H:\AI_project\rag_medicine\.codex\previews\paper-research-v2-preview.html?view=qa`
+
+该预览仅定义信息架构与视觉方向，**不得将其中“设计预览论文”“演示数据”“来源片段 A/B”等占位内容复制到生产页面**。正式页面只能渲染已有 LIVE API 返回的数据，或明确的加载/空/错误/不可用状态。
+
+## 最高优先级：工作区安全边界
+
+当前工作树已含其他人/其他任务的未提交改动。开始时执行并记录 `git status --short`，然后严格遵守：
+
+1. 严禁 `git reset`、`git restore`、`git checkout --`、`git clean`、`git stash`。
+2. 不覆盖、移动、删除或格式化与本任务无关的已有改动。
+3. **禁止**修改后端、数据库迁移、路由、全局侧栏、顶栏、`package.json`、全局 token 文件、文献检索、推荐、OCR、文档详情及其他模块。
+4. 本轮只允许改动：
+   - `frontend/src/views/PaperAnalysis/PaperAnalysisView.vue` 及其测试；
+   - `frontend/src/components/paper/**` 中为本工作台新增或必要调整的专属组件与测试；
+   - `frontend/src/composables/usePaperResearchWorkflow.ts` 及其专属测试（仅在确有必要时）；
+   - `frontend/src/api/conversations.ts`（仅当现有真实接口类型不足且后端已有对应字段/接口时）；
+   - 如果为了复用真实会话逻辑必须抽取一个**论文专属** composable，也只能新建在 `frontend/src/composables/` 并配套测试。
+5. 不允许通过硬编码医学示例、伪造论文、DOI、PMID、作者、期刊、页码、结论、数量、进度或成功状态来填充页面。
+6. 不提交、不 push。完成后保留可审核的未提交 diff，停止。
+7. 若发现必须越过上述范围才能完成，停止并明确报告阻塞，不得自行扩大范围。
+
+## 必读与现状核对（按顺序）
+
+先读取并对比：
+
+1. `AGENTS.md`
+2. `docs/CODE_STANDARDS.md`
+3. `docs/frontend/FRONTEND_MASTER_PROMPT_R2_WP02.md`（尤其第 03 页证据问答要求）
+4. `docs/frontend/FRONTEND_IMPLEMENTATION_STATUS.md`
+5. `C:\Users\ADMIN\Desktop\rag医学科研项目修改1.1版\文档\前端设计\素问_论文研究_当前论文选择与连续工作流设计_2026-08-11.md`
+6. `C:\Users\ADMIN\Desktop\rag医学科研项目修改1.1版\文档\前端设计\素问_论文研究_三页前端高保真设计与Mock契约.md`
+7. `frontend/src/views/PaperAnalysis/PaperAnalysisView.vue`
+8. `frontend/src/views/Chat/ChatView.vue`
+9. `frontend/src/api/conversations.ts`
+10. `frontend/src/composables/usePaperResearchWorkflow.ts`
+11. `frontend/src/components/evidence/EvidencePanel.vue` 和 `frontend/src/components/paper/**`
+12. 后端 `app/modules/conversation/router.py` 与 `app/modules/paper_research/router.py`，仅用于核对真实接口；禁止修改后端。
+
+开始写代码前先完成以下核对，不需要等用户回复：
+
+- 当前 `/analysis?documentId=<id>&tab=evidence` 是否能恢复同一篇论文上下文；
+- 已存在的 `conversationsApi.list/create/get/latest/ask/feedback`、document、paper-analysis API 的字段与错误边界；
+- 哪些字段仅在当前 API 可用，哪些不能显示；
+- 可复用组件与不能复用原因；
+- 既有 `ChatView` 的真实流程不能被删除或破坏。
+
+## 产品边界与真实数据规则
+
+### 局部导航
+
+论文研究稳定局部 Tab 只能是：
+
+```text
+研究概览 | 单篇精读 | 证据问答
+```
+
+- `证据问答` 激活时，在 `/analysis` 内展示本工作台；不要跳到一个视觉脱节的普通聊天页面。
+- 不新增第四个 Tab；禁止「笔记与标注」「阅读批注」成为 Tab。
+- 原文批注仍属于单篇精读/文档工作区，本轮不实现。
+
+### LIVE 数据约束
+
+- 当前论文标题/状态：只能来自当前已选 `DocumentRecord` 的真实字段；未提供时显示克制的“未提供”，不得造数据。
+- 会话历史：只能来自 `conversationsApi.list()` 返回的真实 `ConversationSummary`。可以筛选当前 `documentId` 命中的会话；不匹配时显示真实空状态。
+- 当前会话：优先通过 `conversationsApi.latest(documentId)` 恢复；不存在时明确提示“尚无与当前论文关联的问答会话”，并提供真实的“创建问答会话”操作。
+- 创建会话：仅在当前论文满足现有 `canAnalyze`/研究就绪条件时，调用 `conversationsApi.create([document.id])`。不可创建时给出由真实状态推导的禁用说明，不假装成功。
+- 问答：调用现有 `conversationsApi.ask(conversation.id, question)`，加载中禁用重复发送，并呈现返回的 `answer_status`、`uncertainty`、`reason_codes`（仅在字段确实存在时）。
+- 引用/来源：只能来自当前 assistant message 的 `citations`：`citation_text`、`evidence_text`、`page`、`section`。缺失字段显示“未提供”，而不是虚构页码、章节、论文标题或段落。
+- 证据不足时必须明确表达系统不能把推断当论文事实；不能伪装为“已核实”。
+- `conversationsApi` 或文档/会话请求失败时，显示可理解、可重试的错误，而不是退回 Mock 成功界面。
+
+## 目标界面与交互
+
+### 1. 页面头与论文上下文
+
+保留当前 `/analysis` 的 `h1`、说明和局部 3 Tab。
+
+证据问答激活时，在 Tab 下添加紧凑的“当前论文”上下文条：
+
+- 显示真实当前文档标题（长标题换行/截断安全）；
+- 显示真实解析/索引状态；
+- 只在现有已选论文为空时显示指导性空状态；
+- 提供“更换论文”或“返回研究概览”的明确链接/按钮，使用现有路由状态；
+- 不展示裸 `documentId` 作为用户主信息。
+
+### 2. 1440px 桌面工作台
+
+在保留全局应用外壳的前提下，局部内容采用约 **21% / 54% / 25%** 的左中右结构；工作台必须优先利用可视高度，避免把少量内容堆在上方而在下方留下大面积无意义空白。
+
+**左栏：当前论文范围与问题历史**
+
+- 标题“当前论文范围”；体现本次问答只在当前论文范围内；
+- 使用真实的当前论文/会话状态。若 API 没有“关联来源数”等聚合字段，不得造数字；可显示真实消息数或“由当前会话返回的引用数”，仅在可从响应确定时显示；
+- 列出当前论文关联的真实会话历史，或明确、行动导向的空状态；
+- 当前会话需要有清晰的激活态；
+- 不变成文件平铺列表或统计卡片墙。
+
+**中栏：待核对的论文式回答**
+
+- 这是页面最重要的区域，禁止普通聊天气泡堆叠。
+- 当前问题与回答分层：问题是较低强调的信息块；assistant 答案是阅读优先的主体。
+- 回答区必须将其表达为**需要回源核对的证据摘要**，不是权威结论：
+  - `answered` 时基于真实 citation 数量显示“已关联 N 个来源”；
+  - `insufficient_evidence` 时明显显示“证据不足 / 需人工核对”；
+  - 没有 citations 的回答明确标记“无可定位来源”；
+  - `uncertainty`/`reason_codes` 仅在真实字段存在时以辅助状态展示；
+  - 不自行生成“已核实”“待核对”等与真实返回不一致的状态。
+- 回答下只提供真实有意义的动作：打开所选来源、引用反馈（复用现有 `feedback` 能力）等；不得添加 no-op 按钮。
+- 输入区标题为“基于当前论文提问”，说明作用范围；拥有显式 label、键盘可用性、发送加载态以及当前文档/会话未就绪时的正确禁用/引导。
+
+**右栏：来源与可追溯性**
+
+- 点击中栏回答引用后，在此显示选中的真实 citation；也可按当前 assistant answer 列出真实 citations。
+- 每条真实来源卡片仅呈现 API 确实提供的：引用文本（如果有）、`section`、`page`、`evidence_text` 与检索/证据状态。
+- 页码/章节为空时显示“未提供”；不能合成演示锚点。
+- “定位原文”只能在项目已有真正可用的定位/预览能力可以复用时出现；否则显示明确的 UNAVAILABLE 说明或不要渲染为可点击动作。严禁 no-op。
+- 右栏必须有真实无引用/未选择引用状态，而非空白卡片。
+
+### 3. 视觉质量
+
+- 维持项目 Light Research Workspace token，不能往单个组件塞硬编码色值。
+- 冷白/浅雾蓝画布、白色实体工作面、深海军蓝文字、学术蓝为唯一主强调，成功/警告仅为语义状态。
+- 不能采用紫色渐变、霓虹、玻璃拟态、厚重阴影、圆角大卡片墙、营销 hero 或泛聊天产品视觉。
+- 强化层级：页面标题 28–32px；工作区/模块标题 18–20px；正文 14–15px；元数据 12–13px。保持可读行高与足够对比度。
+- 可使用细蓝色证据轨道表达“当前选择/证据引用/待处理”，不能仅作装饰。
+- 避免 `transition: all`，只允许克制的 opacity/transform 150–220ms，并遵守既有 reduced-motion 规则。
+
+### 4. 响应式与无障碍
+
+- ≥1440px：左中右 21/54/25 工作台；
+- 1024–1279px：中央保持阅读优先，来源区下移或抽屉，不挤坏阅读区；
+- <1024px：单列；Tab 横向滚动；来源以按需可见的内容区呈现；
+- 原生 `button`，可见 `:focus-visible`；
+- 输入有 `label` 或明确 `aria-label`；
+- 加载/错误/异步会话状态使用合适 `aria-live` / `role=status` / `role=alert`；
+- 不依赖颜色作为唯一状态表达。
+
+## 工程约束
+
+- Vue 3 Composition API + TypeScript；禁止隐式 `any`。
+- 一个文件一个职责；View 只做组装，API/会话状态放 composable，展示放专属组件。
+- 对复杂状态的中文注释解释“为什么”：例如 documentId 切换时如何避免旧会话串入当前论文；不要写行为复述型注释。
+- 先复用现有 `EvidencePanel` / `EvidenceItem` 或说明为什么论文研究需要专属呈现；不要复制一个职责相同、数据形状相同的组件。
+- 所有新增/调整操作必须真实调用已有能力，或清楚标作 UNAVAILABLE；不写占位按钮。
+- 保持单篇精读和 `/chat` 的既有 LIVE 功能；本轮不重做研究概览。
+
+## 测试要求
+
+为新行为补齐 Vitest 覆盖。最少覆盖：
+
+1. 有 `documentId` 时使用真实当前文档与 `conversationsApi.latest` 恢复该论文会话；
+2. 无会话时出现创建会话的真实引导，且不渲染演示论文/伪造引用；
+3. `insufficient_evidence` 或无 citations 时出现真实证据不足状态；
+4. citation 返回 page/section/evidence_text 时，右栏展示真实字段；字段为空时显示“未提供”；
+5. 会话/问答请求失败时呈现错误，不回退 Mock；
+6. 发送问题调用真实会话 API，并在 pending 时防止重复提交；
+7. 现有研究概览和单篇精读 URL 状态恢复语义不回归。
+
+使用现有测试风格，不能因难测而删除已有测试或弱化断言。
+
+## 必须实际运行的验证
+
+完成后在 `frontend/` 中运行并如实报告：
+
+```bash
+npm run typecheck
+npm test -- --run
+npm run build
+```
+
+然后运行：
+
+```bash
+git diff --check
+git status --short
+git diff -- <仅本轮修改文件>
+```
+
+若命令失败，报告完整失败原因，停止；不要声称通过。
+
+## 最终报告格式
+
+1. `现状核对与复用决策`
+2. `修改文件与各自职责`
+3. `真实 API / 空状态 / 错误状态 / UNAVAILABLE 边界`
+4. `实际运行的验证命令与原始结果`
+5. `本轮刻意未触碰的文件/模块`
+6. `git diff 摘要（只限本轮文件）`
+7. `已知限制【未实测】`
+
+完成后停止，不提交，不 push，不继续改其他页面。

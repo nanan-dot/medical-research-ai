@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>素问｜文档与知识 · 文档库 V2</title>
+  <style>
+    :root{--canvas:#F6F8FB;--surface:#FFFFFF;--ink:#10213D;--ink-2:#33466B;--muted:#667995;--muted-2:#8CA0BC;--accent:#2563EB;--accent-soft:#EFF4FF;--success:#1B8A5A;--success-soft:#E8F7F0;--warn:#B7791F;--warn-soft:#FBF3E2;--danger:#C62828;--danger-soft:#FDECEC;--border-whisper:1px solid rgba(16,33,61,.08);--border-soft:1px solid rgba(16,33,61,.12);--radius-btn:8px;--radius-panel:12px;--shadow-whisper:0 1px 2px rgba(16,33,61,.04),0 4px 16px rgba(16,33,61,.03);--font:Inter,"PingFang SC","Microsoft YaHei",Arial,sans-serif}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--canvas)}body{color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button,input,select{font:inherit}:focus-visible{outline:3px solid rgba(37,99,235,.4);outline-offset:2px;border-radius:4px}
+    .app-shell{display:grid;grid-template-columns:232px minmax(0,1fr);grid-template-rows:auto 1fr;min-height:100vh}.sidebar{grid-row:1 / -1;background:var(--surface);border-right:var(--border-whisper);display:flex;flex-direction:column;padding:20px 12px 16px}.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px}.brand-mark{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;letter-spacing:.5px}.brand-name{font-size:15px;font-weight:700;letter-spacing:.4px}.brand-sub{display:block;font-size:10px;color:var(--muted-2);font-weight:500;letter-spacing:.8px;margin-top:1px}.nav-label{font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:1px;padding:10px 12px 6px}.nav{display:flex;flex-direction:column;gap:2px}.nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:7px;color:var(--ink-2);font-size:13.5px;font-weight:500}.nav a:hover{background:rgba(16,33,61,.04);color:var(--ink)}.nav a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}.nav-icon{width:18px;text-align:center;font-size:14px;opacity:.85}.sidebar-bottom{margin-top:auto;padding-top:16px;border-top:var(--border-whisper)}
+    .topbar{grid-column:2;grid-row:1;display:flex;align-items:center;justify-content:space-between;padding:14px 36px;background:var(--canvas)}.crumb{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}.crumb b{color:var(--ink-2);font-weight:600}.proj{display:inline-flex;align-items:center;gap:5px;color:var(--ink);font-weight:600;background:var(--surface);border:var(--border-soft);border-radius:6px;padding:3px 10px;font-size:12.5px}.top-actions{display:flex;align-items:center;gap:14px}.global-search{display:flex;align-items:center;gap:10px;background:var(--surface);border:var(--border-soft);border-radius:var(--radius-btn);padding:6px 12px;color:var(--muted-2);font-size:12.5px;min-width:230px}.global-search kbd{font-family:var(--font);font-size:11px;border:1px solid rgba(16,33,61,.15);border-radius:4px;padding:1px 6px;color:var(--muted)}.top-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--muted);background:var(--surface);border:var(--border-whisper);font-size:13px}.avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+    .page{grid-column:2;grid-row:2;padding:10px 36px 48px;max-width:1280px;width:100%;margin:0 auto}.eyebrow{font-size:11px;font-weight:600;letter-spacing:1.6px;color:var(--muted-2);margin-bottom:6px}h1{margin:0;font-size:33px;font-weight:750;letter-spacing:-.4px;line-height:1.15}.page-lead{color:var(--muted);font-size:15px;margin:6px 0 0;max-width:680px}.demo-label{display:inline-block;margin-top:12px;font-size:11px;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:3px 10px;font-weight:600;letter-spacing:.4px}.section-tabs{display:flex;gap:28px;margin-top:30px;border-bottom:var(--border-whisper)}.section-tabs a{position:relative;padding:10px 2px 11px;color:var(--muted);font-size:14px;font-weight:600}.section-tabs a.active{color:var(--accent)}.section-tabs a.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent);border-radius:2px}
+    .document-layout{display:grid;grid-template-columns:205px minmax(0,1fr) 252px;gap:18px;align-items:start;margin-top:20px}.panel{background:var(--surface);border:var(--border-whisper);border-radius:var(--radius-panel);box-shadow:var(--shadow-whisper)}.scope{padding:16px 10px}.scope h2{margin:0;padding:0 7px 11px;font-size:13px}.scope a{display:flex;align-items:center;gap:7px;padding:7px;border-radius:7px;color:var(--ink-2);font-size:12.5px}.scope a.active{background:var(--accent-soft);color:var(--accent);font-weight:700}.scope .count{margin-left:auto;color:var(--muted-2);font-size:11px}.list-panel{overflow:hidden}.search-area{padding:14px;border-bottom:var(--border-whisper)}.ai-search{height:39px;border:var(--border-soft);border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 11px;color:var(--muted);background:#fff;font-size:12px}.ai-badge{padding:2px 5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:800}.filters{display:flex;align-items:center;gap:8px;margin-top:10px}.filter{padding:5px 8px;border:var(--border-whisper);border-radius:6px;color:var(--muted);background:#fff;font-size:11px}.checkbox{font-size:11px;color:var(--ink-2);margin-left:auto;white-space:nowrap}.batch{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:var(--border-whisper);background:#FAFCFF;color:var(--muted);font-size:12px}.batch .bulk-link{margin-left:auto;color:var(--accent);font-weight:700}.table-wrap{overflow:auto}.docs{width:100%;border-collapse:collapse;min-width:635px}.docs th{padding:10px 10px;color:var(--muted);font-size:11px;font-weight:700;text-align:left;background:#fff;border-bottom:var(--border-whisper);white-space:nowrap}.docs td{padding:11px 10px;border-bottom:var(--border-whisper);vertical-align:middle;font-size:11.5px}.docs tr:last-child td{border:0}.docs tbody tr:hover{background:#FAFCFF}.file{display:flex;align-items:center;gap:8px;min-width:205px}.file-mark{width:25px;height:29px;display:grid;place-items:center;border-radius:5px;background:#FDECEC;color:var(--danger);font-size:8px;font-weight:800}.file-mark.word{background:var(--accent-soft);color:var(--accent)}.file strong{display:block;color:var(--ink-2);font-size:12px}.file small{display:block;color:var(--muted-2);font-size:10px;line-height:1.35}.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}.pill::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}.success{background:var(--success-soft);color:var(--success)}.wait{background:#F1F4F8;color:#6F8097}.warn{background:var(--warn-soft);color:var(--warn)}.danger{background:var(--danger-soft);color:var(--danger)}.working{background:var(--accent-soft);color:var(--accent)}.row-actions{display:flex;gap:7px;white-space:nowrap}.row-actions a{color:var(--accent);font-size:10.5px;font-weight:600}.row-actions a.muted-action{color:var(--muted)}.pagination{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:var(--border-whisper);color:var(--muted);font-size:11px}.page-controls{display:flex;gap:5px}.page-controls span{width:23px;height:23px;display:grid;place-items:center;border:var(--border-whisper);border-radius:5px}.page-controls .selected{background:var(--accent-soft);border-color:transparent;color:var(--accent);font-weight:700}
+    .detail{padding:16px}.detail h2{margin:0;font-size:15px}.detail .subtitle{margin:4px 0 15px;color:var(--muted);font-size:11px}.info{display:grid;gap:9px;padding:12px 0;border-top:var(--border-whisper);border-bottom:var(--border-whisper)}.info div{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:11px}.info b{color:var(--ink-2);font-weight:600;text-align:right}.hit{margin-top:15px;padding:12px;border-radius:8px;background:#FAFCFF;border:var(--border-whisper)}.hit-label{color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.06em}.hit p{margin:6px 0 0;color:var(--ink-2);font-size:11px}.hit em{font-style:normal;background:var(--accent-soft);color:var(--accent)}.preview-note{margin:15px 0 0;color:var(--muted);font-size:11px}.availability-note{display:flex;align-items:flex-start;gap:12px;margin-top:20px;padding:15px 20px;background:var(--surface);border:var(--border-whisper);border-radius:var(--radius-panel);font-size:12px;color:var(--ink-2)}.availability-note b{white-space:nowrap}.availability-note span{color:var(--muted)}.preview-stamp{position:fixed;right:14px;bottom:10px;font-size:10.5px;color:var(--muted-2);letter-spacing:.3px;z-index:60}
+    @media(max-width:1120px){.document-layout{grid-template-columns:185px minmax(0,1fr)}.detail{display:none}}@media(max-width:780px){.app-shell{display:block}.sidebar{display:none}.topbar{padding:14px 18px}.global-search{display:none}.page{padding:10px 18px 42px}.document-layout{grid-template-columns:1fr}.scope{display:none}h1{font-size:28px}.section-tabs{margin-top:24px}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">素</span><span class="brand-name">素问<small class="brand-sub">医学循证研究平台</small></span></div>
+      <div class="nav-label">研究空间</div>
+      <nav class="nav">
+        <a href="#"><span class="nav-icon">⌂</span>工作台</a>
+        <a href="#"><span class="nav-icon">⌕</span>文献检索</a>
+        <a class="active" href="#"><span class="nav-icon">▣</span>文档与知识</a>
+        <a href="#"><span class="nav-icon">◇</span>论文研究</a>
+        <a href="#"><span class="nav-icon">▤</span>多论文证据</a>
+        <a href="#"><span class="nav-icon">↗</span>研究设计</a>
+        <a href="#"><span class="nav-icon">✦</span>写作与汇报</a>
+      </nav>
+      <div class="sidebar-bottom"><nav class="nav"><a href="#"><span class="nav-icon">◌</span>后台任务</a><a href="#"><span class="nav-icon">⚙</span>设置</a></nav></div>
+    </aside>
+    <header class="topbar">
+      <div class="crumb"><b>文档与知识</b><span>/</span><span class="proj">示例研究项目 ▾</span></div>
+      <div class="top-actions"><div class="global-search"><span>⌕&nbsp; 搜索与跳转</span><kbd>Ctrl K</kbd></div><span class="top-icon">◷</span><span class="avatar">YW</span></div>
+    </header>
+    <main class="page">
+      <div class="eyebrow">Document Library</div>
+      <h1>文档与知识</h1>
+      <p class="page-lead">查看每份材料的解析与索引状态，修复失败后再用于证据问答。</p>
+      <span class="demo-label">设计预览 · 演示数据</span>
+      <nav class="section-tabs"><a href="knowledge-base-preview-v2.html">知识库</a><a class="active" href="document-library-preview-v2.html">文档库</a></nav>
+      <section class="document-layout">
+        <aside class="panel scope">
+          <h2>资料范围</h2>
+          <a class="active" href="#">▾ 全部文档 <span class="count">128</span></a>
+          <a href="#">　▣ 临床试验 <span class="count">48</span></a>
+          <a href="#">　▣ 指南与共识 <span class="count">22</span></a>
+          <a href="#">　▣ 综述证据 <span class="count">31</span></a>
+          <a href="#">　▣ 内部资料 <span class="count">27</span></a>
+        </aside>
+        <section class="panel list-panel">
+          <div class="search-area">
+            <div class="ai-search"><span class="ai-badge">AI</span>在资料中查找什么……<span style="margin-left:auto;color:#8CA0BC">⌕</span></div>
+            <div class="filters"><button class="filter">全部范围 ▾</button><button class="filter">全部类型 ▾</button><button class="filter">最近更新 ▾</button><label class="checkbox"><input type="checkbox" checked> 仅已索引</label></div>
+          </div>
+          <div class="batch"><input type="checkbox" checked> 已选 1 项 <a class="bulk-link" href="#">批量操作 ▾</a></div>
+          <div class="table-wrap"><table class="docs"><thead><tr><th style="width:28px"><input type="checkbox" checked></th><th>文档</th><th>解析状态</th><th>索引状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody>
+            <tr><td><input type="checkbox" checked></td><td><div class="file"><span class="file-mark">PDF</span><span><strong>IMbrave150.pdf</strong><small>研究论文 · 肝癌临床证据库</small></span></div></td><td><span class="pill success">成功</span></td><td><span class="pill success">已索引</span></td><td>今天 10:24</td><td><span class="row-actions"><a href="#">删除索引</a><a class="muted-action" href="#">详情</a></span></td></tr>
+            <tr><td><input type="checkbox"></td><td><div class="file"><span class="file-mark">PDF</span><span><strong>HIMALAYA_研究方案.pdf</strong><small>研究方案 · 肝癌临床证据库</small></span></div></td><td><span class="pill success">成功</span></td><td><span class="pill warn">索引过期</span></td><td>昨天 16:40</td><td><span class="row-actions"><a href="#">重试索引</a><a class="muted-action" href="#">详情</a></span></td></tr>
+            <tr><td><input type="checkbox"></td><td><div class="file"><span class="file-mark">PDF</span><span><strong>一线治疗亚组分析.pdf</strong><small>数据分析 · 研究团队共享</small></span></div></td><td><span class="pill wait">等待</span></td><td><span class="pill wait">等待</span></td><td>08-09 09:12</td><td><span class="row-actions"><a class="muted-action" href="#">详情</a></span></td></tr>
+            <tr><td><input type="checkbox"></td><td><div class="file"><span class="file-mark">PDF</span><span><strong>补充材料-生物标志物.pdf</strong><small>补充材料 · 研究团队共享</small></span></div></td><td><span class="pill success">成功</span></td><td><span class="pill danger">索引失败</span></td><td>08-08 18:06</td><td><span class="row-actions"><a href="#">重试索引</a><a class="muted-action" href="#">详情</a></span></td></tr>
+            <tr><td><input type="checkbox"></td><td><div class="file"><span class="file-mark word">DOC</span><span><strong>病例队列补充说明.docx</strong><small>内部资料 · 研究团队共享</small></span></div></td><td><span class="pill danger">失败</span></td><td><span class="pill wait">等待</span></td><td>08-07 14:18</td><td><span class="row-actions"><a href="#">重试解析</a><a class="muted-action" href="#">详情</a></span></td></tr>
+          </tbody></table></div>
+          <div class="pagination"><span>显示 1–5，共 128 份文档</span><div class="page-controls"><span>‹</span><span class="selected">1</span><span>2</span><span>3</span><span>›</span></div></div>
+        </section>
+        <aside class="panel detail">
+          <h2>IMbrave150.pdf</h2><p class="subtitle">当前选中文档</p>
+          <div class="info"><div><span>文档类型</span><b>研究论文</b></div><div><span>所属目录</span><b>临床试验</b></div><div><span>解析状态</span><b style="color:#1B8A5A">成功</b></div><div><span>索引状态</span><b style="color:#1B8A5A">已建立索引</b></div></div>
+          <div class="hit"><div class="hit-label">AI 证据命中</div><p>检索到 <em>36 条</em> 可引用片段，覆盖 OS、PFS 与安全性结局。</p></div>
+          <p class="preview-note">解析摘要与证据命中均应回到原文核验后引用。</p>
+        </aside>
+      </section>
+      <section class="availability-note"><b>文档何时可用于证据问答？</b><span>解析成功、索引完成且状态有效的文档，才能进入研究问答与证据检索范围。</span></section>
+    </main>
+  </div>
+  <div class="preview-stamp">FE-11.5-Fix · 设计预览 · 演示数据 · 非最终实现</div>
+</body>
+</html>
