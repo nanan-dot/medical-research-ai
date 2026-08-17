@@ -15,7 +15,7 @@ const tabs = [
   { key: "center", label: "检索中心" },
   { key: "results", label: "结果展示" },
   { key: "history", label: "历史记录" },
-  { key: "recommendations", label: "推荐阅读" },
+  { key: "recommendations", label: "文献推荐" },
 ] as const;
 
 onMounted(async () => {
@@ -43,7 +43,11 @@ function openTab(tab: (typeof tabs)[number]): void {
 </script>
 
 <template>
-  <nav class="workspace-tabs" role="tablist" aria-label="文献检索工作空间导航">
+  <nav
+    class="workspace-tabs"
+    role="tablist"
+    aria-label="文献检索工作空间导航"
+  >
     <button
       v-for="tab in tabs"
       :key="tab.key"

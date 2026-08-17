@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink, type RouteLocationNormalized, useRoute } from "vue-router";
 
 const route = useRoute();
 const documentSpaceLabel = "\u6587\u6863\u4e0e\u77e5\u8bc6";
 const documentLibraryLabel = "\u6587\u6863\u5e93";
 const workspaceLabel = "\u5de5\u4f5c\u53f0";
+const literatureSearchLabel = "文献检索";
+const historyLabel = "历史记录";
 
 // Only confirmed product-space ancestors receive links; unrelated breadcrumb labels remain plain text.
 const breadcrumbLinkByLabel: Readonly<Record<string, string>> = {
   [documentSpaceLabel]: "/documents",
   [documentLibraryLabel]: "/documents",
+  [literatureSearchLabel]: "/literature-search",
+  [historyLabel]: "/literature-search?tab=history",
 };
 
 function breadcrumbTarget(label: string): string | undefined {
@@ -27,9 +31,10 @@ const breadcrumbs = computed<string[]>(() => {
         : "\u7814\u7a76\u6982\u89c8";
     return ["\u8bba\u6587\u7814\u7a76", label];
   }
-  return Array.isArray(base)
-    ? base.map(String)
-    : [String(route.meta.feature?.label ?? workspaceLabel)];
+  if (typeof base === "function") {
+    return base(route as RouteLocationNormalized).map(String);
+  }
+  return Array.isArray(base) ? base.map(String) : [String(route.meta.feature?.label ?? workspaceLabel)];
 });
 </script>
 
@@ -37,7 +42,7 @@ const breadcrumbs = computed<string[]>(() => {
   <nav class="breadcrumbs" aria-label="面包屑">
     <template v-for="(item, index) in breadcrumbs" :key="`${item}-${index}`">
       <span v-if="index" class="separator" aria-hidden="true">/</span>
-      <strong v-if="index === breadcrumbs.length - 1">{{ item }}</strong>
+      <strong v-if="index === breadcrumbs.length - 1" aria-current="page">{{ item }}</strong>
       <RouterLink
         v-else-if="breadcrumbTarget(item)"
         :to="breadcrumbTarget(item)!"

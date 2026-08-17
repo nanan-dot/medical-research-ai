@@ -50,14 +50,16 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  /* 高于表格吸顶表头，且低于移动端抽屉（30~35），避免互相遮挡。 */
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 1rem;
-  min-height: 64px;
+  box-sizing: border-box;
+  height: var(--topbar-height);
   padding: 0.55rem 1.4rem;
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface);
 }
 .project {
   display: flex;

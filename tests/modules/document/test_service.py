@@ -15,11 +15,11 @@ async def test_failed_parse_can_retry_and_running_retry_conflicts(
     session, tmp_path: Path, caplog
 ):
     document, _ = await create_document(
-        session, tmp_path / "source", parse_status="failed"
+        session, tmp_path / "source", name="retry.md", parse_status="failed"
     )
     service = DocumentService(session)
     retried = await service.retry_parse(document.id)
-    assert retried.parse_status == "pending"
+    assert retried.parse_status == "succeeded"
     assert retried.retry_count == 1
     assert retried.error_message is None
     assert "document_state_changed" in caplog.text
@@ -41,6 +41,10 @@ async def test_failed_and_outdated_index_retry_requires_successful_parse(
     retried = await service.retry_index(document.id)
     assert retried.index_status == "pending"
     assert retried.retry_count == 1
+
+    pending_retry = await service.retry_index(document.id)
+    assert pending_retry.index_status == "pending"
+    assert pending_retry.retry_count == 1
 
     retried.index_status = "outdated"
     retried.parse_status = "failed"
@@ -86,6 +90,11 @@ async def test_missing_external_file_never_remains_successful(session, tmp_path:
     assert reconciled.parse_status == "failed"
     assert reconciled.index_status == "outdated"
     assert reconciled.error_code == "source_file_missing"
+
+    file_path.write_text("source is available again", encoding="utf-8")
+    recovered = await DocumentService(session).get(document.id)
+    assert recovered.parse_status == "pending"
+    assert recovered.error_code is None
 
 
 @pytest.mark.asyncio

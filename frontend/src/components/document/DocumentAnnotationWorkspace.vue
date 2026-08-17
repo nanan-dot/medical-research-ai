@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { shallowRef, useTemplateRef } from "vue";
+import { shallowRef } from "vue";
 
 import type { DocumentRecord } from "../../api/documents";
 import type { AnnotationColor } from "../../api/documentAnnotations";
 import { useDocumentAnnotations } from "../../composables/useDocumentAnnotations";
 import type { PdfTextSelection } from "../../types/documentAnnotations";
-import DocumentAnnotationEditor from "./DocumentAnnotationEditor.vue";
-import DocumentAnnotationList from "./DocumentAnnotationList.vue";
+import DocumentContextPanel from "./DocumentContextPanel.vue";
 import PdfAnnotationReader from "./PdfAnnotationReader.vue";
 
 const props = defineProps<{
   document: DocumentRecord;
   sourceUrl: string;
+  summary: { page_count: number; character_count: number; section_headings: readonly string[] } | null;
+  actionLoading: boolean;
 }>();
 
-const editor = useTemplateRef<InstanceType<typeof DocumentAnnotationEditor>>("editor");
+const emit = defineEmits<{ retryParse: []; retryIndex: [] }>();
+
 const selection = shallowRef<PdfTextSelection | null>(null);
 const selectedAnnotationId = shallowRef<number | null>(null);
 const { annotations, loading, saving, error, create, remove } = useDocumentAnnotations(
@@ -43,44 +45,21 @@ async function deleteAnnotation(annotationId: number): Promise<void> {
   }
 }
 
-function requestAnnotation(): void {
-  editor.value?.focusNote();
+function handleSelectionChange(nextSelection: PdfTextSelection | null): void {
+  selection.value = nextSelection;
 }
+
 </script>
 
 <template>
-  <section class="annotation-workspace" aria-label="PDF 划线与批注">
-    <div class="reader-column">
-      <PdfAnnotationReader
-        :source-url="props.sourceUrl"
-        :annotations="annotations"
-        :selected-annotation-id="selectedAnnotationId"
-        @selection-change="selection = $event"
-        @request-annotation="requestAnnotation"
-        @select-annotation="selectedAnnotationId = $event"
-      />
-    </div>
-    <aside class="annotation-sidebar">
-      <DocumentAnnotationEditor ref="editor" :selection="selection" :saving="saving" @submit="saveAnnotation" />
-      <p v-if="loading" class="status" role="status">正在加载批注…</p>
-      <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <DocumentAnnotationList
-        :annotations="annotations"
-        :selected-annotation-id="selectedAnnotationId"
-        :disabled="saving"
-        @select="selectedAnnotationId = $event"
-        @remove="deleteAnnotation"
-      />
-    </aside>
+  <section class="annotation-workspace" aria-label="PDF 阅读与批注">
+    <PdfAnnotationReader :source-url="props.sourceUrl" :annotations="annotations" :selected-annotation-id="selectedAnnotationId" @selection-change="handleSelectionChange" @select-annotation="selectedAnnotationId = $event" />
+    <DocumentContextPanel :document="props.document" :summary="props.summary" :action-loading="props.actionLoading" :selection="selection" :annotations="annotations" :annotation-loading="loading" :annotation-saving="saving" :annotation-error="error" :selected-annotation-id="selectedAnnotationId" @retry-parse="emit('retryParse')" @retry-index="emit('retryIndex')" @save-annotation="saveAnnotation" @select-annotation="selectedAnnotationId = $event" @remove-annotation="deleteAnnotation" />
   </section>
 </template>
 
 <style scoped>
-.annotation-workspace { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, .7fr); gap: 1rem; }
-.reader-column, .annotation-sidebar { min-width: 0; }
-.annotation-sidebar { display: grid; align-content: start; gap: .9rem; }
-.status, .error { margin: 0; font-size: .84rem; }
-.status { color: var(--text-muted); }.error { color: var(--color-danger); }
-@media (max-width: 980px) { .annotation-workspace { grid-template-columns: 1fr; }.annotation-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
-@media (max-width: 620px) { .annotation-sidebar { grid-template-columns: 1fr; } }
+.annotation-workspace { display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 25vw, 380px); align-items: start; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow: hidden; background: var(--paper); }
+.annotation-workspace > :first-child { min-width: 0; padding: 1rem; }
+@media (max-width: 1024px) { .annotation-workspace { grid-template-columns: 1fr; }.annotation-workspace > :first-child { padding-bottom: 1rem; } }
 </style>

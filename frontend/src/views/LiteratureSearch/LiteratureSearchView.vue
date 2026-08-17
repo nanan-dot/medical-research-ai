@@ -14,7 +14,9 @@ import SourceScopePanel from "./SourceScopePanel.vue";
 import SearchReadinessPanel from "./SearchReadinessPanel.vue";
 import ResultsView from "./ResultsView.vue";
 import History from "./History.vue";
+import { formatSearchChangeNotice } from "./searchChangeNotice";
 import RecommendationsView from "../Recommendations/RecommendationsView.vue";
+import { MAX_SEARCH_RESULTS } from "../../api/literatureSearch";
 
 const route = useRoute();
 const router = useRouter();
@@ -145,7 +147,7 @@ async function runSearch(): Promise<void> {
     filters: JSON.stringify({ publication_language: publicationLanguage.value }),
     model_version: parsed.value.prompt_version,
     user_edits: JSON.stringify(result.value.user_edits),
-    retmax: parsed.value.candidate.retmax || 20,
+    retmax: MAX_SEARCH_RESULTS,
   });
   if (created !== null && created.latest_result_id !== null) {
     // 部署滚动更新期间，旧后端尚未返回 new_result_id；其 latest_result_id
@@ -156,7 +158,7 @@ async function runSearch(): Promise<void> {
       const latestVersion = created.versions.at(-1);
       const priorVersion = created.versions.at(-2);
       if (latestVersion) {
-        reuseNotice.value = `该检索策略已执行 ${created.versions.length} 次 · 当前为 v${latestVersion.version}`;
+        reuseNotice.value = formatSearchChangeNotice(created.change) ?? "";
         previousResultId.value = priorVersion?.result_id ?? null;
       }
     }

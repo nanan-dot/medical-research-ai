@@ -340,6 +340,22 @@ def test_get_result_page_filters_and_paginates(api_client):
     assert payload["items"][0]["sort_reason"].startswith("relevance:")
 
 
+def test_consolidated_projection_precedes_filter_sort_and_page(api_client):
+    client, executor = api_client
+    items = [_item("same", year=2023), _item("same", year=2024), _item("other", year=2022)]
+    result_id = _seed_result((client, executor), items)
+    client.put(f"/api/v1/literature-search/results/{result_id}/deduplication")
+    consolidated = client.get(
+        f"/api/v1/literature-search/{result_id}/results",
+        params={"duplicate_mode": "consolidated", "sort": "newest", "page_size": 1},
+    )
+    assert consolidated.status_code == 200
+    assert consolidated.json()["duplicate_mode"] == "consolidated"
+    assert consolidated.json()["filtered_total"] == 2
+    assert consolidated.json()["hidden_duplicate_count"] == 1
+    assert consolidated.json()["items"][0]["item"]["pmid"] == "same"
+
+
 def test_get_result_page_empty_result_and_out_of_range_page(api_client):
     client, executor = api_client
     items = [_item("1", year=2024), _item("2", year=2023)]

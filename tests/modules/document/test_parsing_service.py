@@ -61,3 +61,21 @@ async def test_invalid_docx_records_parse_failure(session, tmp_path: Path):
     assert docx.parse_status == "failed"
     assert docx.error_code == "document_parse_failed"
     assert docx.error_message is not None
+
+
+@pytest.mark.asyncio
+async def test_sync_reparses_a_document_after_its_source_file_returns(session, tmp_path: Path):
+    document, _ = await create_document(
+        session, tmp_path / "source", name="returned.md", parse_status="failed"
+    )
+    document.error_code = "source_file_missing"
+    document.error_message = "The source file is no longer available"
+    await session.commit()
+
+    summary = await KnowledgeSourceSyncService(session).sync(
+        document.knowledge_source_id
+    )
+
+    assert summary.modified == 1
+    assert document.parse_status == "succeeded"
+    assert document.error_code is None

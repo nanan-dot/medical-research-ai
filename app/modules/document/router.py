@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.exceptions import ConflictError
 from app.core.database import get_session
 from app.modules.document.index_service import DocumentIndexService
 from app.modules.document.parsers.schemas import ParsedContentSummary
@@ -81,21 +82,36 @@ async def get_document_content_summary(
 async def retry_document_parse(
     id: int, session: AsyncSession = Depends(get_session)
 ) -> DocumentRead:
-    return DocumentRead.model_validate(await DocumentService(session).retry_parse(id))
+    try:
+        return DocumentRead.model_validate(await DocumentService(session).retry_parse(id))
+    except ConflictError:
+        await session.commit()
+        raise
 
 
 @router.post("/{id}/retry-index", response_model=DocumentRead)
 async def retry_document_index(
     id: int, session: AsyncSession = Depends(get_session)
 ) -> DocumentRead:
-    return DocumentRead.model_validate(await DocumentService(session).retry_index(id))
+    service = DocumentService(session)
+    try:
+        await service.retry_index(id)
+        await DocumentIndexService(session).index(id)
+        return DocumentRead.model_validate(await service.get(id))
+    except ConflictError:
+        await session.commit()
+        raise
 
 
 @router.post("/{id}/index", response_model=DocumentIndexResult)
 async def index_document(
     id: int, session: AsyncSession = Depends(get_session)
 ) -> DocumentIndexResult:
-    return await DocumentIndexService(session).index(id)
+    try:
+        return await DocumentIndexService(session).index(id)
+    except ConflictError:
+        await session.commit()
+        raise
 
 
 @router.delete("/{id}/index", response_model=DocumentIndexResult)

@@ -85,7 +85,7 @@ class TesseractOcrEngine:
     @staticmethod
     def _pdfium_module():
         try:
-            import pypdfium2  # type: ignore[import-not-found]
+            import pypdfium2
         except ImportError as exc:
             raise OcrEngineUnavailableError("未安装可选依赖 pypdfium2") from exc
         return pypdfium2

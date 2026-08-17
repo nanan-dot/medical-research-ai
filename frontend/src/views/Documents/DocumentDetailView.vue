@@ -3,6 +3,8 @@ import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import DocumentDetailOverview from "../../components/document/DocumentDetailOverview.vue";
+import DocumentDetailHeader from "../../components/document/DocumentDetailHeader.vue";
+import DocumentAnnotationWorkspace from "../../components/document/DocumentAnnotationWorkspace.vue";
 import DocumentOcrPanel from "../../components/document/DocumentOcrPanel.vue";
 import DocumentPreviewPanel from "../../components/document/DocumentPreviewPanel.vue";
 import StatePanel from "../../components/ui/StatePanel.vue";
@@ -45,10 +47,9 @@ function returnToPaperResearch(): void {
       <button class="retry-button" @click="load">重试</button>
     </StatePanel>
     <div v-else-if="document" class="detail-layout">
-      <div v-if="shouldReturnToPaperResearch" class="workflow-return">
-        <button type="button" @click="returnToPaperResearch">← 返回论文研究</button>
-        <span>将保留当前文档作为论文研究上下文。</span>
-      </div>
+      <DocumentDetailHeader :document="document" :show-research-return="shouldReturnToPaperResearch" @return-to-research="returnToPaperResearch" />
+      <DocumentAnnotationWorkspace v-if="preview?.kind === 'pdf' && preview.content_url && document.parse_status === 'succeeded'" :document="document" :source-url="preview.content_url" :summary="summary" :action-loading="actionLoading" @retry-parse="retryParse" @retry-index="retryIndex" />
+      <template v-else>
       <div class="primary-column">
         <DocumentPreviewPanel
           :preview="preview"
@@ -61,6 +62,7 @@ function returnToPaperResearch(): void {
       <aside class="sidebar">
         <DocumentDetailOverview
           :document="document"
+          :summary="summary"
           :action-loading="actionLoading"
           @retry-parse="retryParse"
           @retry-index="retryIndex"
@@ -71,30 +73,21 @@ function returnToPaperResearch(): void {
           @completed="load"
         />
         <StatePanel
-          v-if="summary"
-          title="真实内容摘要"
-          :description="`共 ${summary.page_count} 页，${summary.character_count} 个字符。`"
-        >
-          <p v-if="summary.is_scanned">扫描件 PDF：可在支持时发起 OCR。</p>
-          <p v-else>章节：{{ summary.section_headings.join(' · ') || '未解析到章节' }}</p>
-        </StatePanel>
-        <StatePanel
           v-if="document.error_message"
           title="处理错误"
           :description="document.error_message"
         />
       </aside>
+      </template>
     </div>
   </main>
 </template>
 
 <style scoped>
-.detail-page { width: min(100% - 2rem, 1280px); margin: 0 auto; padding: 2rem 0 2.8rem; }
-.detail-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr); gap: 1.25rem; align-items: start; }
-.workflow-return { grid-column: 1 / -1; display: flex; align-items: center; gap: .65rem; padding: .65rem .75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface); color: var(--text-muted); font-size: .84rem; }
-.workflow-return button { border: 0; background: transparent; color: var(--color-primary); font: inherit; font-weight: 800; cursor: pointer; }
+.detail-page { width: min(100% - 2rem, 1440px); margin: 0 auto; padding: 1.25rem 0 2.8rem; }
+.detail-layout { display: grid; gap: 1rem; align-items: start; }
 .primary-column, .sidebar { min-width: 0; }
 .sidebar { display: grid; gap: 1rem; }
 .retry-button { border: 1px solid var(--border-strong); border-radius: 7px; padding: .45rem .7rem; background: var(--paper); color: var(--text-primary); font: inherit; }
-@media (max-width: 860px) { .detail-page { width: min(100% - 1.5rem, 760px); padding-top: 1rem; }.detail-layout { grid-template-columns: 1fr; }.sidebar { order: -1; } }
+@media (max-width: 1024px) { .detail-page { width: min(100% - 1.5rem, 900px); padding-top: 1rem; }.detail-layout { grid-template-columns: 1fr; } }
 </style>

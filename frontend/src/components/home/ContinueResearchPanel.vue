@@ -18,13 +18,15 @@ const items = shallowRef<RecentResearch[]>([]);
 
 onMounted(async () => {
   try {
-    const page = await literatureSearchApi.listTasks(0, 10);
+    const page = await literatureSearchApi.listHistory(0, 10);
     items.value = page.items.map((task) => ({
       id: task.id,
       resultId: task.latest_result_id,
       title: task.original_query,
-      lastAction: task.status === "succeeded" ? `检索完成，共 ${task.result_count ?? "—"} 条结果` : `状态：${task.status}`,
-      meta: `PubMed · ${task.search_string ?? "检索式"} · ${new Date(task.created_at).toLocaleString("zh-CN", { hour12: false })}`,
+      lastAction: task.status === "succeeded" ? `检索完成，共 ${task.result_count} 篇结果` : `当前状态：${task.status}`,
+      meta: task.searched_at
+        ? `最近运行：${new Date(task.searched_at).toLocaleString("zh-CN", { hour12: false })}`
+        : "尚未完成检索",
     }));
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "无法读取研究记录";

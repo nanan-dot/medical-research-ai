@@ -1,11 +1,21 @@
 """Knowledge-source HTTP endpoints."""
 
-from fastapi import APIRouter, Depends, Response, status
+import asyncio
+
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.modules.knowledge_source.browse_service import (
+    select_authorized_directory,
+)
+from app.modules.knowledge_source.import_service import (
+    KnowledgeSourceDocumentImportService,
+)
 from app.modules.knowledge_source.schema import (
     KnowledgeSourceCreate,
+    KnowledgeSourceDirectoryBrowseRead,
+    KnowledgeSourceDocumentImportRead,
     KnowledgeSourceRead,
     KnowledgeSourceStats,
     KnowledgeSourceSyncSummary,
@@ -15,6 +25,36 @@ from app.modules.knowledge_source.service import KnowledgeSourceService
 from app.modules.knowledge_source.sync_service import KnowledgeSourceSyncService
 
 router = APIRouter(prefix="/knowledge-sources", tags=["知识源"])
+
+
+@router.post(
+    "/browse-directory",
+    response_model=KnowledgeSourceDirectoryBrowseRead,
+)
+async def browse_knowledge_source_directory() -> KnowledgeSourceDirectoryBrowseRead:
+    """在线程中打开阻塞式原生目录选择器，避免阻塞 API 事件循环。"""
+    selected_path = await asyncio.to_thread(select_authorized_directory)
+    return KnowledgeSourceDirectoryBrowseRead(path=selected_path)
+
+
+@router.post(
+    "/import-document",
+    response_model=KnowledgeSourceDocumentImportRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_document_to_knowledge_source(
+    file: UploadFile = File(...),
+    knowledge_source_id: int | None = Form(default=None),
+    new_source_name: str | None = Form(default=None),
+    relative_directory: str | None = Form(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> KnowledgeSourceDocumentImportRead:
+    return await KnowledgeSourceDocumentImportService(session).import_document(
+        file=file,
+        knowledge_source_id=knowledge_source_id,
+        new_source_name=new_source_name,
+        relative_directory=relative_directory,
+    )
 
 
 @router.post("/{id}/sync", response_model=KnowledgeSourceSyncSummary)

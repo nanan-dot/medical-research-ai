@@ -192,3 +192,23 @@ FE-01 through FE-08 front-end scope is complete. No additional front-end or back
 - `npm run build` passed.
 - Vite `/recommendations` returned HTTP 200.
 - Browser rendering and console check completed; no JavaScript errors were observed.
+
+## FE-22 收尾 — 文献检索结果页·去重工作区（2026-08-17 提交）
+
+**Status:** complete
+
+- 结果级去重工作区落地：新增 `useResultDeduplication` composable + `DuplicateReviewDrawer` 抽屉组件，对接 BE-21 真实 API（摘要 `GET/PUT .../deduplication`、重复组分页 `duplicate-groups`、决策 `resolution` merge/keep_all/undo）；字段全部来自真实 `DeduplicationSummary`，不伪造状态；merge 必须由用户明确选择 member 的 `record_key`。
+- 结果页 UI 修复：「全部文献」tab 去掉数字（总数仅由结果范围行承载）、tab 间距拉开至 ≥1.5rem、视图切换改用 `v-show` 消除竖版闪烁、阅读计划数据只在首次挂载或显式「重新生成」时请求。
+- 清理 `ResultsView.vue` 5 个 unused 变量及旧入口死代码；删除旧 `DuplicateReview`、`ResultProcessingToolbar` 组件及测试（`DuplicateReviewDrawer` 承接其职责）。
+- 命名分离：「推荐阅读」→「文献推荐」；`features.ts` 移除「收藏与阅读计划」占位。
+- 测试更新：`ResultsView.test.ts` 覆盖 15 项行为（tab 计数/URL 恢复/分页/去重决策/unduo 刷新/duplicate_mode 请求/键盘 ARIA/不渲染内部编号等）；新增 `useResultDeduplication.test.ts`（5 tests）。
+- 同期收尾：知识库文档库工作台组件（`DocumentInspector`、`DocumentContextPanel`、`DocumentScopeNav`、`DocumentWorkspaceSummary`、`SingleDocumentImportPanel` 等）与 `knowledge_source` 浏览/单篇导入后端（browse_service/import_service）、4 个文献策略指纹/去重工作视图 Alembic 迁移、`paperqa2/factory` 调整。
+
+### Verification（Hermes 独立复测，2026-08-17）
+
+- 后端全量 `pytest -q`：**590 passed, 13 skipped**（此前记录 491 → 新增 99 项覆盖）。
+- `ruff check app/ tests/`：通过；`mypy app/ --ignore-missing-imports`：0 错误（顺带修复已提交代码中 `document_ocr/engine.py` 一处多余 type:ignore）。
+- `alembic check`：无漂移；`alembic current` = `l4m5n6o7p8q9 (head)`。
+- 前端 `npm run typecheck`：通过；`npm test -- --run`：**49 files / 118 tests 全过**；`npm run build`：通过（仅 chunk 体积警告）。
+- FE-22 目标文件 `eslint`：0 errors（warning 已 `--fix`）。
+- `.codex/previews/` 验证截图按历史惯例不入库。

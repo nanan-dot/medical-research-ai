@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 1.8 seconds
+Output:
 <script setup lang="ts">
 import KnowledgeSourceManager from "../../components/knowledge-source/KnowledgeSourceManager.vue";
 </script>
@@ -6,7 +9,10 @@ import KnowledgeSourceManager from "../../components/knowledge-source/KnowledgeS
   <main class="knowledge-page">
     <KnowledgeSourceManager />
 
-    <section class="workflow-footer" aria-labelledby="after-sync-title">
+    <section
+      class="workflow-footer"
+      aria-labelledby="after-sync-title"
+    >
       <h2 id="after-sync-title">同步后发生什么</h2>
       <div class="workflow-steps">
         <span>识别新增与变更文件</span><b aria-hidden="true">→</b>

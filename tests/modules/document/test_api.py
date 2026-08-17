@@ -74,7 +74,7 @@ def api_context(tmp_path: Path):
     asyncio.run(engine.dispose())
 
 
-def test_document_list_detail_retry_and_delete_index_api(api_context):
+def test_document_list_detail_retry_and_delete_index_api(api_context, monkeypatch):
     client, document_id, paper = api_context
     listed = client.get(
         "/api/v1/documents", params={"parse_status": "failed", "limit": 10}
@@ -87,9 +87,21 @@ def test_document_list_detail_retry_and_delete_index_api(api_context):
     assert detail.status_code == 200
     retried = client.post(f"/api/v1/documents/{document_id}/retry-parse")
     assert retried.status_code == 200
-    assert retried.json()["parse_status"] == "pending"
+    assert retried.json()["parse_status"] == "succeeded"
     duplicate = client.post(f"/api/v1/documents/{document_id}/retry-parse")
     assert duplicate.status_code == 409
+
+    indexed_ids: list[int] = []
+
+    async def fake_index(_, requested_document_id: int) -> None:
+        indexed_ids.append(requested_document_id)
+
+    monkeypatch.setattr(
+        "app.modules.document.router.DocumentIndexService.index", fake_index
+    )
+    retried_index = client.post(f"/api/v1/documents/{document_id}/retry-index")
+    assert retried_index.status_code == 200
+    assert indexed_ids == [document_id]
 
     deleted_index = client.delete(f"/api/v1/documents/{document_id}/index")
     assert deleted_index.status_code == 200
@@ -117,12 +129,9 @@ def test_parse_and_content_summary_api(api_context):
     paper.write_text("# API Notes\nBody", encoding="utf-8")
     retried = client.post(f"/api/v1/documents/{document_id}/retry-parse")
     assert retried.status_code == 200
-    parsed = client.post(f"/api/v1/documents/{document_id}/parse")
-    assert parsed.status_code == 200
-    assert parsed.json()["section_headings"] == ["API Notes"]
     summary = client.get(f"/api/v1/documents/{document_id}/content-summary")
     assert summary.status_code == 200
-    assert summary.json() == parsed.json()
+    assert summary.json()["section_headings"] == ["API Notes"]
 
 
 def test_current_paper_workflow_query_validation_and_missing_results(api_context):

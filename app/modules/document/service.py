@@ -29,6 +29,7 @@ from app.modules.knowledge_source.repository import KnowledgeSourceRepository
 MAX_ERROR_CODE_LENGTH = 64
 MAX_ERROR_MESSAGE_LENGTH = 500
 RUNNING_TASK_TIMEOUT = timedelta(minutes=30)
+SOURCE_FILE_MISSING = "source_file_missing"
 SENSITIVE_VALUE_PATTERNS = (
     re.compile(r"sk-[A-Za-z0-9_-]{8,}"),
     re.compile(r"(?i)(api[_ -]?key|token|password|secret)\s*[:=]\s*\S+"),
@@ -105,29 +106,40 @@ class DocumentService:
         current = ParseStatus(entity.parse_status)
         if current == ParseStatus.PARSING:
             raise ConflictError("Document parsing is already running")
-        if current != ParseStatus.FAILED:
-            raise ConflictError("Only failed document parsing can be retried")
         await self._require_source_file(entity)
-        ensure_parse_transition(current, ParseStatus.PENDING)
-        self._apply_transition(entity, "parse", ParseStatus.PENDING.value)
-        entity.retry_count += 1
-        return await self.repo.save(entity)
+        if current == ParseStatus.FAILED:
+            ensure_parse_transition(current, ParseStatus.PENDING)
+            self._apply_transition(entity, "parse", ParseStatus.PENDING.value)
+            entity.retry_count += 1
+            await self.repo.save(entity)
+        elif current != ParseStatus.PENDING:
+            raise ConflictError("Only failed or pending document parsing can be retried")
+
+        # 本地模式没有独立任务队列；重试必须在同一请求中实际调用解析器，
+        # 否则 UI 会长期停在“等待解析”且用户无法判断任务是否已启动。
+        await self.parse(entity.id)
+        return entity
 
     async def retry_index(self, id: int) -> Document:
         entity = await self.get(id)
         current = IndexStatus(entity.index_status)
         if current == IndexStatus.INDEXING:
             raise ConflictError("Document indexing is already running")
-        if current not in {IndexStatus.FAILED, IndexStatus.OUTDATED}:
+        if current not in {
+            IndexStatus.FAILED,
+            IndexStatus.OUTDATED,
+            IndexStatus.PENDING,
+        }:
             raise ConflictError(
-                "Only failed or outdated document indexing can be retried"
+                "Only failed, outdated, or pending document indexing can be retried"
             )
         if entity.parse_status != ParseStatus.SUCCEEDED.value:
             raise ConflictError("Document must be parsed successfully before indexing")
         await self._require_source_file(entity)
-        ensure_index_transition(current, IndexStatus.PENDING)
-        self._apply_transition(entity, "index", IndexStatus.PENDING.value)
-        entity.retry_count += 1
+        if current != IndexStatus.PENDING:
+            ensure_index_transition(current, IndexStatus.PENDING)
+            self._apply_transition(entity, "index", IndexStatus.PENDING.value)
+            entity.retry_count += 1
         return await self.repo.save(entity)
 
     async def delete_index(self, id: int) -> Document:
@@ -249,11 +261,18 @@ class DocumentService:
             exists = path.is_file()
         except OSError:
             return
-        if exists or entity.error_code == "source_file_missing":
+        if exists:
+            if entity.error_code == SOURCE_FILE_MISSING:
+                # 文件短暂不可用后重新出现时，旧失败状态不能永久阻塞重试或同步。
+                self._apply_transition(entity, "parse", ParseStatus.PENDING.value)
+                entity.index_status = IndexStatus.OUTDATED.value
+                await self.repo.save(entity)
+            return
+        if entity.error_code == SOURCE_FILE_MISSING:
             return
         entity.parse_status = ParseStatus.FAILED.value
         entity.index_status = IndexStatus.OUTDATED.value
-        entity.error_code = "source_file_missing"
+        entity.error_code = SOURCE_FILE_MISSING
         entity.error_message = "The source file is no longer available"
         entity.finished_at = datetime.now(UTC)
         logger.warning(

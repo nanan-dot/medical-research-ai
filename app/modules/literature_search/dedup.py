@@ -91,6 +91,28 @@ def find_duplicate_candidates(records: list[DedupRecord]) -> list[DuplicateCandi
     return candidates
 
 
+def select_canonical_record(records: tuple[DedupRecord, ...]) -> DedupRecord:
+    """按可获得的质量信号稳定选择规范记录。"""
+    return min(records, key=_canonical_sort_key)
+
+
+def _canonical_sort_key(record: DedupRecord) -> tuple[int, int, int, int, int, int]:
+    item = record.item
+    metadata_count = sum(
+        value is not None and value != []
+        for value in (item.title, item.authors, item.journal, item.year)
+    )
+    position = int(record.record_id.split(":", maxsplit=2)[1])
+    return (
+        int(item.withdrawn),
+        -int(item.verified),
+        -int(item.has_abstract),
+        -int(normalize_doi(item.doi) is not None),
+        -metadata_count,
+        position,
+    )
+
+
 def _author_year_key(record: DedupRecord) -> str | None:
     """只用首位作者和年份产生模糊候选，避免把其余作者误当成等价证据。"""
     if not record.item.authors or record.item.year is None:

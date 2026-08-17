@@ -2,7 +2,15 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -30,6 +38,14 @@ class LiteratureSearchTask(Base):
     """
 
     __tablename__ = "literature_search_tasks"
+    __table_args__ = (
+        Index(
+            "ix_literature_search_tasks_strategy_history",
+            "history_fingerprint",
+            "searched_at",
+            "id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     research_context_id: Mapped[int | None] = mapped_column(
@@ -56,10 +72,14 @@ class LiteratureSearchTask(Base):
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
     # 用户修改：对结构化条件、词项组的编辑记录（原始词→替换词映射）。
     user_edits: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    # 仅用于精确策略复用；历史行保留为空，绝不回写或合并审计快照。
+    # 精确任务身份用于创建复用与去重边界，保留解析快照/模型版本/retmax。
+    # 历史页的用户可见归并身份单独存入 history_fingerprint，不能混用。
     strategy_fingerprint: Mapped[str | None] = mapped_column(
-        Text, nullable=True, unique=True, index=True
+        Text, nullable=True
     )
+    # 主历史只按实际 PubMed 条件（数据库、布尔检索式、筛选）归并；它不会删除
+    # 或改写这些 audit task，也不会影响跨任务的去重流程。
+    history_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 任务状态机。
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
     # 失败原因（status=failed 时填充；成功/运行中为空）。
@@ -102,6 +122,11 @@ class LiteratureSearchResult(Base):
     query: Mapped[str] = mapped_column(Text, nullable=False)
     total_count: Mapped[int] = mapped_column(nullable=False, default=0)
     items_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # 结果级去重扫描时间戳：PUT 扫描时写入，GET 摘要据此区分"已扫描（可能无重复）"
+    # 与"从未扫描"（has_scan=false 的空摘要），避免用组数量误判扫描状态。
+    dedup_scanned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -170,6 +195,11 @@ class LiteratureDuplicateGroup(Base):
     trigger_task_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("literature_search_tasks.id"), nullable=False
     )
+    # 结果级工作视图必须绑定不可变快照，旧的跨任务组保留为 NULL 以兼容审计数据。
+    result_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("literature_search_results.id"), nullable=True, index=True
+    )
+    fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     match_method: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
@@ -201,8 +231,11 @@ class LiteratureDuplicateGroupMember(Base):
         Integer, ForeignKey("literature_search_results.id"), nullable=False
     )
     record_pmid: Mapped[str] = mapped_column(Text, nullable=False)
+    record_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    position: Mapped[int | None] = mapped_column(Integer, nullable=True)
     canonical_result_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     canonical_record_pmid: Mapped[str | None] = mapped_column(Text, nullable=True)
+    canonical_record_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_search_ids_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
@@ -243,14 +276,22 @@ class LiteratureReadingOrder(Base):
     """
 
     __tablename__ = "literature_reading_orders"
+    __table_args__ = (
+        UniqueConstraint(
+            "result_id",
+            "duplicate_mode",
+            name="uq_literature_reading_orders_result_duplicate_mode",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     result_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("literature_search_results.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
+        unique=False,
     )
+    duplicate_mode: Mapped[str] = mapped_column(Text, nullable=False, default="all")
     # 人工顺序：完整 PMID 列表（JSON 数组），位置即顺序。
     manual_order_json: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

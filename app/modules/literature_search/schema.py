@@ -106,12 +106,40 @@ class LiteratureSearchTaskList(BaseModel):
     items: list[LiteratureSearchTaskRead]
 
 
+class LiteratureSearchHistoryEntry(BaseModel):
+    """One user-facing research record, aggregated from equivalent task snapshots."""
+
+    id: int
+    original_query: str
+    result_count: int
+    status: SearchTaskStatus
+    error_message: str | None = None
+    searched_at: datetime | None = None
+    latest_result_id: int | None = None
+    latest_change: "SearchResultChange | None" = None
+
+
+class LiteratureSearchHistoryList(BaseModel):
+    """Paginated research-record history; raw task audit rows stay internal."""
+
+    total: int
+    offset: int
+    limit: int
+    items: list[LiteratureSearchHistoryEntry]
+
+
 class LiteratureSearchTaskRerun(BaseModel):
     """重跑任务后返回的更新后任务详情。"""
 
     task: LiteratureSearchTaskRead
     change: "SearchResultChange | None" = None
     new_result_id: int
+
+
+class LiteratureSearchTaskRerunRequest(BaseModel):
+    """Optional execution limit for a new rerun snapshot."""
+
+    retmax: int | None = Field(default=None, ge=1, le=MAX_RETMX)
 
 
 class LiteratureSearchTaskCreateResult(LiteratureSearchTaskRead):
@@ -277,6 +305,7 @@ class ResultQueryParams(BaseModel):
     read_status: ReadStatus | None = None
     tags: str | None = Field(default=None, max_length=500)
     sort: SearchSort = "relevance"
+    duplicate_mode: Literal["all", "consolidated"] = "all"
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
 
@@ -310,6 +339,8 @@ class LiteratureSearchResultPage(BaseModel):
     page: int
     page_size: int
     sort: SearchSort
+    duplicate_mode: Literal["all", "consolidated"] = "all"
+    hidden_duplicate_count: int = 0
     items: list[RankedCitationItem]
 
 
@@ -358,6 +389,20 @@ DuplicateResolutionAction = Literal["keep_record", "keep_all", "merge_all", "und
 class DuplicateGroupMemberRead(BaseModel):
     result_id: int
     record_pmid: str
+    record_key: str | None = None
+    position: int | None = None
+    pmid: str | None = None
+    doi: str | None = None
+    title: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    journal: str | None = None
+    year: int | None = None
+    publication_types: list[str] = Field(default_factory=list)
+    verified: bool = False
+    has_abstract: bool = False
+    withdrawn: bool = False
+    is_canonical: bool = False
+    visible_in_consolidated_view: bool = True
     canonical_result_id: int | None
     canonical_record_pmid: str | None
     source_search_ids: list[int]
@@ -372,10 +417,13 @@ class DuplicateResolutionRead(BaseModel):
 class DuplicateGroupRead(BaseModel):
     id: int
     trigger_task_id: int
+    result_id: int | None = None
     match_method: DuplicateMatchMethod
     confidence: DuplicateConfidence
     status: DuplicateGroupStatus
     created_at: datetime
+    match_explanation: str
+    canonical_record_key: str | None = None
     members: list[DuplicateGroupMemberRead]
     resolution: DuplicateResolutionRead | None
 
@@ -384,6 +432,30 @@ class DuplicateGroupList(BaseModel):
     items: list[DuplicateGroupRead]
 
 
+class DeduplicationSummary(BaseModel):
+    """当前不可变结果快照的去重工作视图摘要。"""
+
+    result_id: int
+    scanned_count: int
+    source_visible_count: int
+    consolidated_visible_count: int
+    hidden_record_count: int
+    clear_group_count: int
+    pending_group_count: int
+    resolved_merge_group_count: int
+    resolved_keep_all_group_count: int
+    has_scan: bool
+    generated_at: datetime | None = None
+
+
+class DuplicateGroupPage(BaseModel):
+    """结果范围内的重复组分页响应。"""
+
+    total: int
+    offset: int
+    limit: int
+    items: list[DuplicateGroupRead]
+
 class DuplicateResolveRequest(BaseModel):
     """人工决策；keep_record 需要明确选择保留的 result_id 与 PMID。"""
 
@@ -391,6 +463,17 @@ class DuplicateResolveRequest(BaseModel):
     canonical_result_id: int | None = Field(default=None, ge=1)
     canonical_record_pmid: str | None = Field(default=None, min_length=1, max_length=20)
     resolved_by: str = Field(default="local_user", min_length=1, max_length=100)
+
+
+class ResultDuplicateResolutionRequest(BaseModel):
+    action: Literal["merge", "keep_all", "undo"]
+    canonical_record_key: str | None = Field(default=None, min_length=1)
+    resolved_by: str = Field(default="local_user", min_length=1, max_length=100)
+
+
+class ResultDuplicateResolutionRead(BaseModel):
+    group: DuplicateGroupRead
+    summary: DeduplicationSummary
 
 
 # ----------------------------------------------------------------------
@@ -413,6 +496,7 @@ class ReadingOrderRequest(BaseModel):
     """
 
     manual_order: list[str] = Field(default_factory=list, max_length=500)
+    duplicate_mode: Literal["all", "consolidated"] = "all"
 
 
 class ReadingOrderItem(BaseModel):
@@ -443,6 +527,7 @@ class ReadingOrderRead(BaseModel):
 
     result_id: int
     order_source: Literal["rule", "manual"]
+    duplicate_mode: Literal["all", "consolidated"] = "all"
     generated_at: datetime
     items: list[ReadingOrderItem] = Field(default_factory=list)
 
@@ -456,3 +541,4 @@ class ReadingOrderSaveRequest(BaseModel):
     """
 
     manual_order: list[str] = Field(min_length=0, max_length=500)
+    duplicate_mode: Literal["all", "consolidated"] = "all"

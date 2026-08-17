@@ -3,8 +3,17 @@ import type { DocumentRecord } from "../../api/documents";
 
 const props = defineProps<{
   document: DocumentRecord;
+  summary: { page_count: number; character_count: number; section_headings: readonly string[] } | null;
   actionLoading: boolean;
 }>();
+
+function parseStatusLabel(status: DocumentRecord["parse_status"]): string {
+  return { pending: "等待解析", parsing: "正在解析", succeeded: "解析完成", failed: "解析失败" }[status];
+}
+
+function indexStatusLabel(status: DocumentRecord["index_status"]): string {
+  return { pending: "等待索引", indexing: "正在索引", succeeded: "索引完成", failed: "索引失败", outdated: "索引已过期" }[status];
+}
 
 const emit = defineEmits<{
   retryParse: [];
@@ -13,23 +22,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="overview" aria-labelledby="document-title">
-    <header class="overview-header">
-      <div>
-        <p class="eyebrow">DOCUMENT DETAIL · LIVE</p>
-        <h1 id="document-title" class="document-title">
-          {{ props.document.original_filename ?? props.document.file_path }}
-        </h1>
-        <p class="description">仅展示经服务端受控接口提供的原文和解析元数据。</p>
-      </div>
-    </header>
+  <section class="overview" aria-labelledby="information-title">
+    <header class="overview-header"><h2 id="information-title" class="section-title">文档信息</h2></header>
 
     <dl class="metadata">
-      <div><dt>解析状态</dt><dd>{{ props.document.parse_status }}</dd></div>
-      <div><dt>索引状态</dt><dd>{{ props.document.index_status }}</dd></div>
+      <div><dt>解析状态</dt><dd>{{ parseStatusLabel(props.document.parse_status) }}</dd></div>
+      <div><dt>索引状态</dt><dd>{{ indexStatusLabel(props.document.index_status) }}</dd></div>
       <div><dt>修改时间</dt><dd>{{ props.document.modified_time }}</dd></div>
       <div><dt>重试次数</dt><dd>{{ props.document.retry_count }}</dd></div>
     </dl>
+
+    <dl v-if="props.summary" class="summary"><div><dt>内容摘要</dt><dd>共 {{ props.summary.page_count }} 页，{{ props.summary.character_count }} 个字符。</dd></div><div v-if="props.summary.section_headings.length"><dt>章节</dt><dd>{{ props.summary.section_headings.join('、') }}</dd></div></dl>
 
     <div class="actions">
       <button
@@ -52,15 +55,11 @@ const emit = defineEmits<{
 
 <style scoped>
 .overview { display: grid; gap: 1rem; }
-.overview-header { display: flex; justify-content: space-between; gap: 1rem; }
-.eyebrow { margin: 0; color: var(--color-primary); font-weight: 900; font-size: .72rem; letter-spacing: .12em; }
-.document-title { max-width: 760px; margin: .25rem 0 .45rem; overflow-wrap: anywhere; color: var(--text-primary); }
-.description { margin: 0; color: var(--text-muted); }
-.metadata { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 0; background: var(--border-subtle); border: 1px solid var(--border-subtle); }
-.metadata div { display: grid; gap: .45rem; padding: 1rem; background: var(--paper); }
+.section-title { margin: 0; font-size: 1rem; }
+.metadata, .summary { display: grid; gap: .65rem; margin: 0; }
+.metadata div, .summary div { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .6rem; align-items: baseline; padding-bottom: .6rem; border-bottom: 1px solid var(--border-subtle); }
 .metadata dt { color: var(--text-muted); font-size: .8rem; }
-.metadata dd { margin: 0; color: var(--text-primary); font-weight: 750; }
+.metadata dd, .summary dd { margin: 0; color: var(--text-primary); font-weight: 650; overflow-wrap: anywhere; }
 .actions { display: flex; gap: .6rem; }
 .actions button { border: 0; border-radius: 8px; padding: .6rem .85rem; background: var(--color-primary); color: #fff; font: inherit; }
-@media (max-width: 700px) { .metadata { grid-template-columns: repeat(2, 1fr); } }
 </style>

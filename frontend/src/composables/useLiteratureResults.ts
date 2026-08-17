@@ -10,7 +10,7 @@ import {
 } from "../api/literatureSearch";
 
 // 结果列表页大小：与后端默认 20 对齐，避免每页过大拖慢渲染。
-const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 100;
 
 function parseQueryParam(value: string | null): string {
   return value ?? "";
@@ -46,6 +46,7 @@ function filtersFromQuery(query: Record<string, string | string[] | null>): Resu
     sort: sort === "newest" || sort === "classic" || sort === "custom" ? sort : "relevance",
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     page_size: DEFAULT_PAGE_SIZE,
+    duplicate_mode: one("duplicate_mode") === "consolidated" ? "consolidated" : "all",
   };
 }
 
@@ -77,7 +78,7 @@ export function useLiteratureResults(resultId: number) {
     }
   }
 
-  // 把当前筛选状态写回 URL query（替换记录，避免堆积历史）。
+  // 合并 query 而非覆盖，避免筛选/分页时抹掉 tab=results 而跳回检索中心。
   function syncUrl(): void {
     const params = filters.value;
     const query: Record<string, string> = {};
@@ -91,7 +92,14 @@ export function useLiteratureResults(resultId: number) {
     if (params.tags) query.tags = params.tags;
     if (params.sort !== "relevance") query.sort = params.sort;
     if (params.page > 1) query.page = String(params.page);
-    void router.replace({ query });
+    if (params.duplicate_mode !== "all") query.duplicate_mode = params.duplicate_mode;
+    // Preserve route context such as tab=results, but remove only the keys this
+    // composable owns so clearing a filter cannot leave an old URL value behind.
+    const nextQuery = { ...route.query } as Record<string, string | string[] | null | undefined>;
+    for (const key of ["year", "publication_type", "journal", "author", "has_abstract", "saved", "read_status", "tags", "sort", "page", "duplicate_mode"]) {
+      delete nextQuery[key];
+    }
+    void router.replace({ query: { ...nextQuery, ...query } });
   }
 
   // 任何筛选字段变化：重置到第 1 页并同步 URL；加载由 route.query 变更触发。
@@ -109,6 +117,11 @@ export function useLiteratureResults(resultId: number) {
 
   const previousPage = (): void => goToPage(filters.value.page - 1);
   const nextPage = (): void => goToPage(filters.value.page + 1);
+  function setDuplicateMode(duplicateMode: "all" | "consolidated"): void {
+    if (filters.value.duplicate_mode === duplicateMode) return;
+    filters.value = { ...filters.value, duplicate_mode: duplicateMode, page: 1 };
+    syncUrl();
+  }
 
   // 用户态写入（saved / read_status / tags）：乐观更新当前页并回滚失败。
   async function updateState(pmid: string, request: ItemStateUpdate): Promise<void> {
@@ -169,6 +182,10 @@ export function useLiteratureResults(resultId: number) {
     goToPage,
     previousPage,
     nextPage,
+    setDuplicateMode,
     updateState,
+    // 去重决策/扫描等外部副作用完成后，强制用当前 filters 重新请求结果，
+    // 不依赖 URL 变化（决策不改变 duplicate_mode，故不能靠 watch(route.query) 触发）。
+    reload: load,
   };
 }

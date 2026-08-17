@@ -2,7 +2,6 @@
 import type { DocumentPreview } from "../../api/documentPreviews";
 import type { DocumentRecord } from "../../api/documents";
 import StatePanel from "../ui/StatePanel.vue";
-import DocumentAnnotationWorkspace from "./DocumentAnnotationWorkspace.vue";
 
 const props = defineProps<{
   preview: Readonly<DocumentPreview> | null;
@@ -24,7 +23,6 @@ function blockClass(kind: DocumentPreview["blocks"][number]["kind"]): string {
   <section class="preview-panel" aria-labelledby="preview-title">
     <header class="preview-header">
       <div>
-        <p class="eyebrow">READ-ONLY ORIGINAL</p>
         <h2 id="preview-title" class="preview-title">在线预览</h2>
       </div>
     </header>
@@ -42,10 +40,10 @@ function blockClass(kind: DocumentPreview["blocks"][number]["kind"]): string {
       title="暂不支持预览"
       :description="props.preview.message ?? '该文件暂不支持在线预览。'"
     />
-    <DocumentAnnotationWorkspace
-      v-else-if="props.preview?.kind === 'pdf' && props.preview.content_url && props.document?.parse_status === 'succeeded'"
-      :document="props.document"
-      :source-url="props.preview.content_url"
+    <StatePanel
+      v-else-if="props.preview?.kind === 'pdf' && props.document && props.document.parse_status !== 'succeeded'"
+      title="PDF 尚未准备好阅读"
+      description="需先完成解析，才能使用可选择文本与批注功能。可在文档信息中查看处理状态并执行可用操作。"
     />
     <iframe
       v-else-if="props.preview?.kind === 'pdf' && props.preview.content_url"
@@ -77,7 +75,6 @@ function blockClass(kind: DocumentPreview["blocks"][number]["kind"]): string {
 <style scoped>
 .preview-panel { display: grid; gap: .85rem; }
 .preview-header { display: flex; justify-content: space-between; }
-.eyebrow { margin: 0; color: var(--color-primary); font-weight: 900; font-size: .72rem; letter-spacing: .12em; }
 .preview-title { margin: .2rem 0 0; font-size: 1.2rem; }
 .pdf-frame { width: 100%; min-height: 680px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-muted); }
 .docx-preview { display: grid; gap: .8rem; padding: 1.15rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--paper); line-height: 1.65; }

@@ -2,7 +2,7 @@
 // 进行中的工作：从真实后端读取文献检索任务的运行/失败状态。
 // 无运行中任务时显示空态；重试调用真实 rerun 接口。
 import { onMounted, shallowRef } from "vue";
-import { literatureSearchApi, type LiteratureSearchTask } from "../../api/literatureSearch";
+import { MAX_SEARCH_RESULTS, literatureSearchApi, type LiteratureSearchTask } from "../../api/literatureSearch";
 
 interface ActiveTask {
   id: number;
@@ -42,7 +42,7 @@ onMounted(load);
 async function retryTask(task: ActiveTask): Promise<void> {
   error.value = "";
   try {
-    await literatureSearchApi.rerunTask(task.id);
+    await literatureSearchApi.rerunTask(task.id, MAX_SEARCH_RESULTS);
     await load();
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "重试失败";

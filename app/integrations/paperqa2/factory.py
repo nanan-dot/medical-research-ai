@@ -123,10 +123,11 @@ class _OfficialPaperQA2Backend:
             },
         )
         paperqa_settings.parsing.use_doc_details = False
+        # 文档已通过本项目解析器校验；允许 PaperQA 使用其 Office 读取器。
+        paperqa_settings.parsing.disable_doc_valid_check = True
         paperqa_settings.parsing.reader_config = {"chunk_chars": 1600, "overlap": 120}
-        paperqa_settings.parsing.multimodal = type(
-            paperqa_settings.parsing.multimodal
-        ).OFF
+        multimodal_options: Any = type(paperqa_settings.parsing.multimodal)
+        paperqa_settings.parsing.multimodal = multimodal_options.OFF
         paperqa_settings.answer.evidence_skip_summary = True
         paperqa_settings.answer.evidence_k = 10
         paperqa_settings.answer.answer_max_sources = 5

@@ -13,7 +13,7 @@ from app.common.hashing import sha256_file
 from app.modules.document.model import Document
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import DocumentScanState, IndexStatus, ParseStatus
-from app.modules.document.service import DocumentService
+from app.modules.document.service import SOURCE_FILE_MISSING, DocumentService
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.knowledge_source.scanner import scan_directory
 from app.modules.knowledge_source.schema import (
@@ -63,6 +63,23 @@ class KnowledgeSourceSyncService:
                 and document.file_size == scanned.file_size
                 and document.modified_time_ns == scanned.modified_time_ns
             ):
+                if document.error_code == SOURCE_FILE_MISSING:
+                    # 扫描结果证明文件已恢复可读；重新解析而不是永久保留旧缺失错误。
+                    document.parse_status = ParseStatus.PENDING.value
+                    document.index_status = IndexStatus.OUTDATED.value
+                    document.error_code = None
+                    document.error_message = None
+                    document.started_at = None
+                    document.finished_at = None
+                    await self.document_repo.save(document)
+                    documents_to_parse.append(document.id)
+                    counts["modified"] += 1
+                    continue
+                if document.parse_status == ParseStatus.PENDING.value:
+                    # 手动重试此前仅改为 pending 的文档也要由同步真正执行解析。
+                    documents_to_parse.append(document.id)
+                    counts["modified"] += 1
+                    continue
                 counts["skipped"] += 1
                 continue
             try:

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, shallowRef, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from "vue";
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -22,7 +22,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectionChange: [selection: PdfTextSelection | null];
-  requestAnnotation: [];
   selectAnnotation: [annotationId: number];
 }>();
 
@@ -32,6 +31,7 @@ const loading = shallowRef(false);
 const errorMessage = shallowRef<string | null>(null);
 const selectionError = shallowRef<string | null>(null);
 const selection = shallowRef<PdfTextSelection | null>(null);
+const hasSelectableText = shallowRef(false);
 const zoom = shallowRef(1.25);
 let documentProxy: PDFDocumentProxy | null = null;
 let loadingTask: PDFDocumentLoadingTask | null = null;
@@ -76,6 +76,7 @@ async function loadPdf(): Promise<void> {
   loadingTask?.destroy();
   documentProxy = null;
   pageNumbers.value = [];
+  hasSelectableText.value = false;
   clearSelection();
   loading.value = true;
   errorMessage.value = null;
@@ -133,6 +134,7 @@ async function renderPage(pdf: PDFDocumentProxy, pageNumber: number): Promise<vo
     viewport,
   });
   await textLayer.render();
+  hasSelectableText.value = hasSelectableText.value || textLayerElement.querySelector("span") !== null;
 }
 
 async function changeZoom(delta: number): Promise<void> {
@@ -143,22 +145,34 @@ async function changeZoom(delta: number): Promise<void> {
   await renderPages(documentProxy, renderVersion);
 }
 
-function captureSelection(): void {
+function captureSelection(clearWhenEmpty = false): void {
   const browserSelection = window.getSelection();
-  if (!browserSelection || browserSelection.rangeCount === 0) return clearSelection();
+  if (!browserSelection || browserSelection.rangeCount === 0) {
+    if (clearWhenEmpty) clearSelection();
+    return;
+  }
   const selectedText = browserSelection.toString().split(/\s+/).filter(Boolean).join(" ");
-  if (!selectedText) return clearSelection();
+  if (!selectedText) {
+    if (clearWhenEmpty) clearSelection();
+    return;
+  }
   const startPage = pageElementForNode(browserSelection.anchorNode);
   const endPage = pageElementForNode(browserSelection.focusNode);
+  if (!startPage && !endPage) return;
   if (!startPage || startPage !== endPage) {
+    clearSelection();
     selectionError.value = "批注选区必须位于同一页 PDF。";
-    return clearSelection(false);
+    return;
   }
   const pageBounds = startPage.getBoundingClientRect();
   const rectangles = Array.from(browserSelection.getRangeAt(0).getClientRects())
     .filter((rect) => rect.width > 0 && rect.height > 0)
     .map((rect) => selectionRect(rect, pageBounds));
-  if (rectangles.length === 0) return clearSelection();
+  if (rectangles.length === 0) {
+    clearSelection(false);
+    selectionError.value = "未能读取选区位置，请在 PDF 正文文字上重新选择。";
+    return;
+  }
   const nextSelection = {
     pageNumber: Number(startPage.dataset.pageNumber),
     rectangles,
@@ -167,6 +181,11 @@ function captureSelection(): void {
   selectionError.value = null;
   selection.value = nextSelection;
   emit("selectionChange", nextSelection);
+}
+
+function handleSelectionChange(): void {
+  // 浏览器在拖选过程中会多次触发该事件；延后到当前事件循环末尾可读取最终 Range。
+  window.setTimeout(() => captureSelection(), 0);
 }
 
 function clearSelection(clearBrowserSelection = true): void {
@@ -210,9 +229,14 @@ function prefersReducedMotion(): boolean {
 }
 
 onBeforeUnmount(() => {
+  document.removeEventListener("selectionchange", handleSelectionChange);
   renderVersion += 1;
   loadingTask?.destroy();
   documentProxy = null;
+});
+
+onMounted(() => {
+  document.addEventListener("selectionchange", handleSelectionChange);
 });
 </script>
 
@@ -229,7 +253,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
     <p v-if="errorMessage" class="reader-error" role="alert">{{ errorMessage }}</p>
-    <div v-else ref="readerElement" class="pdf-pages" @mouseup="captureSelection">
+    <div v-else ref="readerElement" class="pdf-pages" @mouseup="captureSelection(true)">
       <div v-for="pageNumber in pageNumbers" :key="pageNumber" class="pdf-page" :data-page-number="pageNumber">
         <canvas class="pdf-canvas" />
         <div class="text-layer" aria-label="可选择的 PDF 文本" />
@@ -247,14 +271,15 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-    <button v-if="selection" class="add-annotation" @click="emit('requestAnnotation')">添加批注</button>
+    <p v-if="!loading && pageNumbers.length > 0 && !hasSelectableText" class="selection-hint" role="status" aria-live="polite">此 PDF 未检测到可选择文本，无法创建文字锚点批注。</p>
+    <p v-else class="selection-hint" role="status" aria-live="polite">{{ selection ? "已记录选中文字，可在右侧批注中保存。" : "拖选 PDF 正文文字后，可在右侧添加批注。" }}</p>
   </section>
 </template>
 
 <style scoped>
 .pdf-reader { position: relative; display: grid; gap: .75rem; }
 .reader-toolbar { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
-.reader-status, .selection-error { margin: 0; color: var(--text-muted); font-size: .82rem; }
+.reader-status, .selection-error, .selection-hint { margin: 0; color: var(--text-muted); font-size: .82rem; }
 .selection-error, .reader-error { color: var(--color-danger); }
 .zoom-actions { display: flex; gap: .4rem; }
 .zoom-actions button, .add-annotation { border: 1px solid var(--border-strong); border-radius: 7px; padding: .4rem .65rem; background: var(--paper); color: var(--text-primary); font: inherit; }
@@ -267,6 +292,5 @@ onBeforeUnmount(() => {
 .annotation-layer { position: absolute; inset: 0; pointer-events: none; }
 .annotation-highlight { position: absolute; border: 0; border-radius: 2px; pointer-events: auto; cursor: pointer; }
 .annotation-highlight-selected { outline: 2px solid var(--color-primary); outline-offset: 1px; }
-.add-annotation { justify-self: end; border-color: var(--color-primary); background: var(--color-primary); color: #fff; font-weight: 750; }
 @media (prefers-reduced-motion: reduce) { .pdf-pages { scroll-behavior: auto; } }
 </style>

@@ -1,5 +1,7 @@
 import { apiRequest } from "./client";
 
+export const MAX_SEARCH_RESULTS = 500;
+
 export interface DateRange { start_year: number | null; end_year: number | null; original_expression: string | null; }
 export interface SearchIntentCandidate { topic: string; disease: string | null; intervention: string | null; comparison: string | null; outcome: string | null; target: string | null; mechanism: string | null; date_range: DateRange | null; study_types: string[]; language: string[]; exclusions: string[]; retmax: number; }
 export interface ParsedQuery { raw_topic: string; candidate: SearchIntentCandidate; clarification_questions: string[]; candidate_source: "model_candidate" | "rule_fallback"; prompt_version: string; }
@@ -49,6 +51,22 @@ export interface LiteratureSearchTaskPage {
   offset: number;
   limit: number;
   items: LiteratureSearchTask[];
+}
+export interface LiteratureSearchHistoryEntry {
+  id: number;
+  original_query: string;
+  result_count: number;
+  status: SearchTaskStatus;
+  error_message: string | null;
+  searched_at: string | null;
+  latest_result_id: number | null;
+  latest_change: SearchResultChange | null;
+}
+export interface LiteratureSearchHistoryPage {
+  total: number;
+  offset: number;
+  limit: number;
+  items: LiteratureSearchHistoryEntry[];
 }
 // ---------------------------------------------------------------------------
 // R2-WP05 筛选 / 排序 / 分页
@@ -102,6 +120,8 @@ export interface LiteratureSearchResultPage {
   page: number;
   page_size: number;
   sort: SearchSort;
+  duplicate_mode?: "all" | "consolidated";
+  hidden_duplicate_count?: number;
   items: RankedCitationItem[];
 }
 
@@ -118,10 +138,11 @@ export interface ResultQueryParams {
   sort: SearchSort;
   page: number;
   page_size: number;
+  duplicate_mode: "all" | "consolidated";
 }
 
 // 筛选表单只关心筛选字段（不含分页）；分页由 composable 单独管理。
-export type ResultFilterValues = Omit<ResultQueryParams, "page" | "page_size">;
+export type ResultFilterValues = Omit<ResultQueryParams, "page" | "page_size" | "duplicate_mode">;
 
 // 用户态写入：四个字段全部可选，只传想更新的字段（与后端 ItemStateUpdate 对齐）。
 export interface ItemStateUpdate {
@@ -142,11 +163,13 @@ export interface LiteratureSearchTaskCreateResult extends LiteratureSearchTask {
 }
 export type DuplicateMatchMethod = "pmid" | "doi" | "title_normalized" | "author_year" | "manual";
 export type DuplicateConfidence = "clear" | "fuzzy";
-export type DuplicateResolutionAction = "keep_record" | "keep_all" | "merge_all" | "undo";
-export interface DuplicateGroupMember { result_id: number; record_pmid: string; canonical_result_id: number | null; canonical_record_pmid: string | null; source_search_ids: number[]; }
-export interface DuplicateGroup { id: number; trigger_task_id: number; match_method: DuplicateMatchMethod; confidence: DuplicateConfidence; status: string; created_at: string; members: DuplicateGroupMember[]; resolution: { resolved_at: string; resolved_action: DuplicateResolutionAction; resolved_by: string; } | null; }
-export interface DuplicateGroupList { items: DuplicateGroup[]; }
-export interface DuplicateResolveRequest { action: DuplicateResolutionAction; canonical_result_id?: number; canonical_record_pmid?: string; resolved_by?: string; }
+export type ResultDuplicateResolutionAction = "merge" | "keep_all" | "undo";
+export interface DuplicateGroupMember { result_id: number; record_pmid: string; record_key: string | null; position: number | null; pmid: string | null; doi: string | null; title: string | null; authors: string[]; journal: string | null; year: number | null; publication_types: string[]; verified: boolean; has_abstract: boolean; withdrawn: boolean; is_canonical: boolean; visible_in_consolidated_view: boolean; canonical_result_id: number | null; canonical_record_pmid: string | null; source_search_ids: number[]; }
+export interface DuplicateGroup { id: number; trigger_task_id: number; result_id: number | null; match_method: DuplicateMatchMethod; confidence: DuplicateConfidence; status: string; created_at: string; match_explanation: string; canonical_record_key: string | null; members: DuplicateGroupMember[]; resolution: { resolved_at: string; resolved_action: ResultDuplicateResolutionAction; resolved_by: string; } | null; }
+export interface DuplicateGroupPage { total: number; offset: number; limit: number; items: DuplicateGroup[]; }
+export interface ResultDuplicateResolutionRequest { action: ResultDuplicateResolutionAction; canonical_record_key?: string; resolved_by?: string; }
+export interface ResultDuplicateResolution { group: DuplicateGroup; summary: DeduplicationSummary; }
+export interface DeduplicationSummary { result_id: number; scanned_count: number; source_visible_count: number; consolidated_visible_count: number; hidden_record_count: number; clear_group_count: number; pending_group_count: number; resolved_merge_group_count: number; resolved_keep_all_group_count: number; has_scan: boolean; generated_at: string | null; }
 export type FulltextStatus = "metadata_only" | "local_pdf_available" | "open_access_available" | "unavailable";
 export interface LibraryItem { id: number; pmid: string; pmcid: string | null; doi: string | null; title: string | null; journal: string | null; year: number | null; document_id: number | null; source_search_id: number; fulltext_status: FulltextStatus; fulltext_status_reason: string; created_at: string; updated_at: string; }
 // ---------------------------------------------------------------------------
@@ -175,6 +198,7 @@ export interface ReadingOrder {
   result_id: number;
   order_source: ReadingOrderSource;
   generated_at: string;
+  duplicate_mode?: "all" | "consolidated";
   items: ReadingOrderItem[];
 }
 
@@ -182,6 +206,7 @@ export interface ReadingOrder {
 // 位置即顺序）；空列表表示"未调整过"，使用算法顺序。
 export interface ReadingOrderRequest {
   manual_order: string[];
+  duplicate_mode?: "all" | "consolidated";
 }
 const json = { headers: { "Content-Type": "application/json" } };
 export const literatureSearchApi = {
@@ -202,7 +227,14 @@ export const literatureSearchApi = {
     retmax: number;
   }) => apiRequest<LiteratureSearchTaskCreateResult>("/literature-search", { method: "POST", ...json, body: JSON.stringify(request) }),
   listTasks: (offset: number, limit: number) => apiRequest<LiteratureSearchTaskPage>(`/literature-search?offset=${offset}&limit=${limit}`),
-  rerunTask: (id: number) => apiRequest<LiteratureSearchTaskRerun>(`/literature-search/${id}/rerun`, { method: "POST" }),
+  getTask: (id: number) => apiRequest<LiteratureSearchTask>(`/literature-search/${id}`),
+  listHistory: (offset: number, limit: number) => apiRequest<LiteratureSearchHistoryPage>(`/literature-search/history?offset=${offset}&limit=${limit}`),
+  rerunTask: (id: number, retmax?: number) => apiRequest<LiteratureSearchTaskRerun>(
+    `/literature-search/${id}/rerun`,
+    retmax === undefined
+      ? { method: "POST" }
+      : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ retmax }) },
+  ),
   // 检索结果分页（R2-WP05）：白名单参数拼入 query，page_size 恒 ≤100。
   getResults: (id: number, params: ResultQueryParams) => {
     const query = new URLSearchParams();
@@ -217,18 +249,20 @@ export const literatureSearchApi = {
     query.set("sort", params.sort);
     query.set("page", String(params.page));
     query.set("page_size", String(params.page_size));
+    query.set("duplicate_mode", params.duplicate_mode);
     return apiRequest<LiteratureSearchResultPage>(`/literature-search/${id}/results?${query.toString()}`);
   },
   // 单条结果用户态读写（R2-WP05）：saved / read_status / tags / 自定义排序序号。
   updateItemState: (id: number, pmid: string, request: ItemStateUpdate) =>
     apiRequest<ItemStateRead>(`/literature-search/${id}/items/${pmid}/state`, { method: "PATCH", ...json, body: JSON.stringify(request) }),
-  deduplicateTask: (id: number) => apiRequest<DuplicateGroupList>(`/literature-search/${id}/deduplicate`, { method: "POST" }),
-  resolveDuplicateGroup: (id: number, request: DuplicateResolveRequest) =>
-    apiRequest<DuplicateGroup>(`/duplicate-groups/${id}/resolve`, { method: "POST", ...json, body: JSON.stringify(request) }),
+  getDeduplicationSummary: (id: number) => apiRequest<DeduplicationSummary>(`/literature-search/results/${id}/deduplication`),
+  runResultDeduplication: (id: number) => apiRequest<DeduplicationSummary>(`/literature-search/results/${id}/deduplication`, { method: "PUT" }),
+  listResultDuplicateGroups: (id: number, status = "pending_resolution", offset = 0, limit = 20) => apiRequest<DuplicateGroupPage>(`/literature-search/results/${id}/duplicate-groups?status=${status}&offset=${offset}&limit=${limit}`),
+  resolveResultDuplicateGroup: (resultId: number, groupId: number, request: ResultDuplicateResolutionRequest) => apiRequest<ResultDuplicateResolution>(`/literature-search/results/${resultId}/duplicate-groups/${groupId}/resolution`, { method: "POST", ...json, body: JSON.stringify(request) }),
   saveToLibrary: (id: number, pmid: string) => apiRequest<LibraryItem>(`/literature-results/${id}/save`, { method: "POST", ...json, body: JSON.stringify({ pmid }) }),
   // 推荐阅读顺序（R2-WP08）：生成（可带 manual_order）与保存人工顺序（全量替换）。
   generateReadingOrder: (id: number, request: ReadingOrderRequest = { manual_order: [] }) =>
     apiRequest<ReadingOrder>(`/literature-search/${id}/reading-order`, { method: "POST", ...json, body: JSON.stringify(request) }),
-  saveReadingOrder: (id: number, manualOrder: string[]) =>
-    apiRequest<ReadingOrder>(`/literature-search/${id}/reading-order/order`, { method: "PUT", ...json, body: JSON.stringify({ manual_order: manualOrder }) }),
+  saveReadingOrder: (id: number, manualOrder: string[], duplicateMode: "all" | "consolidated" = "all") =>
+    apiRequest<ReadingOrder>(`/literature-search/${id}/reading-order/order`, { method: "PUT", ...json, body: JSON.stringify({ manual_order: manualOrder, duplicate_mode: duplicateMode }) }),
 };

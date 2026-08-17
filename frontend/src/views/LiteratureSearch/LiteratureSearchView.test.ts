@@ -96,7 +96,7 @@ test("shows workspace title, tabs, and empty strategy state", async () => {
   expect(wrapper.text()).toContain("检索中心");
   expect(wrapper.text()).toContain("结果展示");
   expect(wrapper.text()).toContain("历史记录");
-  expect(wrapper.text()).toContain("推荐阅读");
+  expect(wrapper.text()).toContain("文献推荐");
   const resultTab = wrapper.get('button[role="tab"]:nth-child(2)');
   expect(resultTab.attributes("aria-disabled")).toBeUndefined();
   // 桌面工作区将 PICO 与连续策略面板作为同级区域，避免 PICO 占满一整行。
@@ -187,8 +187,10 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
       body: expect.stringContaining('AND chinese[la]'),
     }),
   );
+  const searchRequest = fetchMock.mock.calls.find(([url]) => url === "/api/v1/literature-search");
+  expect(JSON.parse(String(searchRequest?.[1]?.body)).retmax).toBe(500);
   expect(fetchMock).toHaveBeenCalledWith(
-    "/api/v1/literature-search/201/results?sort=relevance&page=1&page_size=20",
+    "/api/v1/literature-search/201/results?sort=relevance&page=1&page_size=100&duplicate_mode=all",
     undefined,
   );
   // 成功后保留文件 3 的固定标题与页签，仅在下方切换至内嵌结果内容。

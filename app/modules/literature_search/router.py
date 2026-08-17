@@ -8,13 +8,16 @@ from app.core.database import get_session
 from app.modules.literature_search.schema import (
     BuildQueryRequest,
     BuildQueryResponse,
+    DeduplicationSummary,
     DuplicateGroupList,
+    DuplicateGroupPage,
     DuplicateGroupRead,
     DuplicateResolveRequest,
     ExpandTermsRequest,
     ExpandTermsResponse,
     ItemStateRead,
     ItemStateUpdate,
+    LiteratureSearchHistoryList,
     LiteratureSearchResultPage,
     LiteratureSearchResultRead,
     LiteratureSearchTaskCreate,
@@ -22,11 +25,14 @@ from app.modules.literature_search.schema import (
     LiteratureSearchTaskList,
     LiteratureSearchTaskRead,
     LiteratureSearchTaskRerun,
+    LiteratureSearchTaskRerunRequest,
     ParseQueryRequest,
     ParseQueryResponse,
     ReadingOrderRead,
     ReadingOrderRequest,
     ReadingOrderSaveRequest,
+    ResultDuplicateResolutionRead,
+    ResultDuplicateResolutionRequest,
     ResultQueryParams,
     SearchExecuteRequest,
     SearchStrategyExport,
@@ -54,6 +60,16 @@ async def list_tasks(
     return await LiteratureSearchService(session).list_tasks(offset=offset, limit=limit)
 
 
+@router.get("/history", response_model=LiteratureSearchHistoryList)
+async def list_history(
+    offset: int = 0,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session),
+) -> LiteratureSearchHistoryList:
+    """Return one current research record per equivalent search strategy."""
+    return await LiteratureSearchService(session).list_history(offset=offset, limit=limit)
+
+
 @router.post("", response_model=LiteratureSearchTaskCreateResult, status_code=201)
 async def create_task(
     request: LiteratureSearchTaskCreate,
@@ -66,10 +82,14 @@ async def create_task(
 @router.post("/{id}/rerun", response_model=LiteratureSearchTaskRerun)
 async def rerun_task(
     id: int,
+    request: LiteratureSearchTaskRerunRequest | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> LiteratureSearchTaskRerun:
     """按持久化输入快照重跑任务，创建新结果版本并返回变化摘要。"""
-    return await LiteratureSearchService(session).rerun_task(id)
+    return await LiteratureSearchService(session).rerun_task(
+        id,
+        retmax=request.retmax if request is not None else None,
+    )
 
 
 @router.get("/{id}/strategy", response_model=SearchStrategyExport)
@@ -179,6 +199,59 @@ async def deduplicate_task(
     return await LiteratureSearchService(session).deduplicate_task(id)
 
 
+@router.put("/results/{result_id}/deduplication", response_model=DeduplicationSummary)
+async def deduplicate_result(
+    result_id: int, session: AsyncSession = Depends(get_session)
+) -> DeduplicationSummary:
+    """创建或复用指定结果快照的去重工作视图。"""
+    return await LiteratureSearchService(session).deduplicate_result(result_id)
+
+
+@router.get("/results/{result_id}/deduplication", response_model=DeduplicationSummary)
+async def get_deduplication_summary(
+    result_id: int, session: AsyncSession = Depends(get_session)
+) -> DeduplicationSummary:
+    """读取指定结果快照的去重摘要，不产生扫描副作用。"""
+    return await LiteratureSearchService(session).get_deduplication_summary(result_id)
+
+
+@router.get("/results/{result_id}/duplicate-groups", response_model=DuplicateGroupPage)
+async def list_result_duplicate_groups(
+    result_id: int,
+    status: str = "all",
+    offset: int = 0,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session),
+) -> DuplicateGroupPage:
+    """分页读取指定结果快照的去重组。
+
+    status 默认 all（待人工确认组优先排序）；可按组状态过滤。
+    """
+    return await LiteratureSearchService(session).list_result_duplicate_groups(
+        result_id, offset, limit, status
+    )
+
+
+@router.post(
+    "/results/{result_id}/duplicate-groups/{group_id}/resolution",
+    response_model=ResultDuplicateResolutionRead,
+)
+async def resolve_result_duplicate_group(
+    result_id: int,
+    group_id: int,
+    request: ResultDuplicateResolutionRequest,
+    session: AsyncSession = Depends(get_session),
+) -> ResultDuplicateResolutionRead:
+    """保存/撤销指定结果内重复组的人工判断，返回更新后的组与摘要。
+
+    merge 必须提供该组内真实存在的 canonical_record_key；group 不属于该
+    result 时返回 404，禁止跨结果修改。
+    """
+    return await LiteratureSearchService(session).resolve_result_duplicate_group(
+        result_id, group_id, request
+    )
+
+
 @duplicate_group_router.get("", response_model=DuplicateGroupList)
 async def list_duplicate_groups(
     session: AsyncSession = Depends(get_session),
@@ -212,7 +285,7 @@ async def generate_reading_order(
     "重新生成不覆盖人工顺序"；不携带则使用算法顺序或库中已保存顺序。
     """
     return await LiteratureSearchService(session).generate_reading_order(
-        id, request.manual_order
+        id, request.manual_order, request.duplicate_mode
     )
 
 
@@ -227,5 +300,5 @@ async def save_reading_order(
     保存后返回应用该人工顺序的阅读顺序（order_source="manual"）。
     """
     return await LiteratureSearchService(session).save_reading_order(
-        id, request.manual_order
+        id, request.manual_order, request.duplicate_mode
     )

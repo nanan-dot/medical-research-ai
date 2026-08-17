@@ -72,7 +72,12 @@ def test_configured_real_keys_do_not_appear_in_tracked_files():
     tracked_paths = [value for value in tracked_result.stdout.split("\0") if value]
     leaks: list[str] = []
     for relative in tracked_paths:
-        content = (REPOSITORY / relative).read_bytes()
+        tracked_path = REPOSITORY / relative
+        # 未提交删除的 tracked 文件仍会出现在 git ls-files 中，但它已不属于当前
+        # 工作区内容，也不可能泄露当前密钥；安全扫描应跳过，而不是中断整套验证。
+        if not tracked_path.is_file():
+            continue
+        content = tracked_path.read_bytes()
         for secret in secrets:
             if secret.encode() in content:
                 leaks.append(relative)

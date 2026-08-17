@@ -1,6 +1,6 @@
 """literature_search — 数据库访问"""
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -67,6 +67,14 @@ class LiteratureSearchRepository:
         )
         return result.scalar_one_or_none()
 
+    async def save_result(
+        self, entity: LiteratureSearchResult
+    ) -> LiteratureSearchResult:
+        """提交对结果字段（如 dedup_scanned_at 扫描标记）的更新。"""
+        await self.session.flush()
+        await self.session.refresh(entity)
+        return entity
+
     # ------------------------------------------------------------------
     # 检索任务（R2-WP04）
     # ------------------------------------------------------------------
@@ -89,9 +97,16 @@ class LiteratureSearchRepository:
         self, fingerprint: str
     ) -> LiteratureSearchTask | None:
         result = await self.session.execute(
-            select(LiteratureSearchTask).where(
-                LiteratureSearchTask.strategy_fingerprint == fingerprint
+            select(LiteratureSearchTask)
+            .where(LiteratureSearchTask.strategy_fingerprint == fingerprint)
+            .order_by(
+                func.coalesce(
+                    LiteratureSearchTask.searched_at,
+                    LiteratureSearchTask.created_at,
+                ).desc(),
+                LiteratureSearchTask.id.desc(),
             )
+            .limit(1)
         )
         return result.scalar_one_or_none()
 
@@ -99,6 +114,47 @@ class LiteratureSearchRepository:
         """读取旧任务以便首次按新规则认领其策略，不修改历史快照。"""
         result = await self.session.execute(select(LiteratureSearchTask))
         return list(result.scalars().all())
+
+    async def list_history(
+        self, offset: int, limit: int
+    ) -> tuple[list[LiteratureSearchTask], int]:
+        """数据库内按策略取最新任务后分页，避免全表读入服务内存。
+
+        migration 已为每个审计任务回填 canonical fingerprint。窗口函数先为同一
+        策略按最后运行时间排名，再由外层仅保留第一名；计数和分页都基于该
+        read-model，因此页边界不会重复出现同一研究工作记录。
+        """
+        last_run = func.coalesce(
+            LiteratureSearchTask.searched_at, LiteratureSearchTask.created_at
+        )
+        ranked_tasks = (
+            select(
+                LiteratureSearchTask.id.label("task_id"),
+                func.row_number()
+                .over(
+                    partition_by=LiteratureSearchTask.history_fingerprint,
+                    order_by=(last_run.desc(), LiteratureSearchTask.id.desc()),
+                )
+                .label("strategy_rank"),
+            )
+            .where(LiteratureSearchTask.history_fingerprint.is_not(None))
+            .cte("ranked_literature_search_tasks")
+        )
+        representative_ids = select(ranked_tasks.c.task_id).where(
+            ranked_tasks.c.strategy_rank == 1
+        )
+        total_result = await self.session.execute(
+            select(func.count()).select_from(representative_ids.subquery())
+        )
+        total = int(total_result.scalar_one())
+        result = await self.session.execute(
+            select(LiteratureSearchTask)
+            .where(LiteratureSearchTask.id.in_(representative_ids))
+            .order_by(last_run.desc(), LiteratureSearchTask.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all()), total
 
     async def list_tasks(
         self, offset: int = 0, limit: int = 20
@@ -255,6 +311,67 @@ class LiteratureSearchRepository:
         await self.session.refresh(entity)
         return entity
 
+    async def get_task_for_result(self, result_id: int) -> LiteratureSearchTask | None:
+        """返回关联结果的一个任务，仅用于兼容旧组的必填审计外键。"""
+        result = await self.session.execute(
+            select(LiteratureSearchTask)
+            .join(
+                LiteratureSearchResultVersion,
+                LiteratureSearchResultVersion.task_id == LiteratureSearchTask.id,
+            )
+            .where(LiteratureSearchResultVersion.result_id == result_id)
+            .order_by(LiteratureSearchResultVersion.id.asc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_result_duplicate_groups(
+        self, result_id: int, offset: int, limit: int, status: str | None = None
+    ) -> tuple[list[LiteratureDuplicateGroup], int]:
+        """只读取指定结果的工作视图组，避免历史跨任务数据泄漏。
+
+        status 为 None 或 "all" 时不按状态过滤，并按"待人工确认优先"排序，
+        保证默认列表先展示需要用户处理的模糊组。
+        """
+        query = select(LiteratureDuplicateGroup).where(LiteratureDuplicateGroup.result_id == result_id)
+        if status is not None and status != "all":
+            query = query.where(LiteratureDuplicateGroup.status == status)
+        count_result = await self.session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        result = await self.session.execute(
+            query.options(
+                selectinload(LiteratureDuplicateGroup.members),
+                selectinload(LiteratureDuplicateGroup.resolution),
+            )
+            .order_by(
+                case(
+                    (LiteratureDuplicateGroup.status == "pending_resolution", 0),
+                    else_=1,
+                ),
+                LiteratureDuplicateGroup.id.asc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all()), int(count_result.scalar_one())
+
+    async def get_result_duplicate_group_by_fingerprint(
+        self, result_id: int, fingerprint: str
+    ) -> LiteratureDuplicateGroup | None:
+        result = await self.session.execute(
+            select(LiteratureDuplicateGroup)
+            .where(
+                LiteratureDuplicateGroup.result_id == result_id,
+                LiteratureDuplicateGroup.fingerprint == fingerprint,
+            )
+            .options(
+                selectinload(LiteratureDuplicateGroup.members),
+                selectinload(LiteratureDuplicateGroup.resolution),
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def list_duplicate_groups(self) -> list[LiteratureDuplicateGroup]:
         result = await self.session.execute(
             select(LiteratureDuplicateGroup)
@@ -316,11 +433,12 @@ class LiteratureSearchRepository:
     # 阅读顺序人工顺序持久化（R2-WP08，manage-refs 融合）
     # ------------------------------------------------------------------
 
-    async def get_reading_order(self, result_id: int) -> LiteratureReadingOrder | None:
+    async def get_reading_order(self, result_id: int, duplicate_mode: str = "all") -> LiteratureReadingOrder | None:
         """读取某结果快照下的人工顺序记录（无则返回 None）。"""
         result = await self.session.execute(
             select(LiteratureReadingOrder).where(
-                LiteratureReadingOrder.result_id == result_id
+                LiteratureReadingOrder.result_id == result_id,
+                LiteratureReadingOrder.duplicate_mode == duplicate_mode,
             )
         )
         return result.scalar_one_or_none()
@@ -334,7 +452,7 @@ class LiteratureSearchRepository:
         后写避免 SQLite 的 INSERT OR REPLACE 触发外键级联删除（与
         upsert_item_state 的处理一致）。调用方须传入完整实体。
         """
-        existing = await self.get_reading_order(entity.result_id)
+        existing = await self.get_reading_order(entity.result_id, entity.duplicate_mode)
         if existing is not None:
             existing.manual_order_json = entity.manual_order_json
             existing.updated_at = entity.updated_at

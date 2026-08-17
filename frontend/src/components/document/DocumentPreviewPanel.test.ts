@@ -46,4 +46,12 @@ describe("DocumentPreviewPanel", () => {
     expect(wrapper.html()).toContain("&lt;img src=x onerror=alert(1)&gt;");
     expect(wrapper.find("img").exists()).toBe(false);
   });
+
+  it("explains when a PDF cannot enter annotation reading before parsing succeeds", () => {
+    const wrapper = mount(DocumentPreviewPanel, {
+      props: { loading: false, errorMessage: null, document: { parse_status: "pending" } as never, preview: { document_id: 9, kind: "pdf", content_url: "/api/v1/documents/9/original", blocks: [], tables: [], message: null } },
+    });
+    expect(wrapper.text()).toContain("PDF 尚未准备好阅读");
+    expect(wrapper.find("iframe").exists()).toBe(false);
+  });
 });

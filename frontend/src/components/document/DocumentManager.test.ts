@@ -1,5 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoryHistory, createRouter } from "vue-router";
 
 import DocumentManager from "./DocumentManager.vue";
 
@@ -58,6 +60,14 @@ function mountManager(): ReturnType<typeof mount> {
 }
 
 describe("DocumentManager", () => {
+  it("does not restore a direct document upload entry", () => {
+    const source = readFileSync("src/components/document/DocumentManager.vue", "utf8");
+
+    expect(source).not.toContain("DocumentUploadPanel");
+    expect(source).not.toContain("useDocumentUpload");
+    expect(source).not.toContain("uploadPdf");
+  });
+
   it("shows truthful failure state and retries parsing", async () => {
     const fetchMock = buildFetchMock(
       { items: [failedDocument], total: 1, offset: 0, limit: 20 }, // documents 列表
@@ -114,53 +124,28 @@ describe("DocumentManager", () => {
     ).toBe(true);
   });
 
-  it("uploads a PDF and reloads the document list", async () => {
-    const uploadedDocument = {
-      ...failedDocument,
-      id: 12,
-      file_path: "documents/managed.pdf",
-      original_filename: "uploaded.pdf",
-      media_type: "application/pdf",
-      parse_status: "pending",
-      index_status: "pending",
-      error_code: null,
-      error_message: null,
-    };
+  it("keeps sourceId in the URL and applies it to the document request", async () => {
     const fetchMock = buildFetchMock(
-      { items: [], total: 0, offset: 0, limit: 20 },                          // 挂载：documents
-      [],                                                                     // 挂载：knowledge-sources
-      {
-        document: uploadedDocument,
-        asset: {
-          id: 1,
-          asset_kind: "upload",
-          original_filename: "uploaded.pdf",
-          stored_relative_path: "documents/managed.pdf",
-          media_type: "application/pdf",
-          byte_size: 512,
-          sha256: "a".repeat(64),
-          processing_status: "pending_parse",
-          created_at: "2026-08-10T00:00:00Z",
-        },
-        auto_parse_started: false,
-        parse_trigger_url: "/api/v1/documents/12/parse",
-      }, // 上传接口 201
-      { items: [uploadedDocument], total: 1, offset: 0, limit: 20 },          // 上传后刷新 documents
+      { items: [], total: 0, offset: 0, limit: 20 },
+      [knowledgeSource],
+      { items: [], total: 0, offset: 0, limit: 20 },
     );
-    const wrapper = mountManager();
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: "/documents", component: { template: "<div />" } }],
+    });
+    await router.push("/documents?sourceId=1");
+    await router.isReady();
+
+    const wrapper = mount(DocumentManager, { global: { plugins: [router] } });
     await flushPromises();
 
-    const input = wrapper.get(".upload-panel input[type=file]").element as HTMLInputElement;
-    const pdf = new File(["%PDF-1.7"], "uploaded.pdf", { type: "application/pdf" });
-    Object.defineProperty(input, "files", { configurable: true, value: [pdf] });
-    await wrapper.get(".upload-panel input[type=file]").trigger("change");
+    expect(String(fetchMock.mock.calls[0][0])).toContain("knowledge_source_id=1");
+    await wrapper.find(".scope-item").trigger("click");
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/document-uploads",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/documents?"))).toBe(true);
-    expect(wrapper.text()).toContain("uploaded.pdf");
+    expect(router.currentRoute.value.fullPath).toBe("/documents");
+    expect(fetchMock.mock.calls.some(([url]) => !String(url).includes("knowledge_source_id=1"))).toBe(true);
   });
+
 });

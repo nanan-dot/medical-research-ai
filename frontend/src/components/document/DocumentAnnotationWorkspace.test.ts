@@ -48,7 +48,7 @@ describe("DocumentAnnotationWorkspace", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify([annotation])));
     vi.stubGlobal("fetch", fetchMock);
     const wrapper = mount(DocumentAnnotationWorkspace, {
-      props: { document: documentRecord, sourceUrl: "/api/v1/documents/7/original" },
+      props: { document: documentRecord, sourceUrl: "/api/v1/documents/7/original", summary: null, actionLoading: false },
       global: {
         stubs: {
           PdfAnnotationReader: {
@@ -60,6 +60,7 @@ describe("DocumentAnnotationWorkspace", () => {
     });
     await flushPromises();
 
+    await wrapper.get('[role="tab"][aria-controls="document-annotations-panel"]').trigger("click");
     await wrapper.get(".select-text").trigger("click");
     await wrapper.get(".save-button").trigger("click");
     await flushPromises();
@@ -76,5 +77,17 @@ describe("DocumentAnnotationWorkspace", () => {
       selected_text: "研究对象",
     });
     expect(wrapper.text()).toContain("研究对象");
+  });
+
+  it("keeps the captured PDF selection after switching to the annotation tab", async () => {
+    const wrapper = mount(DocumentAnnotationWorkspace, {
+      props: { document: documentRecord, sourceUrl: "/api/v1/documents/7/original", summary: null, actionLoading: false },
+      global: { stubs: { PdfAnnotationReader: { emits: ["selectionChange"], template: "<button class='select-text' @click=\"$emit('selectionChange', { pageNumber: 1, rectangles: [{ left: .1, top: .2, width: .3, height: .04 }], selectedText: '研究对象' })\">选择文本</button>" } } },
+    });
+    await flushPromises();
+    await wrapper.get(".select-text").trigger("click");
+    await wrapper.get('[role="tab"][aria-controls="document-annotations-panel"]').trigger("click");
+    expect(wrapper.text()).toContain("第 1 页：研究对象");
+    expect(wrapper.get(".save-button").attributes("disabled")).toBeUndefined();
   });
 });

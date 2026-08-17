@@ -61,6 +61,7 @@ class _ScriptedExecutor:
     def __init__(self) -> None:
         self.steps: list[tuple[list[CitationItem], int] | Exception] = []
         self.index = 0
+        self.retmax_values: list[int] = []
 
     def enqueue(self, items: list[CitationItem], total_count: int) -> None:
         self.steps.append((items, total_count))
@@ -69,6 +70,7 @@ class _ScriptedExecutor:
         self.steps.append(exc)
 
     async def execute(self, query: str, *, retmax: int = 20):
+        self.retmax_values.append(retmax)
         if self.index >= len(self.steps):
             raise AssertionError("executor called more times than scripted steps")
         step = self.steps[self.index]
@@ -126,6 +128,7 @@ async def api_client(tmp_path, monkeypatch):
     finally:
         app.dependency_overrides.clear()
         await engine.dispose()
+
 
 
 def test_create_task_persists_input_snapshot_and_search_string(api_client):
@@ -307,6 +310,24 @@ def test_rerun_creates_new_version_without_overwriting(api_client):
     assert detail["versions"][1]["change"]["removed_pmids"] == ["10001"]
 
 
+def test_rerun_accepts_a_larger_execution_limit_without_mutating_the_saved_snapshot(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10001"), _item("10002")], 2)
+
+    created = client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+    task_id = created.json()["id"]
+
+    rerun = client.post(
+        f"/api/v1/literature-search/{task_id}/rerun",
+        json={"retmax": 500},
+    )
+
+    assert rerun.status_code == 200
+    assert executor.retmax_values == [20, 500]
+    assert rerun.json()["task"]["retmax"] == 20
+
+
 def test_rerun_reports_result_count_delta(api_client):
     client, executor = api_client
     executor.enqueue([_item("10001"), _item("10002")], 5)
@@ -347,7 +368,10 @@ def test_list_tasks_paginates_and_orders_by_recency(api_client):
         executor.enqueue([_item(f"{i:05d}")], 1)
         client.post(
             "/api/v1/literature-search",
-            json={**TASK_PAYLOAD, "original_query": f"{TASK_PAYLOAD['original_query']} {i}"},
+            json={
+                **TASK_PAYLOAD,
+                "original_query": f"{TASK_PAYLOAD['original_query']} {i}",
+            },
         )
 
     page1 = client.get("/api/v1/literature-search", params={"offset": 0, "limit": 2})
@@ -362,6 +386,89 @@ def test_list_tasks_paginates_and_orders_by_recency(api_client):
     page2 = client.get("/api/v1/literature-search", params={"offset": 2, "limit": 2})
     assert page2.status_code == 200
     assert len(page2.json()["items"]) == 1
+
+
+def test_history_endpoint_returns_one_research_record_for_reused_strategy(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 1)
+
+    client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+    client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+
+    history = client.get("/api/v1/literature-search/history", params={"offset": 0, "limit": 10})
+    assert history.status_code == 200
+    payload = history.json()
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    item = payload["items"][0]
+    assert item["original_query"] == TASK_PAYLOAD["original_query"]
+    assert item["latest_result_id"] is not None
+    assert item["latest_change"]["added_count"] == 1
+    assert "search_string" not in item
+
+
+def test_history_endpoint_groups_same_topic_with_different_result_limits(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 2)
+    client.post("/api/v1/literature-search", json={**TASK_PAYLOAD, "retmax": 20})
+    latest = client.post("/api/v1/literature-search", json={**TASK_PAYLOAD, "retmax": 10}).json()
+
+    payload = client.get("/api/v1/literature-search/history").json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["id"] == latest["id"]
+    assert payload["items"][0]["result_count"] == 2
+
+
+def test_history_groups_distinct_audit_tasks_when_only_result_limit_changes(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 2)
+
+    first = client.post(
+        "/api/v1/literature-search", json={**TASK_PAYLOAD, "retmax": 20}
+    ).json()
+    repeated = client.post(
+        "/api/v1/literature-search", json={**TASK_PAYLOAD, "retmax": 10}
+    ).json()
+
+    assert repeated["operation"] == "created"
+    assert repeated["id"] != first["id"]
+    history = client.get("/api/v1/literature-search/history").json()
+    assert history["total"] == 1
+    assert history["items"][0]["id"] == repeated["id"]
+
+
+def test_history_endpoint_keeps_same_topic_with_different_query_strategies(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10002")], 1)
+
+    client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+    client.post(
+        "/api/v1/literature-search",
+        json={**TASK_PAYLOAD, "search_string": "a distinct PubMed query"},
+    )
+
+    payload = client.get("/api/v1/literature-search/history").json()
+    assert payload["total"] == 2
+    assert {item["original_query"] for item in payload["items"]} == {
+        TASK_PAYLOAD["original_query"]
+    }
+
+
+def test_history_endpoint_keeps_zero_change_without_a_ui_specific_marker(api_client):
+    client, executor = api_client
+    executor.enqueue([_item("10001")], 1)
+    executor.enqueue([_item("10001")], 1)
+    client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+    client.post("/api/v1/literature-search", json=TASK_PAYLOAD)
+
+    item = client.get("/api/v1/literature-search/history").json()["items"][0]
+    assert item["latest_change"]["count_delta"] == 0
+    assert item["latest_change"]["added_count"] == 0
+    assert item["latest_change"]["removed_count"] == 0
 
 
 def test_export_strategy_requires_successful_search(api_client):

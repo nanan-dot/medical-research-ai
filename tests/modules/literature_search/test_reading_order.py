@@ -449,3 +449,24 @@ def test_reading_order_missing_result_returns_404(api_client):
     client, _executor = api_client
     missing = client.post("/api/v1/literature-search/99999/reading-order", json={})
     assert missing.status_code == 404
+
+
+def test_reading_order_keeps_manual_orders_isolated_by_duplicate_mode(api_client):
+    client, executor = api_client
+    result_id = _seed_result(client, executor, [_item("same"), _item("same"), _item("other")])
+    client.put(f"/api/v1/literature-search/results/{result_id}/deduplication")
+    all_saved = client.put(
+        f"/api/v1/literature-search/{result_id}/reading-order/order",
+        json={"manual_order": ["other", "same"], "duplicate_mode": "all"},
+    )
+    consolidated = client.post(
+        f"/api/v1/literature-search/{result_id}/reading-order",
+        json={"duplicate_mode": "consolidated"},
+    )
+    assert all_saved.status_code == 200
+    assert consolidated.status_code == 200
+    assert all_saved.json()["duplicate_mode"] == "all"
+    assert consolidated.json()["duplicate_mode"] == "consolidated"
+    assert consolidated.json()["order_source"] == "rule"
+    # consolidated 视图不含被折叠的重复成员，只有规范记录与独立条目。
+    assert [entry["pmid"] for entry in consolidated.json()["items"]] == ["same", "other"]

@@ -1,7 +1,10 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import RecommendationsView from "./RecommendationsView.vue";
+
+beforeEach(() => window.localStorage.clear());
+afterEach(() => vi.unstubAllGlobals());
 
 const citation = (overrides = {}) => ({
   pmid: "12345678",
@@ -45,6 +48,24 @@ test("submits the topic to the recommendations API and renders server reason", a
   );
   expect(wrapper.text()).toContain("Exact server recommendation reason.");
   expect(wrapper.text()).toContain("Server returned citation title");
+});
+
+test("restores the last real server response from this browser after remount", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(response())));
+  vi.stubGlobal("fetch", fetchMock);
+  const first = mount(RecommendationsView);
+  await first.get("textarea").setValue("test topic");
+  await first.get("form").trigger("submit");
+  await flushPromises();
+  first.unmount();
+
+  const restored = mount(RecommendationsView);
+  await flushPromises();
+  expect(restored.text()).toContain("Server returned citation title");
+  expect(restored.text()).toContain("已保存在本浏览器");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  await restored.get(".clear-saved").trigger("click");
+  expect(window.localStorage.getItem("rag-medicine:recommendations:last-response")).toBeNull();
 });
 
 test("discloses only a returned abstract and makes missing abstracts unavailable", async () => {

@@ -57,7 +57,7 @@ provide<() => void>("openSearch", openSearch);
 .skip-link:focus { transform: translateY(0); }
 .shell { display: grid; grid-template-columns: auto minmax(0, 1fr); min-height: 100vh; background: var(--page-bg); }
 .work { min-width: 0; }
-.content { min-height: calc(100vh - 65px); }
+.content { min-height: calc(100vh - var(--topbar-height)); }
 .document-knowledge-shell { width: min(100% - 3rem, 1440px); margin: 0 auto; padding-top: 1.5rem; }
 .page-enter-active, .page-leave-active { transition: opacity .18s ease, transform .18s ease; }
 .page-enter-from { opacity: 0; transform: translateY(8px); }

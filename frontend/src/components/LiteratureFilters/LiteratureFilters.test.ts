@@ -4,47 +4,34 @@ import { expect, test } from "vitest";
 import type { ResultFilterValues } from "../../api/literatureSearch";
 import LiteratureFilters from "./LiteratureFilters.vue";
 
-const emptyFilters: ResultFilterValues = {
-  year: null,
-  publication_type: "",
-  journal: "",
-  author: "",
-  has_abstract: null,
-  saved: null,
-  read_status: "",
-  tags: "",
-  sort: "relevance",
+const filters: ResultFilterValues = {
+  year: null, publication_type: "", journal: "", author: "", has_abstract: null,
+  saved: null, read_status: "", tags: "", sort: "relevance",
 };
 
-test("applies a combined filter set and resets filters", async () => {
-  const wrapper = mount(LiteratureFilters, { props: { filters: emptyFilters, disabled: false } });
+test("keeps sorting rationale collapsed until the user requests it", async () => {
+  const wrapper = mount(LiteratureFilters, { props: { filters, disabled: false } });
+  const help = wrapper.get(".sort-help");
 
-  await wrapper.get('input[placeholder="如 Nature Medicine"]').setValue("nature medicine");
-  await wrapper.get('select').setValue("true");
-  await wrapper.get('input[placeholder="如 Meta-Analysis"]').setValue("Meta-Analysis");
-  await wrapper.get("form").trigger("submit");
+  expect(help.get("summary").text()).toBe("排序依据");
+  expect(help.attributes("open")).toBeUndefined();
 
-  const applies = wrapper.emitted("apply");
-  expect(applies?.at(-1)?.[0]).toEqual(
-    expect.objectContaining({
-      journal: "nature medicine",
-      has_abstract: true,
-      publication_type: "Meta-Analysis",
-    }),
-  );
-
-  await wrapper.get('button[type="button"]').trigger("click");
-  const resets = wrapper.emitted("apply");
-  expect(resets?.at(-1)?.[0]).toEqual(
-    expect.objectContaining({ journal: "", has_abstract: null, publication_type: "" }),
-  );
+  await help.get("summary").trigger("click");
+  expect(help.attributes("open")).toBeDefined();
+  expect(help.text()).toContain("按 PubMed 本次返回顺序展示");
 });
 
-test("keeps the sort choice across a reset", async () => {
-  const wrapper = mount(LiteratureFilters, { props: { filters: emptyFilters, disabled: false } });
-  const sortSelect = wrapper.findAll("select").at(-1)!;
-  await sortSelect.setValue("classic");
-  await wrapper.get('button[type="button"]').trigger("click");
-  const resets = wrapper.emitted("apply");
-  expect(resets?.at(-1)?.[0]).toEqual(expect.objectContaining({ sort: "classic" }));
+test("updates sorting rationale and still emits apply when sorting changes", async () => {
+  const wrapper = mount(LiteratureFilters, { props: { filters, disabled: false } });
+  await wrapper.get(".sort-control select").setValue("classic");
+
+  expect(wrapper.emitted("apply")?.[0][0]).toMatchObject({ sort: "classic" });
+  await wrapper.get(".sort-help summary").trigger("click");
+  expect(wrapper.get(".sort-help").text()).toContain("不代表临床证据更强");
+});
+
+test("uses native accessible controls for sort and rationale disclosure", () => {
+  const wrapper = mount(LiteratureFilters, { props: { filters, disabled: false } });
+  expect(wrapper.get(".sort-control select").element.tagName).toBe("SELECT");
+  expect(wrapper.get(".sort-help summary").element.tagName).toBe("SUMMARY");
 });

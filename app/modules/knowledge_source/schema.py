@@ -87,3 +87,18 @@ class KnowledgeSourceSyncSummary(BaseModel):
     skipped: int
     failed: int
     error_message: str | None
+
+
+class KnowledgeSourceDirectoryBrowseRead(BaseModel):
+    """授权目录选择器的结果；取消选择时路径为空。"""
+
+    path: str | None
+
+
+class KnowledgeSourceDocumentImportRead(BaseModel):
+    """单篇导入完成后返回文档与归属知识库。"""
+
+    document_id: int
+    knowledge_source_id: int
+    original_filename: str
+    stored_relative_path: str

@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Literal, cast
 
+from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,12 @@ from app.modules.library_item.repository import LibraryItemRepository
 from app.modules.library_item.schema import LibraryItemRead
 from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
-from app.modules.literature_search.dedup import DedupRecord, find_duplicate_candidates
+from app.modules.literature_search.dedup import (
+    DedupRecord,
+    DuplicateCandidate,
+    find_duplicate_candidates,
+    select_canonical_record,
+)
 from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.model import (
     LiteratureDuplicateGroup,
@@ -52,14 +58,18 @@ from app.modules.literature_search.repository import LiteratureSearchRepository
 from app.modules.literature_search.schema import (
     BooleanQueryResult,
     CitationItem,
+    DeduplicationSummary,
     DuplicateGroupList,
     DuplicateGroupMemberRead,
+    DuplicateGroupPage,
     DuplicateGroupRead,
     DuplicateResolutionRead,
     DuplicateResolveRequest,
     ExpandTermsResponse,
     ItemStateRead,
     ItemStateUpdate,
+    LiteratureSearchHistoryEntry,
+    LiteratureSearchHistoryList,
     LiteratureSearchResultPage,
     LiteratureSearchResultRead,
     LiteratureSearchTaskCreate,
@@ -74,6 +84,8 @@ from app.modules.literature_search.schema import (
     ReadingOrderItem,
     ReadingOrderRead,
     ReadStatus,
+    ResultDuplicateResolutionRead,
+    ResultDuplicateResolutionRequest,
     ResultQueryParams,
     SearchExecuteRequest,
     SearchResultChange,
@@ -158,15 +170,35 @@ def strategy_fingerprint_from_snapshot(
     user_edits: str, model_version: str, structured_query: str,
     original_query: str,
 ) -> str:
-    """Return a stable SHA-256 digest for exact reproducible strategy inputs."""
+    """返回精确任务身份，供复用与跨任务去重边界使用。"""
     snapshot = {
-        "database": database, "search_string": search_string,
-        "filters": _canonical_json(filters), "retmax": retmax,
-        "user_edits": normalize_user_edits(user_edits), "model_version": model_version,
+        "database": database,
+        "search_string": search_string,
+        "filters": _canonical_json(filters),
+        "retmax": retmax,
+        "user_edits": normalize_user_edits(user_edits),
+        "model_version": model_version,
         "structured_query": _canonical_json(structured_query),
         "original_query": original_query,
     }
     canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def history_fingerprint_from_snapshot(
+    *, database: str, search_string: str, filters: str
+) -> str:
+    """返回主历史 read-model 的 PubMed 条件身份。"""
+    canonical = json.dumps(
+        {
+            "database": database,
+            "search_string": search_string,
+            "filters": _canonical_json(filters),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
@@ -336,6 +368,11 @@ class LiteratureSearchService:
             user_edits=request.user_edits,
             retmax=request.retmax,
             strategy_fingerprint=fingerprint,
+            history_fingerprint=history_fingerprint_from_snapshot(
+                database=request.database,
+                search_string=request.search_string,
+                filters=request.filters,
+            ),
             status=STATUS_PENDING,
             created_at=now,
         )
@@ -403,7 +440,40 @@ class LiteratureSearchService:
             total=total, offset=offset, limit=limit, items=items
         )
 
-    async def rerun_task(self, id: int) -> LiteratureSearchTaskRerun:
+    async def list_history(
+        self, offset: int = 0, limit: int = 20
+    ) -> LiteratureSearchHistoryList:
+        """返回每个 canonical 策略的最新工作记录。
+
+        分组、取最新和分页均由 repository 的 SQL 窗口查询完成；旧任务及其
+        结果快照仍保持独立审计行，read-model 只决定主历史页的可见入口。
+        """
+        page_tasks, total = await self.repo.list_history(offset=offset, limit=limit)
+        entries: list[LiteratureSearchHistoryEntry] = []
+        for task in page_tasks:
+            task_read = await self._to_task_read(task)
+            entries.append(
+                LiteratureSearchHistoryEntry(
+                    id=task_read.id,
+                    original_query=task_read.original_query,
+                    result_count=task_read.result_count,
+                    status=task_read.status,
+                    error_message=task_read.error_message,
+                    searched_at=task_read.searched_at,
+                    latest_result_id=task_read.latest_result_id,
+                    latest_change=(task_read.versions[-1].change if task_read.versions else None),
+                )
+            )
+        return LiteratureSearchHistoryList(
+            total=total, offset=offset, limit=limit, items=entries
+        )
+
+    async def rerun_task(
+        self,
+        id: int,
+        *,
+        retmax: int | None = None,
+    ) -> LiteratureSearchTaskRerun:
         """重跑任务：按持久化的输入快照重新检索，创建新结果版本，不覆盖旧版本。
 
         设计说明：重跑前对比旧版本（get_latest_version）与新结果，输出变化摘要
@@ -415,7 +485,7 @@ class LiteratureSearchService:
         if entity is None:
             raise NotFoundError(f"LiteratureSearchTask not found: {id}")
         previous = await self.repo.get_latest_version(id)
-        await self._run_task(entity, entity.retmax)
+        await self._run_task(entity, retmax if retmax is not None else entity.retmax)
         updated = await self.repo.get_task(id)
         new_version = await self.repo.get_latest_version(id)
         if updated is None:
@@ -573,6 +643,7 @@ class LiteratureSearchService:
             created_at=entity.created_at,
             searched_at=entity.searched_at,
             latest_result_id=entity.latest_result_id,
+            strategy_fingerprint=entity.strategy_fingerprint,
             versions=version_reads,
         )
 
@@ -619,9 +690,7 @@ class LiteratureSearchService:
         entity = await self.repo.get_result(id)
         if entity is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {id}")
-        items = [
-            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
-        ]
+        items = await self._project_result_items(entity, params.duplicate_mode)
         state_map = await self.repo.get_item_states(id)
         filtered = filtering.apply_filters(
             items,
@@ -650,6 +719,8 @@ class LiteratureSearchService:
             page=params.page,
             page_size=params.page_size,
             sort=params.sort,
+            duplicate_mode=params.duplicate_mode,
+            hidden_duplicate_count=len(self._result_items(entity)) - len(items),
             items=[
                 self._ranked_with_state(entry, state_map).model_copy(
                     update={
@@ -731,6 +802,7 @@ class LiteratureSearchService:
         self,
         result_id: int,
         manual_order: list[str],
+        duplicate_mode: Literal["all", "consolidated"] = "all",
     ) -> ReadingOrderRead:
         """生成基于规则特征的分层阅读顺序。
 
@@ -744,13 +816,12 @@ class LiteratureSearchService:
         entity = await self.repo.get_result(result_id)
         if entity is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
-        items = [
-            CitationItem.model_validate(item) for item in json.loads(entity.items_json)
-        ]
+        items = await self._project_result_items(entity, duplicate_mode)
         if not items:
             return ReadingOrderRead(
                 result_id=result_id,
                 order_source="rule",
+                duplicate_mode=duplicate_mode,
                 generated_at=datetime.now(UTC),
                 items=[],
             )
@@ -779,7 +850,7 @@ class LiteratureSearchService:
 
         # 人工顺序优先：POST 请求携带的 manual_order 覆盖算法顺序；
         # 未携带（空列表）时读库中已保存的人工顺序（重新生成不覆盖）。
-        effective_manual = manual_order or await self._saved_manual_order(result_id)
+        effective_manual = manual_order or await self._saved_manual_order(result_id, duplicate_mode)
         algorithm_ranked = rank_reading_order(classified)
         ordered = apply_manual_order(algorithm_ranked, effective_manual)
         # order_source 收敛为 Literal["rule", "manual"]：有人工顺序则 manual 优先。
@@ -790,6 +861,7 @@ class LiteratureSearchService:
         return ReadingOrderRead(
             result_id=result_id,
             order_source=order_source,
+            duplicate_mode=duplicate_mode,
             generated_at=datetime.now(UTC),
             items=[
                 ReadingOrderItem(
@@ -808,7 +880,7 @@ class LiteratureSearchService:
         )
 
     async def save_reading_order(
-        self, result_id: int, manual_order: list[str]
+        self, result_id: int, manual_order: list[str], duplicate_mode: Literal["all", "consolidated"] = "all"
     ) -> ReadingOrderRead:
         """保存用户拖拽后的人工顺序并返回应用该顺序的阅读顺序。
 
@@ -825,20 +897,21 @@ class LiteratureSearchService:
         await self.repo.upsert_reading_order(
             LiteratureReadingOrder(
                 result_id=result_id,
+                duplicate_mode=duplicate_mode,
                 manual_order_json=json.dumps(manual_order, ensure_ascii=False),
                 created_at=now,
                 updated_at=now,
             )
         )
-        return await self.generate_reading_order(result_id, manual_order)
+        return await self.generate_reading_order(result_id, manual_order, duplicate_mode)
 
-    async def _saved_manual_order(self, result_id: int) -> list[str]:
+    async def _saved_manual_order(self, result_id: int, duplicate_mode: str = "all") -> list[str]:
         """读取库中已保存的人工顺序；不存在时返回空列表。
 
         manual_order_json 是 JSON 数组字符串，解析失败（旧数据/手工编辑）
         时兜底为空列表，保证损坏的人工顺序不阻塞阅读顺序生成。
         """
-        saved = await self.repo.get_reading_order(result_id)
+        saved = await self.repo.get_reading_order(result_id, duplicate_mode)
         if saved is None:
             return []
         try:
@@ -855,7 +928,7 @@ class LiteratureSearchService:
             raise NotFoundError(f"LiteratureSearchTask not found: {task_id}")
         await self.repo.delete_groups_for_task(task_id)
         for candidate in find_duplicate_candidates(await self._dedup_records()):
-            canonical = candidate.records[0]
+            canonical = select_canonical_record(candidate.records)
             canonical_result_id = int(canonical.record_id.split(":", maxsplit=1)[0])
             group = LiteratureDuplicateGroup(
                 trigger_task_id=task_id,
@@ -886,6 +959,191 @@ class LiteratureSearchService:
             await self.repo.create_duplicate_group(group)
         return await self.list_duplicate_groups()
 
+    async def deduplicate_result(self, result_id: int) -> DeduplicationSummary:
+        """扫描一个不可变结果快照，并仅维护该快照的去重工作视图。"""
+        result = await self.repo.get_result(result_id)
+        if result is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        task = await self.repo.get_task_for_result(result_id)
+        if task is None:
+            raise NotFoundError(f"LiteratureSearchTask not found for result: {result_id}")
+        records = self._result_dedup_records(result)
+        for candidate in find_duplicate_candidates(records):
+            fingerprint = self._candidate_fingerprint(candidate)
+            if (
+                await self.repo.get_result_duplicate_group_by_fingerprint(
+                    result_id, fingerprint
+                )
+                is not None
+            ):
+                continue
+            canonical = select_canonical_record(candidate.records)
+            group = LiteratureDuplicateGroup(
+                trigger_task_id=task.id,
+                result_id=result_id,
+                fingerprint=fingerprint,
+                match_method=candidate.match_method,
+                confidence=candidate.confidence,
+                status=(
+                    "auto_merged"
+                    if candidate.confidence == "clear"
+                    else "pending_resolution"
+                ),
+            )
+            for record in candidate.records:
+                group.members.append(
+                    LiteratureDuplicateGroupMember(
+                        result_id=result_id,
+                        record_pmid=record.item.pmid,
+                        record_key=record.record_id,
+                        position=self._record_position(record.record_id),
+                        source_search_ids_json=json.dumps([task.id]),
+                        canonical_result_id=(
+                            result_id if candidate.confidence == "clear" else None
+                        ),
+                        canonical_record_pmid=(
+                            canonical.item.pmid
+                            if candidate.confidence == "clear"
+                            else None
+                        ),
+                        canonical_record_key=(
+                            canonical.record_id if candidate.confidence == "clear" else None
+                        ),
+                    )
+                )
+            await self.repo.create_duplicate_group(group)
+        # 无论是否产生组都打上扫描标记，使"已扫描但无重复"与"从未扫描"可区分。
+        if result.dedup_scanned_at is None:
+            result.dedup_scanned_at = datetime.now(UTC)
+            await self.repo.save_result(result)
+        return await self.get_deduplication_summary(result_id)
+
+    async def get_deduplication_summary(self, result_id: int) -> DeduplicationSummary:
+        """读取摘要时绝不触发扫描，未扫描快照返回稳定的空摘要。"""
+        result = await self.repo.get_result(result_id)
+        if result is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        groups, _total = await self.repo.list_result_duplicate_groups(
+            result_id, 0, 10000, "all"
+        )
+        scanned_count = len(self._result_items(result))
+        hidden = sum(
+            len(group.members) - 1
+            for group in groups
+            if group.status in {"auto_merged", "resolved_merged"}
+        )
+        return DeduplicationSummary(
+            result_id=result_id,
+            scanned_count=scanned_count,
+            source_visible_count=scanned_count,
+            consolidated_visible_count=scanned_count - hidden,
+            hidden_record_count=hidden,
+            clear_group_count=sum(group.confidence == "clear" for group in groups),
+            pending_group_count=sum(
+                group.status == "pending_resolution" for group in groups
+            ),
+            resolved_merge_group_count=sum(
+                group.status == "resolved_merged" for group in groups
+            ),
+            resolved_keep_all_group_count=sum(
+                group.status == "resolved_keep_all" for group in groups
+            ),
+            has_scan=result.dedup_scanned_at is not None,
+            generated_at=result.dedup_scanned_at,
+        )
+
+    async def list_result_duplicate_groups(
+        self, result_id: int, offset: int, limit: int, status: str | None = "all"
+    ) -> DuplicateGroupPage:
+        """分页返回单一结果快照的重复组，不混入任何历史结果。
+
+        status 默认 "all"（不加过滤）；过滤时按组状态精确匹配。
+        """
+        result = await self.repo.get_result(result_id)
+        if result is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        groups, total = await self.repo.list_result_duplicate_groups(
+            result_id, offset, limit, status
+        )
+        items = self._result_items(result)
+        return DuplicateGroupPage(
+            total=total,
+            offset=offset,
+            limit=limit,
+            items=[
+                self._enrich_duplicate_group_read(
+                    self._to_duplicate_group_read(group), items
+                )
+                for group in groups
+            ],
+        )
+
+    async def resolve_result_duplicate_group(
+        self, result_id: int, group_id: int, request: ResultDuplicateResolutionRequest
+    ) -> ResultDuplicateResolutionRead:
+        group = await self.repo.get_duplicate_group(group_id)
+        if group is None or group.result_id != result_id:
+            raise NotFoundError(f"Duplicate group not found for result: {result_id}")
+        canonical_pmid: str | None = None
+        if request.action == "merge":
+            if not request.canonical_record_key:
+                raise HTTPException(
+                    status_code=422, detail="merge requires canonical_record_key"
+                )
+            canonical_member = next(
+                (
+                    member
+                    for member in group.members
+                    if member.record_key == request.canonical_record_key
+                ),
+                None,
+            )
+            if canonical_member is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="canonical_record_key is not a member of the duplicate group",
+                )
+            canonical_pmid = canonical_member.record_pmid
+        legacy_action = {
+            "merge": "keep_record",
+            "keep_all": "keep_all",
+            "undo": "undo",
+        }[request.action]
+        resolved = await self.resolve_duplicate_group(
+            group_id,
+            DuplicateResolveRequest(
+                action=cast(
+                    "Literal['keep_record', 'keep_all', 'merge_all', 'undo']",
+                    legacy_action,
+                ),
+                canonical_result_id=result_id if request.action == "merge" else None,
+                canonical_record_pmid=canonical_pmid,
+                resolved_by=request.resolved_by,
+            ),
+        )
+        result = await self.repo.get_result(result_id)
+        if result is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        return ResultDuplicateResolutionRead(
+            group=self._enrich_duplicate_group_read(resolved, self._result_items(result)),
+            summary=await self.get_deduplication_summary(result_id),
+        )
+
+    async def _project_result_items(self, result: LiteratureSearchResult, duplicate_mode: str) -> list[CitationItem]:
+        items = self._result_items(result)
+        if duplicate_mode == "all":
+            return items
+        groups, _ = await self.repo.list_result_duplicate_groups(result.id, 0, 10000, "all")
+        hidden_positions: set[int] = set()
+        for group in groups:
+            if group.status not in {"auto_merged", "resolved_merged"}:
+                continue
+            canonical_key = next((member.canonical_record_key for member in group.members if member.canonical_record_key), None)
+            if canonical_key is None:
+                canonical_key = next((member.record_key for member in group.members if member.canonical_record_pmid == member.record_pmid), None)
+            hidden_positions.update(member.position - 1 for member in group.members if member.position is not None and member.record_key != canonical_key)
+        return [item for position, item in enumerate(items) if position not in hidden_positions]
+
     async def list_duplicate_groups(self) -> DuplicateGroupList:
         return DuplicateGroupList(
             items=[
@@ -903,12 +1161,28 @@ class LiteratureSearchService:
         if request.action == "undo":
             if group.resolution is not None:
                 await self.repo.delete_duplicate_resolution(group.resolution)
-            for member in group.members:
-                member.canonical_result_id = None
-                member.canonical_record_pmid = None
-            group.status = (
-                "pending_resolution" if group.confidence == "fuzzy" else "auto_merged"
-            )
+            if group.confidence == "fuzzy":
+                # fuzzy 仅是待人工确认的候选，撤销后必须抹去人工决策，恢复全部可见。
+                for member in group.members:
+                    member.canonical_result_id = None
+                    member.canonical_record_pmid = None
+                    member.canonical_record_key = None
+                group.status = "pending_resolution"
+            else:
+                # clear 是系统确定性归并；撤销人工改选时须从不可变快照重算，不能沿用旧选择。
+                clear_canonical = await self._select_clear_group_canonical(group)
+                if clear_canonical is None:
+                    # 旧跨任务组没有结果级稳定键，保留兼容行为且避免撤销接口异常。
+                    for member in group.members:
+                        member.canonical_result_id = None
+                        member.canonical_record_pmid = None
+                        member.canonical_record_key = None
+                else:
+                    for member in group.members:
+                        member.canonical_result_id = group.result_id
+                        member.canonical_record_pmid = clear_canonical.item.pmid
+                        member.canonical_record_key = clear_canonical.record_id
+                group.status = "auto_merged"
             await self.repo.save_duplicate_group(group)
             return self._to_duplicate_group_read(group)
 
@@ -919,6 +1193,7 @@ class LiteratureSearchService:
             member.canonical_record_pmid = (
                 canonical.record_pmid if should_merge else None
             )
+            member.canonical_record_key = canonical.record_key if should_merge else None
         group.status = "resolved_merged" if should_merge else "resolved_keep_all"
         group.resolution = await self.repo.replace_duplicate_resolution(
             LiteratureDuplicateResolution(
@@ -947,6 +1222,55 @@ class LiteratureSearchService:
             for item in self._result_items(result)
         ]
 
+    async def _select_clear_group_canonical(
+        self, group: LiteratureDuplicateGroup
+    ) -> DedupRecord | None:
+        """从结果快照重建 clear 组规范记录，缺少结果级身份时兼容旧分组。"""
+        if group.result_id is None:
+            return None
+        result = await self.repo.get_result(group.result_id)
+        if result is None:
+            return None
+        records_by_key = {
+            record.record_id: record for record in self._result_dedup_records(result)
+        }
+        records = [
+            records_by_key[member.record_key]
+            for member in group.members
+            if member.record_key in records_by_key
+        ]
+        if len(records) != len(group.members):
+            return None
+        return select_canonical_record(tuple(records))
+
+    @staticmethod
+    def _result_dedup_records(result: LiteratureSearchResult) -> list[DedupRecord]:
+        """为同一快照的每个原始位置分配稳定键，避免相同 PMID 冲突。"""
+        return [
+            DedupRecord(
+                record_id=f"{result.id}:{position}:{item.pmid}",
+                item=item,
+                source_search_ids=(),
+            )
+            for position, item in enumerate(LiteratureSearchService._result_items(result))
+        ]
+
+    @staticmethod
+    def _candidate_fingerprint(candidate: DuplicateCandidate) -> str:
+        """用匹配规则和稳定记录键识别不可变快照中的同一候选组。"""
+        record_ids = sorted(record.record_id for record in candidate.records)
+        payload = json.dumps(
+            {"method": candidate.match_method, "record_keys": record_ids},
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _record_position(record_key: str) -> int:
+        """从受控 record_key 恢复结果内 1-based 位置。"""
+        return int(record_key.split(":", maxsplit=2)[1]) + 1
+
     @staticmethod
     def _resolve_canonical_member(
         group: LiteratureDuplicateGroup, request: DuplicateResolveRequest
@@ -967,9 +1291,19 @@ class LiteratureSearchService:
 
     @staticmethod
     def _to_duplicate_group_read(group: LiteratureDuplicateGroup) -> DuplicateGroupRead:
+        canonical_key = next(
+            (
+                member.canonical_record_key
+                for member in group.members
+                if member.canonical_record_key is not None
+            ),
+            None,
+        )
+        is_collapsed = group.status in {"auto_merged", "resolved_merged"}
         return DuplicateGroupRead(
             id=group.id,
             trigger_task_id=group.trigger_task_id,
+            result_id=group.result_id,
             match_method=cast(
                 "Literal['pmid', 'doi', 'title_normalized', 'author_year', 'manual']",
                 group.match_method,
@@ -980,10 +1314,24 @@ class LiteratureSearchService:
                 group.status,
             ),
             created_at=group.created_at,
+            match_explanation=LiteratureSearchService._match_explanation(group.match_method),
+            canonical_record_key=canonical_key,
             members=[
                 DuplicateGroupMemberRead(
                     result_id=member.result_id,
                     record_pmid=member.record_pmid,
+                    record_key=member.record_key,
+                    position=member.position,
+                    pmid=member.record_pmid,
+                    is_canonical=(
+                        member.record_key is not None
+                        and member.record_key == canonical_key
+                    ),
+                    visible_in_consolidated_view=(
+                        not is_collapsed
+                        or member.record_key is None
+                        or member.record_key == canonical_key
+                    ),
                     canonical_result_id=member.canonical_result_id,
                     canonical_record_pmid=member.canonical_record_pmid,
                     source_search_ids=json.loads(member.source_search_ids_json),
@@ -1001,6 +1349,30 @@ class LiteratureSearchService:
                 resolved_by=group.resolution.resolved_by,
             ),
         )
+
+    @staticmethod
+    def _match_explanation(match_method: str) -> str:
+        return {
+            "pmid": "PMID exact match",
+            "doi": "Normalized DOI exact match",
+            "title_normalized": "Normalized title match; manual confirmation required",
+            "author_year": "First author and year match; manual confirmation required",
+        }.get(match_method, "Manual duplicate decision")
+
+    @staticmethod
+    def _enrich_duplicate_group_read(group: DuplicateGroupRead, items: list[CitationItem]) -> DuplicateGroupRead:
+        by_position = {index + 1: item for index, item in enumerate(items)}
+        return group.model_copy(update={"members": [member.model_copy(update={
+            "doi": by_position[member.position].doi if member.position in by_position else None,
+            "title": by_position[member.position].title if member.position in by_position else None,
+            "authors": list(by_position[member.position].authors) if member.position in by_position else [],
+            "journal": by_position[member.position].journal if member.position in by_position else None,
+            "year": by_position[member.position].year if member.position in by_position else None,
+            "publication_types": list(by_position[member.position].publication_types) if member.position in by_position else [],
+            "verified": by_position[member.position].verified if member.position in by_position else False,
+            "has_abstract": by_position[member.position].has_abstract if member.position in by_position else False,
+            "withdrawn": by_position[member.position].withdrawn if member.position in by_position else False,
+        }) for member in group.members]})
 
     @staticmethod
     def _result_items(entity: LiteratureSearchResult) -> list[CitationItem]:

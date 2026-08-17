@@ -19,7 +19,6 @@ export const features: FeatureDefinition[] = [
   { id: "sources", label: "知识库", path: "/sources", icon: "◫", group: "研究空间", phase: "FE-02", status: "LIVE", showInNavigation: false, requiresContextRail: true, mobileSupport: true },
   { id: "recommendations", label: "文献推荐", path: "/recommendations", icon: "✦", group: "研究空间", phase: "R4-WP05", status: "LIVE", showInNavigation: false, requiresContextRail: true, mobileSupport: true },
   { id: "matrix", label: "证据矩阵", path: "/evidence-matrix", icon: "⊞", group: "研究空间", phase: "FE-05", status: "MOCK", showInNavigation: false, requiresContextRail: false, mobileSupport: false },
-  { id: "reading-plan", label: "收藏与阅读计划", path: "/reading-plan", icon: "◇", group: "研究空间", phase: "FE-05", status: "UNAVAILABLE", showInNavigation: false, requiresContextRail: false, mobileSupport: false },
   { id: "report", label: "组会汇报", path: "/presentations", icon: "▥", group: "研究空间", phase: "FE-06", status: "MOCK", showInNavigation: false, requiresContextRail: false, mobileSupport: true },
   { id: "citation-check", label: "引用核验", path: "/citation-check", icon: "✓", group: "研究空间", phase: "FE-06", status: "LIVE", showInNavigation: false, requiresContextRail: false, mobileSupport: true },
   { id: "agent", label: "Agent 实验室", path: "/agent", icon: "◉", group: "研究空间", phase: "FE-07", status: "MOCK", showInNavigation: false, requiresContextRail: false, mobileSupport: true },
