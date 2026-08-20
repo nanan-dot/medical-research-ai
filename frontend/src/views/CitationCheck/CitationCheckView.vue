@@ -55,7 +55,7 @@ const statusLabel = (item: CitationAuditItem): string => {
 
       <p v-if="result.items.length === 0" class="no-references">未识别到 PMID 或 DOI 引用。</p>
       <ul v-else class="audit-list">
-        <li v-for="(item, index) in result.items" :key="`${item.kind}-${item.identifier}`" class="audit-item" :class="item.verified ? 'verified' : 'unverified'">
+        <li v-for="item in result.items" :key="`${item.kind}-${item.identifier}`" class="audit-item" :class="item.verified ? 'verified' : 'unverified'">
           <span class="status-mark">{{ item.verified ? "✅" : "❌" }}</span>
           <div class="item-body">
             <div class="item-head">

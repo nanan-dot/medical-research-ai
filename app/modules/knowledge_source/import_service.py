@@ -83,15 +83,23 @@ class KnowledgeSourceDocumentImportService:
                     upload_root, knowledge_source_id, source_name
                 )
                 source_root = await asyncio.to_thread(_resolve_source_root, source)
-                target_directory = _safe_descendant(source_root, source_root / relative_path)
-                await asyncio.to_thread(target_directory.mkdir, parents=True, exist_ok=True)
+                target_directory = _safe_descendant(
+                    source_root, source_root / relative_path
+                )
+                await asyncio.to_thread(
+                    target_directory.mkdir, parents=True, exist_ok=True
+                )
                 final_path = _safe_descendant(
                     source_root, target_directory / f"{uuid4().hex}.pdf"
                 )
                 await asyncio.to_thread(_move_file, temporary_path, final_path)
                 document, asset = await self._persist_document(
-                    source, final_path, original_filename, file.content_type or "application/pdf",
-                    byte_size, sha256
+                    source,
+                    final_path,
+                    original_filename,
+                    file.content_type or "application/pdf",
+                    byte_size,
+                    sha256,
                 )
 
             completed = True
@@ -122,7 +130,10 @@ class KnowledgeSourceDocumentImportService:
             return source, None
 
         existing_sources = await self._sources.list(limit=10_000)
-        if any(source.name.casefold() == source_name.casefold() for source in existing_sources):
+        if any(
+            source.name.casefold() == source_name.casefold()
+            for source in existing_sources
+        ):
             raise ConflictError("知识库名称已存在")
         root_path = _safe_descendant(
             upload_root, upload_root / _IMPORT_ROOT_DIRECTORY / uuid4().hex
@@ -140,8 +151,13 @@ class KnowledgeSourceDocumentImportService:
         return await self._sources.create(source), root_path
 
     async def _persist_document(
-        self, source: KnowledgeSource, final_path: Path, original_filename: str,
-        media_type: str, byte_size: int, sha256: str,
+        self,
+        source: KnowledgeSource,
+        final_path: Path,
+        original_filename: str,
+        media_type: str,
+        byte_size: int,
+        sha256: str,
     ) -> tuple[Document, DocumentAsset]:
         stat = await asyncio.to_thread(final_path.stat)
         # 资料夹可位于任意已授权磁盘；资产路径以来源 ID 命名，保证全局唯一。
@@ -154,13 +170,20 @@ class KnowledgeSourceDocumentImportService:
             file_size=byte_size,
             modified_time=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
             modified_time_ns=stat.st_mtime_ns,
-            scan_state="pending", parse_status="pending", index_status="pending",
+            scan_state="pending",
+            parse_status="pending",
+            index_status="pending",
         )
         await self._documents.create(document)
         asset = DocumentAsset(
-            document=document, asset_kind="upload", original_filename=original_filename,
-            stored_relative_path=stored_relative_path, media_type=media_type,
-            byte_size=byte_size, sha256=sha256, processing_status="pending_parse",
+            document=document,
+            asset_kind="upload",
+            original_filename=original_filename,
+            stored_relative_path=stored_relative_path,
+            media_type=media_type,
+            byte_size=byte_size,
+            sha256=sha256,
+            processing_status="pending_parse",
         )
         return document, await self._assets.create(asset)
 

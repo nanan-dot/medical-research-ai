@@ -12,13 +12,18 @@ from app.common.exceptions import (
     PermissionDeniedError,
     TemporarilyUnavailableError,
 )
+from app.modules.knowledge_source.health import health_status
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.knowledge_source.repository import (
     KnowledgeSourceRepository,
     KnowledgeSourceStatsRecord,
 )
 from app.modules.knowledge_source.schema import (
+    KnowledgeBaseIssueBreakdown,
+    KnowledgeBaseSummary,
     KnowledgeSourceCreate,
+    KnowledgeSourceHealthStatus,
+    KnowledgeSourcePage,
     KnowledgeSourceRead,
     KnowledgeSourceStats,
     KnowledgeSourceSyncStatus,
@@ -72,9 +77,7 @@ class KnowledgeSourceService:
         await self._refresh_availability(entity)
         return entity
 
-    async def list(
-        self, offset: int = 0, limit: int = 20
-    ) -> list[KnowledgeSourceRead]:
+    async def list(self, offset: int = 0, limit: int = 20) -> list[KnowledgeSourceRead]:
         entities = await self.repo.list(offset=offset, limit=limit)
         for entity in entities:
             await self._refresh_availability(entity)
@@ -88,6 +91,62 @@ class KnowledgeSourceService:
             )
             for entity in entities
         ]
+
+    async def page(
+        self,
+        q: str | None,
+        source_type: str | None,
+        health_status: str | None,
+        enabled: bool | None,
+        auto_sync: bool | None,
+        is_pinned: bool | None,
+        sort_by: str,
+        sort_order: str,
+        offset: int,
+        limit: int,
+    ) -> KnowledgeSourcePage:
+        entities, total = await self.repo.page(
+            q,
+            source_type,
+            health_status,
+            enabled,
+            auto_sync,
+            is_pinned,
+            sort_by,
+            sort_order,
+            offset,
+            limit,
+        )
+        stats = await self.repo.stats_by_source_ids([entity.id for entity in entities])
+        return KnowledgeSourcePage(
+            items=[
+                self._read(entity, self._stats_from_record(stats.get(entity.id)))
+                for entity in entities
+            ],
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
+
+    async def summary(self) -> KnowledgeBaseSummary:
+        """Return an unpaged, SQL-derived summary of supported source types."""
+        values = await self.repo.summary()
+        total = values["total_item_count"]
+        issue_breakdown = KnowledgeBaseIssueBreakdown(
+            **{
+                name: values.pop(name)
+                for name in KnowledgeBaseIssueBreakdown.model_fields
+            }
+        )
+        return KnowledgeBaseSummary(
+            **values,
+            issue_breakdown=issue_breakdown,
+            availability_percent=(
+                None
+                if total == 0
+                else round(values["available_item_count"] * 100 / total, 2)
+            ),
+        )
 
     async def read(self, id: int) -> KnowledgeSourceRead:
         entity = await self.get(id)
@@ -120,6 +179,10 @@ class KnowledgeSourceService:
             entity.name = data.name.strip()
         if data.enabled is not None:
             entity.enabled = data.enabled
+        if data.auto_sync is not None:
+            entity.auto_sync = data.auto_sync
+        if data.is_pinned is not None:
+            entity.is_pinned = data.is_pinned
         return await self.repo.save(entity)
 
     async def delete(self, id: int) -> None:
@@ -157,7 +220,18 @@ class KnowledgeSourceService:
         entity: KnowledgeSource, stats: KnowledgeSourceStats
     ) -> KnowledgeSourceRead:
         return KnowledgeSourceRead.model_validate(entity).model_copy(
-            update={"stats": stats}
+            update={
+                "stats": stats,
+                "health_status": KnowledgeSourceHealthStatus(
+                    health_status(
+                        entity.enabled,
+                        entity.sync_status,
+                        stats.failed,
+                        entity.sync_status
+                        == KnowledgeSourceSyncStatus.COMPLETED_WITH_ERRORS.value,
+                    )
+                ),
+            }
         )
 
     @staticmethod
@@ -166,10 +240,19 @@ class KnowledgeSourceService:
     ) -> KnowledgeSourceStats:
         if stats_record is None:
             return KnowledgeSourceStats()
+        availability_percent = (
+            None
+            if stats_record.total_files == 0
+            else round(stats_record.available * 100 / stats_record.total_files, 2)
+        )
         return KnowledgeSourceStats(
             total_files=stats_record.total_files,
             parsed=stats_record.parsed,
             indexed=stats_record.indexed,
             pending=stats_record.pending,
             failed=stats_record.failed,
+            available=stats_record.available,
+            processing=stats_record.processing,
+            needs_attention=stats_record.needs_attention,
+            availability_percent=availability_percent,
         )

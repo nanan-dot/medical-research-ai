@@ -10,6 +10,7 @@ class TaskStatus(StrEnum):
     """任务中心的可见状态。"""
 
     PENDING = "pending"
+    QUEUED = "queued"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -46,6 +47,10 @@ class TaskRead(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    resource_type: str | None = None
+    resource_id: int | None = None
+    operation: str | None = None
+    stage: str | None = None
 
 
 class TaskPage(BaseModel):

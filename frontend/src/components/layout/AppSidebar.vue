@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRoute } from "vue-router";
 import { features } from "../../config/features";
 import BrandLogo from "../brand/BrandLogo.vue";
 
 defineProps<{ collapsed: boolean }>();
 const emit = defineEmits<{ toggle: [] }>();
+const route = useRoute();
 
 // 一级导航 = 研究空间分组（恰好 7 项）；底部 = 后台任务 + 设置。
 const navItems = computed(() => features.filter((item) => item.showInNavigation && item.group === "研究空间"));
 const bottomItems = computed(() => features.filter((item) => item.group === "底部" && item.showInNavigation));
+const documentKnowledgeOpen = computed(() => route.path === "/documents" || route.path.startsWith("/documents/") || route.path === "/sources");
 </script>
 
 <template>
@@ -23,15 +26,19 @@ const bottomItems = computed(() => features.filter((item) => item.group === "底
     </div>
 
     <nav class="nav" aria-label="主导航">
-      <RouterLink
-        v-for="item in navItems"
-        :key="item.id"
-        :to="item.path"
-        class="nav-link"
-      >
-        <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
-        <span v-if="!collapsed" class="nav-label">{{ item.label }}</span>
-      </RouterLink>
+      <template v-for="item in navItems" :key="item.id">
+        <RouterLink
+          :to="item.path"
+          class="nav-link"
+        >
+          <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span v-if="!collapsed" class="nav-label">{{ item.label }}</span>
+        </RouterLink>
+        <nav v-if="!collapsed && documentKnowledgeOpen && item.path === '/documents'" class="subnav" aria-label="文档与知识二级导航">
+          <RouterLink to="/sources" class="subnav-link"><span aria-hidden="true">◫</span>知识库</RouterLink>
+          <RouterLink to="/documents" class="subnav-link"><span aria-hidden="true">▤</span>文档库</RouterLink>
+        </nav>
+      </template>
     </nav>
 
     <nav class="bottom" aria-label="底部导航">
@@ -150,6 +157,38 @@ const bottomItems = computed(() => features.filter((item) => item.group === "底
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.subnav {
+  display: grid;
+  gap: 0.1rem;
+  margin: -0.05rem 0 0.25rem 1.55rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--border-subtle);
+}
+.subnav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 29px;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.subnav-link:hover {
+  color: var(--text-primary);
+  background: var(--nav-hover-bg);
+}
+.subnav-link.router-link-active {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  font-weight: 800;
+}
+.subnav-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 .bottom {
   display: grid;

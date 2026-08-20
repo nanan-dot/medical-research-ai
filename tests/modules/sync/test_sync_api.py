@@ -39,6 +39,7 @@ def client(tmp_path: Path):
 
 
 def test_sync_and_status_endpoints(client: TestClient, tmp_path: Path):
+    """Manual sync is queued durably while the legacy status read remains available."""
     root = tmp_path / "source"
     root.mkdir()
     (root / "paper.md").write_text("public test fixture", encoding="utf-8")
@@ -49,8 +50,12 @@ def test_sync_and_status_endpoints(client: TestClient, tmp_path: Path):
     source_id = created.json()["id"]
 
     synced = client.post(f"/api/v1/knowledge-sources/{source_id}/sync")
-    assert synced.status_code == 200
-    assert synced.json()["added"] == 1
+    assert synced.status_code == 202
+    assert synced.json()["knowledge_source_id"] == source_id
+    assert synced.json()["status"] == "queued"
+    task = client.get(synced.json()["status_url"])
+    assert task.status_code == 200
+    assert task.json()["status"] == "queued"
     status = client.get(f"/api/v1/knowledge-sources/{source_id}/sync-status")
     assert status.status_code == 200
-    assert status.json() == synced.json()
+    assert status.json()["knowledge_source_id"] == source_id

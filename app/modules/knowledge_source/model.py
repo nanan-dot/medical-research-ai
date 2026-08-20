@@ -17,8 +17,14 @@ class KnowledgeSource(Base):
     root_path: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_root_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    auto_sync: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_pinned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
     sync_status: Mapped[str] = mapped_column(String(32), nullable=False, default="idle")
     last_sync_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    last_opened_by: Mapped[str | None] = mapped_column(String(128))
     error_message: Mapped[str | None] = mapped_column(Text)
     sync_added: Mapped[int] = mapped_column(default=0, nullable=False)
     sync_modified: Mapped[int] = mapped_column(default=0, nullable=False)

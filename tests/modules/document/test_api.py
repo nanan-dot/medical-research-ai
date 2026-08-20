@@ -124,6 +124,21 @@ def test_document_list_filters_by_knowledge_source(api_context):
     assert missing_source.json()["total"] == 0
 
 
+def test_repair_submission_is_idempotent(api_context) -> None:
+    """AC-12: repeated repair submits one active durable document task."""
+    client, document_id, _ = api_context
+
+    first = client.post(f"/api/v1/documents/{document_id}/repair")
+    second = client.post(f"/api/v1/documents/{document_id}/repair")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["task_id"] == second.json()["task_id"]
+    tasks = client.get("/api/v1/tasks", params={"status": "queued"})
+    assert tasks.status_code == 200
+    assert tasks.json()["total"] == 1
+
+
 def test_parse_and_content_summary_api(api_context):
     client, document_id, paper = api_context
     paper.write_text("# API Notes\nBody", encoding="utf-8")

@@ -7,6 +7,7 @@ const props = defineProps<{
   sources: readonly KnowledgeSource[];
   loading: boolean;
   defaultSourceId: number | null;
+  compact?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -32,8 +33,8 @@ watch(
 </script>
 
 <template>
-  <form class="navigation-panel" aria-label="AI 资料定位" @submit.prevent="submit">
-    <div class="heading">
+  <form class="navigation-panel" :class="{ compact }" aria-label="AI 资料定位" @submit.prevent="submit">
+    <div v-if="!compact" class="heading">
       <span class="ai-mark" aria-hidden="true">AI</span>
       <div>
         <strong>AI 资料定位</strong>
@@ -41,6 +42,7 @@ watch(
       </div>
     </div>
     <div class="query-row">
+      <span v-if="compact" class="ai-mark" aria-hidden="true">AI</span>
       <label class="visually-hidden" for="navigation-query">定位问题</label>
       <input id="navigation-query" v-model="query" maxlength="500" placeholder="在当前资料中定位内容…">
       <label class="scope-control">
@@ -63,6 +65,14 @@ watch(
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: #fbfdff;
+}
+
+/* 紧凑单行模式：用于文档库工作台中栏顶部，不占用纵向空间。 */
+.navigation-panel.compact {
+  gap: 0;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
 }
 
 .heading,

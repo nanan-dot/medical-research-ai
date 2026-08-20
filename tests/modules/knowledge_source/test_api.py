@@ -227,6 +227,10 @@ def test_crud_enable_disable_and_delete_preserves_files(
         "indexed": 0,
         "pending": 0,
         "failed": 0,
+        "available": 0,
+        "processing": 0,
+        "needs_attention": 0,
+        "availability_percent": None,
     }
     stats = client.get(f"/api/v1/knowledge-sources/{source_id}/stats")
     assert stats.status_code == 200 and stats.json()["total_files"] == 0

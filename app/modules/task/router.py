@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.exceptions import ConflictError
 from app.core.database import get_session
 from app.modules.task.repository import TaskRepository
 from app.modules.task.schema import TaskCreate, TaskPage, TaskRead, TaskStatus
@@ -41,3 +42,19 @@ async def get_task(
 ) -> TaskRead:
     """读取单个任务详情。"""
     return await _service(session).get(task_id)
+
+
+@router.post("/{task_id}/cancel", response_model=TaskRead)
+async def cancel_task(task_id: int, session: AsyncSession = Depends(get_session)) -> TaskRead:
+    try:
+        return await _service(session).cancel(task_id)
+    except ValueError as exc:
+        raise ConflictError(str(exc)) from exc
+
+
+@router.post("/{task_id}/retry", response_model=TaskRead)
+async def retry_task(task_id: int, session: AsyncSession = Depends(get_session)) -> TaskRead:
+    try:
+        return await _service(session).retry(task_id)
+    except ValueError as exc:
+        raise ConflictError(str(exc)) from exc

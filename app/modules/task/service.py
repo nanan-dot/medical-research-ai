@@ -36,7 +36,9 @@ class TaskService:
             raise NotFoundError(f"Task not found: {task_id}")
         return self._to_read(task)
 
-    async def list(self, offset: int, limit: int, status: TaskStatus | None) -> TaskPage:
+    async def list(
+        self, offset: int, limit: int, status: TaskStatus | None
+    ) -> TaskPage:
         """返回任务记录与匹配总数。"""
         tasks = await self._repository.list(offset, limit, status)
         total = await self._repository.count(status)
@@ -46,6 +48,32 @@ class TaskService:
             offset=offset,
             limit=limit,
         )
+
+    async def cancel(self, task_id: int) -> TaskRead:
+        task = await self._required(task_id)
+        if task.status not in {TaskStatus.PENDING.value, TaskStatus.QUEUED.value, TaskStatus.RUNNING.value}:
+            raise ValueError("Only pending, queued, or running tasks can be cancelled")
+        task.status = TaskStatus.CANCELLED.value
+        await self._repository.session.flush()
+        return self._to_read(task)
+
+    async def retry(self, task_id: int) -> TaskRead:
+        task = await self._required(task_id)
+        if task.status != TaskStatus.FAILED.value:
+            raise ValueError("Only failed tasks can be retried")
+        task.status = TaskStatus.QUEUED.value
+        task.progress = 0
+        task.error_code = None
+        task.error_message = None
+        task.finished_at = None
+        await self._repository.session.flush()
+        return self._to_read(task)
+
+    async def _required(self, task_id: int) -> TaskRecord:
+        task = await self._repository.get(task_id)
+        if task is None:
+            raise NotFoundError(f"Task not found: {task_id}")
+        return task
 
     @staticmethod
     def _to_read(task: TaskRecord) -> TaskRead:
@@ -68,4 +96,8 @@ class TaskService:
             created_at=task.created_at,
             started_at=task.started_at,
             finished_at=task.finished_at,
+            resource_type=task.source_type,
+            resource_id=task.source_id,
+            operation=detail.get("operation") if isinstance(detail.get("operation"), str) else None,
+            stage=detail.get("stage") if isinstance(detail.get("stage"), str) else None,
         )

@@ -174,7 +174,10 @@ class KnowledgeSourceSyncService:
                 pass
             except Exception:
                 # 非预期基础设施异常不应让同批文件停止；记录完整堆栈供运维排查。
-                logger.exception("knowledge_source_parse_unexpected_error document_id=%s", document_id)
+                logger.exception(
+                    "knowledge_source_parse_unexpected_error document_id=%s",
+                    document_id,
+                )
 
         return self._summary(await self.source_service.get(source_id))
 

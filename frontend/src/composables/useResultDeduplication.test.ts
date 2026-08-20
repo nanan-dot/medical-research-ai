@@ -96,7 +96,7 @@ describe("useResultDeduplication", () => {
       summary: makeSummary({ resolved_keep_all_group_count: 1 }),
     });
 
-    const { groups, loadGroups, resolve } = useResultDeduplication(11, onChanged);
+    const { loadGroups, resolve } = useResultDeduplication(11, onChanged);
     await loadGroups();
     await resolve(1, { action: "keep_all" });
 
@@ -112,7 +112,7 @@ describe("useResultDeduplication", () => {
       summary: makeSummary({ pending_group_count: 3 }),
     });
 
-    const { groups, loadGroups, resolve } = useResultDeduplication(11, onChanged);
+    const { loadGroups, resolve } = useResultDeduplication(11, onChanged);
     await loadGroups();
     await resolve(1, { action: "undo" });
 

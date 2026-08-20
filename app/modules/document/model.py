@@ -1,6 +1,7 @@
 """Files tracked inside an authorized knowledge source."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,6 +11,9 @@ from app.core.database import Base
 # DocumentAsset 定义在 document_upload 模块；repository.py 已有同样导入，
 # 模块间为单向依赖（document → document_upload），无循环风险。
 from app.modules.document_upload.model import DocumentAsset
+
+if TYPE_CHECKING:
+    from app.modules.knowledge_source.model import KnowledgeSource
 
 
 class Document(Base):
@@ -64,6 +68,7 @@ class Document(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    source: Mapped["KnowledgeSource"] = relationship("KnowledgeSource")
 
     @property
     def original_filename(self) -> str | None:

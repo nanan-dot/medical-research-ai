@@ -20,6 +20,21 @@ class KnowledgeSourceSyncStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class KnowledgeSourceHealthStatus(StrEnum):
+    READY = "ready"
+    SYNCING = "syncing"
+    NEEDS_ATTENTION = "needs_attention"
+    PAUSED = "paused"
+    UNAVAILABLE = "unavailable"
+
+
+class KnowledgeSourceSortBy(StrEnum):
+    PINNED = "pinned"
+    LAST_SYNC = "last_sync"
+    NAME = "name"
+    DOCUMENT_COUNT = "document_count"
+
+
 class KnowledgeSourceCreate(BaseModel):
     """创建请求"""
 
@@ -40,6 +55,8 @@ class KnowledgeSourceCreate(BaseModel):
 class KnowledgeSourceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     enabled: bool | None = None
+    auto_sync: bool | None = None
+    is_pinned: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -60,6 +77,10 @@ class KnowledgeSourceStats(BaseModel):
     indexed: int = 0
     pending: int = 0
     failed: int = 0
+    available: int = 0
+    processing: int = 0
+    needs_attention: int = 0
+    availability_percent: float | None = None
 
 
 class KnowledgeSourceRead(BaseModel):
@@ -71,10 +92,47 @@ class KnowledgeSourceRead(BaseModel):
     source_type: KnowledgeSourceType
     root_path: str
     enabled: bool
+    auto_sync: bool
+    is_pinned: bool
     sync_status: KnowledgeSourceSyncStatus
     last_sync_time: datetime | None
+    last_opened_at: datetime | None = None
+    last_opened_by: str | None = None
     error_message: str | None
+    health_status: KnowledgeSourceHealthStatus = KnowledgeSourceHealthStatus.READY
     stats: KnowledgeSourceStats = Field(default_factory=KnowledgeSourceStats)
+
+
+class KnowledgeSourcePage(BaseModel):
+    """A filtered knowledge-source page with total independent of its slice."""
+
+    items: list[KnowledgeSourceRead]
+    total: int
+    offset: int
+    limit: int
+
+
+class KnowledgeBaseIssueBreakdown(BaseModel):
+    parse_failed: int = 0
+    unsupported_format: int = 0
+    unavailable_file: int = 0
+    index_failed: int = 0
+    other: int = 0
+
+
+class KnowledgeBaseSummary(BaseModel):
+    source_count: int = 0
+    local_folder_count: int = 0
+    obsidian_count: int = 0
+    total_item_count: int = 0
+    available_item_count: int = 0
+    processing_item_count: int = 0
+    needs_attention_count: int = 0
+    affected_source_count: int = 0
+    availability_percent: float | None = None
+    issue_breakdown: KnowledgeBaseIssueBreakdown = Field(
+        default_factory=KnowledgeBaseIssueBreakdown
+    )
 
 
 class KnowledgeSourceSyncSummary(BaseModel):
@@ -87,6 +145,15 @@ class KnowledgeSourceSyncSummary(BaseModel):
     skipped: int
     failed: int
     error_message: str | None
+
+
+class KnowledgeSourceSyncAccepted(BaseModel):
+    """Durable sync submission result; execution occurs in an explicit worker."""
+
+    task_id: int
+    knowledge_source_id: int
+    status: str
+    status_url: str
 
 
 class KnowledgeSourceDirectoryBrowseRead(BaseModel):

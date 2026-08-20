@@ -11,11 +11,20 @@ export interface KnowledgeSourceStats {
   indexed: number;
   pending: number;
   failed: number;
+  available?: number;
+  processing?: number;
+  needs_attention?: number;
 }
 export interface KnowledgeSource {
   id: number; name: string; source_type: KnowledgeSourceType; root_path: string; enabled: boolean;
   sync_status: SyncStatus; last_sync_time: string | null; error_message: string | null;
   stats: KnowledgeSourceStats;
+}
+export interface KnowledgeBaseSummary {
+  total_item_count: number;
+  available_item_count: number;
+  processing_item_count: number;
+  needs_attention_count: number;
 }
 export interface CreateKnowledgeSource { name: string; source_type: KnowledgeSourceType; root_path: string; enabled?: boolean; }
 export interface ImportKnowledgeSourceDocument {
@@ -59,6 +68,7 @@ export interface DirectoryBrowseResult { path: string | null; }
 
 export const knowledgeSourcesApi = {
   list: () => request<KnowledgeSource[]>(""),
+  summary: () => request<KnowledgeBaseSummary>("/summary"),
   create: (payload: CreateKnowledgeSource) => request<KnowledgeSource>("", { method: "POST", body: JSON.stringify(payload) }),
   update: (id: number, payload: { enabled: boolean }) => request<KnowledgeSource>(`/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   remove: (id: number) => request<void>(`/${id}`, { method: "DELETE" }),

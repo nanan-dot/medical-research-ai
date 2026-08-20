@@ -11,30 +11,58 @@ from app.modules.document.schema import (
     MAX_DOCUMENT_QUERY_LENGTH,
     BatchIndexRequest,
     BatchIndexResult,
+    ContentSearchPage,
+    DocumentBatchTaskItem,
+    DocumentBatchTaskRead,
+    DocumentBatchTaskRequest,
+    DocumentFileType,
+    DocumentHealthStatus,
     DocumentIndexResult,
+    DocumentMode,
     DocumentPage,
     DocumentRead,
+    DocumentRepairRead,
+    DocumentSortBy,
+    DocumentStatistics,
     IndexStatus,
     ParseStatus,
 )
 from app.modules.document.service import DocumentService
+from app.modules.document.task_service import DocumentTaskService
 
 router = APIRouter(prefix="/documents", tags=["文档"])
 
 
-@router.get("", response_model=DocumentPage)
+@router.get("", response_model=DocumentPage | ContentSearchPage)
 async def list_document(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
+    mode: DocumentMode = DocumentMode.DOCUMENT,
     parse_status: ParseStatus | None = None,
     index_status: IndexStatus | None = None,
     query: str | None = Query(default=None, max_length=MAX_DOCUMENT_QUERY_LENGTH),
     research_ready: bool = False,
     previewable_only: bool = False,
     knowledge_source_id: int | None = Query(default=None, ge=1),
+    needs_attention: bool = False,
+    file_type: DocumentFileType | None = None,
+    health_status: DocumentHealthStatus | None = None,
+    sort_by: DocumentSortBy = DocumentSortBy.UPDATED_AT,
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
     session: AsyncSession = Depends(get_session),
-) -> DocumentPage:
+) -> DocumentPage | ContentSearchPage:
     service = DocumentService(session)
+    if mode == DocumentMode.CONTENT:
+        return await service.search_content(
+            query or "",
+            offset,
+            limit,
+            knowledge_source_id,
+            file_type,
+            health_status,
+            sort_by.value,
+            sort_order,
+        )
     return await service.list(
         offset,
         limit,
@@ -44,6 +72,11 @@ async def list_document(
         research_ready,
         previewable_only,
         knowledge_source_id,
+        needs_attention,
+        file_type,
+        health_status,
+        sort_by.value,
+        sort_order,
     )
 
 
@@ -55,13 +88,70 @@ async def batch_index_documents(
     return await DocumentIndexService(session).batch_index(request.document_ids)
 
 
+@router.get("/statistics", response_model=DocumentStatistics)
+async def get_document_statistics(
+    session: AsyncSession = Depends(get_session),
+) -> DocumentStatistics:
+    return await DocumentService(session).statistics()
+
+
+@router.post("/{id}/repair", response_model=DocumentRepairRead)
+async def repair_document(
+    id: int, session: AsyncSession = Depends(get_session)
+) -> DocumentRepairRead:
+    document = await DocumentService(session).get(id)
+    task = await DocumentTaskService(session).enqueue(id, "repair")
+    return DocumentRepairRead(
+        document_id=document.id,
+        action="repair",
+        task_id=task.id,
+        status="queued",
+        health_status=DocumentHealthStatus.PROCESSING,
+    )
+
+
+async def _enqueue_batch(request: DocumentBatchTaskRequest, operation: str, session: AsyncSession) -> DocumentBatchTaskRead:
+    operation_id, tasks = await DocumentTaskService(session).enqueue_many(request.document_ids, operation)
+    items: list[DocumentBatchTaskItem] = []
+    for task in tasks:
+        if task.source_id is None:
+            raise RuntimeError("Document batch task is missing its document identifier")
+        items.append(
+            DocumentBatchTaskItem(
+                document_id=task.source_id,
+                task_id=task.id,
+                accepted=True,
+            )
+        )
+    return DocumentBatchTaskRead(
+        operation_id=operation_id,
+        accepted=len(items),
+        items=items,
+    )
+
+
+@router.post("/batch-repair", response_model=DocumentBatchTaskRead)
+async def batch_repair(request: DocumentBatchTaskRequest, session: AsyncSession = Depends(get_session)) -> DocumentBatchTaskRead:
+    return await _enqueue_batch(request, "repair", session)
+
+
+@router.post("/batch-reparse", response_model=DocumentBatchTaskRead)
+async def batch_reparse(request: DocumentBatchTaskRequest, session: AsyncSession = Depends(get_session)) -> DocumentBatchTaskRead:
+    return await _enqueue_batch(request, "reparse", session)
+
+
+@router.post("/batch-reindex", response_model=DocumentBatchTaskRead)
+async def batch_reindex(request: DocumentBatchTaskRequest, session: AsyncSession = Depends(get_session)) -> DocumentBatchTaskRead:
+    return await _enqueue_batch(request, "reindex", session)
+
+
 @router.get("/{id}", response_model=DocumentRead)
 async def get_document(
     id: int,
     session: AsyncSession = Depends(get_session),
 ) -> DocumentRead:
     service = DocumentService(session)
-    return DocumentRead.model_validate(await service.get(id))
+    return service._to_read(await service.get(id))
 
 
 @router.post("/{id}/parse", response_model=ParsedContentSummary)
@@ -83,7 +173,8 @@ async def retry_document_parse(
     id: int, session: AsyncSession = Depends(get_session)
 ) -> DocumentRead:
     try:
-        return DocumentRead.model_validate(await DocumentService(session).retry_parse(id))
+        service = DocumentService(session)
+        return service._to_read(await service.retry_parse(id))
     except ConflictError:
         await session.commit()
         raise
@@ -97,7 +188,7 @@ async def retry_document_index(
     try:
         await service.retry_index(id)
         await DocumentIndexService(session).index(id)
-        return DocumentRead.model_validate(await service.get(id))
+        return service._to_read(await service.get(id))
     except ConflictError:
         await session.commit()
         raise

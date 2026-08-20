@@ -11,6 +11,7 @@ from app.core import models  # noqa: F401
 from app.core.database import Base, get_session
 from app.main import app
 from app.modules.document.model import Document
+from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.literature_search.model import LiteratureSearchResult
 from app.modules.literature_search.schema import CitationItem
 
@@ -72,6 +73,15 @@ def test_save_metadata_is_idempotent_and_explains_no_fulltext(client):
 async def test_exact_doi_match_then_manual_link_and_unlink(client):
     api, factory = client
     async with factory() as session:
+        session.add(
+            KnowledgeSource(
+                id=1,
+                name="Test local library",
+                source_type="local_folder",
+                root_path="/tmp/library",
+                normalized_root_path="/tmp/library",
+            )
+        )
         session.add(
             Document(
                 knowledge_source_id=1,

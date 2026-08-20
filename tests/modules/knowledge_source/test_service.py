@@ -164,6 +164,36 @@ async def test_delete_only_removes_record(session, tmp_path: Path):
 
 
 @pytest.mark.asyncio
+async def test_delete_source_cascades_documents_but_preserves_file(
+    session, tmp_path: Path
+):
+    """AC-16: database children are removed without touching authorized files."""
+    root = tmp_path / "cascade"
+    root.mkdir()
+    paper = root / "keep.pdf"
+    paper.write_bytes(b"source remains")
+    service = KnowledgeSourceService(session)
+    source = await service.create(
+        KnowledgeSourceCreate(
+            name="cascade",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(root),
+        )
+    )
+    document = await create_document_with_statuses(
+        session, source.id, "keep.pdf", "succeeded", "succeeded"
+    )
+    await session.commit()
+
+    await service.delete(source.id)
+    await session.commit()
+
+    assert await service.repo.get(source.id) is None
+    assert await DocumentRepository(session).get(document.id) is None
+    assert paper.read_bytes() == b"source remains"
+
+
+@pytest.mark.asyncio
 async def test_stats_grouped_for_mixed_and_empty_sources(session, tmp_path: Path):
     service = KnowledgeSourceService(session)
     populated_root = tmp_path / "populated"
@@ -205,6 +235,10 @@ async def test_stats_grouped_for_mixed_and_empty_sources(session, tmp_path: Path
         "indexed": 1,
         "pending": 1,
         "failed": 2,
+        "available": 1,
+        "processing": 1,
+        "needs_attention": 2,
+        "availability_percent": 25.0,
     }
     assert source_by_id[empty.id].stats.model_dump() == {
         "total_files": 0,
@@ -212,7 +246,57 @@ async def test_stats_grouped_for_mixed_and_empty_sources(session, tmp_path: Path
         "indexed": 0,
         "pending": 0,
         "failed": 0,
+        "available": 0,
+        "processing": 0,
+        "needs_attention": 0,
+        "availability_percent": None,
     }
     assert (await service.stats(populated.id)).total_files == 4
     with pytest.raises(NotFoundError, match="not found"):
         await service.stats(99999)
+
+
+@pytest.mark.asyncio
+async def test_summary_counts_source_types_once_and_classifies_each_issue_once(
+    session, tmp_path: Path
+):
+    """AC-03/05: joins do not inflate sources and issue buckets are exclusive."""
+    root = tmp_path / "summary"
+    root.mkdir()
+    service = KnowledgeSourceService(session)
+    source = await service.create(
+        KnowledgeSourceCreate(
+            name="summary",
+            source_type=KnowledgeSourceType.LOCAL_FOLDER,
+            root_path=str(root),
+        )
+    )
+    unsupported = await create_document_with_statuses(
+        session, source.id, "unsupported.bin", "failed", "failed"
+    )
+    unsupported.error_code = "unsupported_document_type"
+    missing = await create_document_with_statuses(
+        session, source.id, "missing.pdf", "failed", "failed"
+    )
+    missing.error_code = "source_file_missing"
+    await create_document_with_statuses(
+        session, source.id, "parse.pdf", "failed", "pending"
+    )
+    await create_document_with_statuses(
+        session, source.id, "index.pdf", "succeeded", "failed"
+    )
+    await session.commit()
+
+    summary = await service.summary()
+
+    assert summary.source_count == 1
+    assert summary.local_folder_count == 1
+    assert summary.obsidian_count == 0
+    assert summary.needs_attention_count == 4
+    assert summary.issue_breakdown.model_dump() == {
+        "parse_failed": 1,
+        "unsupported_format": 1,
+        "unavailable_file": 1,
+        "index_failed": 1,
+        "other": 0,
+    }

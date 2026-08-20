@@ -10,6 +10,7 @@ const documents: DocumentRecord[] = [
     knowledge_source_id: 2,
     file_path: "trials/protocol.docx",
     original_filename: "protocol.docx",
+    file_type: "docx",
     file_size: 128,
     media_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     file_hash: "hash-1",
@@ -23,12 +24,15 @@ const documents: DocumentRecord[] = [
     retry_count: 0,
     started_at: null,
     finished_at: null,
+    health_status: "needs_attention",
+    health_reason: "索引过期",
   },
   {
     id: 2,
     knowledge_source_id: 2,
     file_path: "trials/failed.pdf",
     original_filename: "failed.pdf",
+    file_type: "pdf",
     file_size: 128,
     media_type: "application/pdf",
     file_hash: "hash-2",
@@ -42,6 +46,8 @@ const documents: DocumentRecord[] = [
     retry_count: 0,
     started_at: null,
     finished_at: null,
+    health_status: "needs_attention",
+    health_reason: "解析失败",
   },
 ];
 
@@ -63,7 +69,43 @@ describe("DocumentTable", () => {
     expect(wrapper.text()).toContain("DOCX");
     expect(wrapper.text()).toContain("索引过期");
     expect(wrapper.text()).toContain("解析失败");
-    expect(wrapper.text()).toContain("等待索引");
-    expect(wrapper.text()).toContain("临床试验 / trials/protocol.docx");
+    expect(wrapper.text()).toContain("需处理");
+    expect(wrapper.text()).toContain("临床试验 · DOCX · 128 B");
+  });
+
+  it("uses table semantics and only selects the current page", async () => {
+    const wrapper = mount(DocumentTable, {
+      props: {
+        documents,
+        disabled: false,
+        selectedDocumentId: null,
+        selectedIds: [],
+        sourceNames: { 2: "临床试验" },
+      },
+    });
+
+    expect(wrapper.find("table").exists()).toBe(true);
+    expect(wrapper.find('input[aria-label="选择当前页全部文档"]').exists()).toBe(true);
+    await wrapper.get('input[aria-label="选择当前页全部文档"]').setValue(true);
+
+    expect(wrapper.emitted("toggleSelect")).toEqual([
+      [1, true],
+      [2, true],
+    ]);
+  });
+
+  it("never invents a processing percentage when the API omits progress", () => {
+    const wrapper = mount(DocumentTable, {
+      props: {
+        documents: [{ ...documents[0], health_status: "processing", health_reason: "建立问答索引", progress: null }],
+        disabled: false,
+        selectedDocumentId: null,
+        selectedIds: [],
+        sourceNames: { 2: "临床试验" },
+      },
+    });
+
+    expect(wrapper.text()).toContain("处理中");
+    expect(wrapper.text()).not.toMatch(/\d+%/);
   });
 });

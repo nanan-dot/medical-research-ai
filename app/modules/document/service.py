@@ -15,8 +15,14 @@ from app.modules.document.parsers.factory import create_parser
 from app.modules.document.parsers.schemas import ParsedContentSummary, ParsedDocument
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import (
+    ContentLocatorType,
+    ContentSearchPage,
+    ContentSearchResult,
+    DocumentFileType,
+    DocumentHealthStatus,
     DocumentPage,
     DocumentRead,
+    DocumentStatistics,
     IndexStatus,
     ParseStatus,
 )
@@ -53,6 +59,7 @@ class DocumentService:
         if not entity:
             raise NotFoundError(f"Document not found: {id}")
         await self._reconcile(entity)
+        await self.source_repo.mark_opened(entity.knowledge_source_id)
         return entity
 
     async def list(
@@ -65,13 +72,18 @@ class DocumentService:
         research_ready: bool = False,
         previewable_only: bool = False,
         knowledge_source_id: int | None = None,
+        needs_attention: bool = False,
+        file_type: DocumentFileType | None = None,
+        health_status: DocumentHealthStatus | None = None,
+        sort_by: str = "updated_at",
+        sort_order: str = "desc",
     ) -> DocumentPage:
         parse_value = parse_status.value if parse_status else None
         index_value = index_status.value if index_status else None
         normalized_query = query.strip() if query is not None else None
         if not normalized_query:
             normalized_query = None
-        for entity in await self.repo.list_all():
+        for entity in await self.repo.list_library_documents():
             await self._reconcile(entity)
         entities = await self.repo.list(
             offset,
@@ -82,9 +94,14 @@ class DocumentService:
             research_ready,
             previewable_only,
             knowledge_source_id,
+            needs_attention,
+            file_type.value if file_type else None,
+            health_status.value if health_status else None,
+            sort_by,
+            sort_order,
         )
         return DocumentPage(
-            items=[DocumentRead.model_validate(entity) for entity in entities],
+            items=[self._to_read(entity) for entity in entities],
             total=await self.repo.count(
                 parse_value,
                 index_value,
@@ -92,9 +109,66 @@ class DocumentService:
                 research_ready,
                 previewable_only,
                 knowledge_source_id,
+                needs_attention,
+                file_type.value if file_type else None,
+                health_status.value if health_status else None,
             ),
             offset=offset,
             limit=limit,
+        )
+
+    async def search_content(
+        self,
+        query: str,
+        offset: int,
+        limit: int,
+        knowledge_source_id: int | None,
+        file_type: DocumentFileType | None,
+        health_status: DocumentHealthStatus | None,
+        sort_by: str,
+        sort_order: str,
+    ) -> ContentSearchPage:
+        """Search persisted parsed content and return only evidence-backed locators."""
+        normalized_query = query.strip()
+        if not normalized_query:
+            return ContentSearchPage(items=[], total=0, offset=offset, limit=limit)
+        matches = await self.repo.list_content_matches(
+            normalized_query,
+            offset,
+            limit,
+            knowledge_source_id,
+            file_type.value if file_type else None,
+            health_status.value if health_status else None,
+            sort_by,
+            sort_order,
+        )
+        return ContentSearchPage(
+            items=[
+                self._content_search_result(entity, source_name, normalized_query)
+                for entity, source_name in matches
+            ],
+            total=await self.repo.count_content_matches(
+                normalized_query,
+                knowledge_source_id,
+                file_type.value if file_type else None,
+                health_status.value if health_status else None,
+            ),
+            offset=offset,
+            limit=limit,
+        )
+
+    async def statistics(self) -> DocumentStatistics:
+        """Return unpaged document health counts from the same domain mapping."""
+        entities = await self.repo.list_library_documents()
+        counts = {status: 0 for status in DocumentHealthStatus}
+        for entity in entities:
+            await self._reconcile(entity)
+            counts[self._health_status(entity)] += 1
+        return DocumentStatistics(
+            total=len(entities),
+            available=counts[DocumentHealthStatus.AVAILABLE],
+            processing=counts[DocumentHealthStatus.PROCESSING],
+            needs_attention=counts[DocumentHealthStatus.NEEDS_ATTENTION],
         )
 
     async def delete(self, id: int) -> None:
@@ -113,12 +187,27 @@ class DocumentService:
             entity.retry_count += 1
             await self.repo.save(entity)
         elif current != ParseStatus.PENDING:
-            raise ConflictError("Only failed or pending document parsing can be retried")
+            raise ConflictError(
+                "Only failed or pending document parsing can be retried"
+            )
 
         # 本地模式没有独立任务队列；重试必须在同一请求中实际调用解析器，
         # 否则 UI 会长期停在“等待解析”且用户无法判断任务是否已启动。
         await self.parse(entity.id)
         return entity
+
+    async def repair(self, id: int) -> tuple[Document, str]:
+        """Apply the only safe repair implied by the persisted document state."""
+        entity = await self.get(id)
+        if entity.error_code == SOURCE_FILE_MISSING:
+            await self._require_source_file(entity)
+            await self._reconcile(entity)
+            return entity, "refresh_source"
+        if entity.parse_status in {ParseStatus.FAILED.value, ParseStatus.PENDING.value}:
+            return await self.retry_parse(id), "retry_parse"
+        if entity.index_status in {IndexStatus.FAILED.value, IndexStatus.OUTDATED.value, IndexStatus.PENDING.value}:
+            return await self.retry_index(id), "retry_index"
+        raise ConflictError("Document does not require a repair action")
 
     async def retry_index(self, id: int) -> Document:
         entity = await self.get(id)
@@ -295,6 +384,95 @@ class DocumentService:
         if not available:
             raise ConflictError("Document source file is not available")
         return path
+
+    @staticmethod
+    def _file_type(entity: Document) -> DocumentFileType:
+        name = entity.original_filename or entity.file_path
+        suffix = Path(name).suffix.lower().lstrip(".")
+        return DocumentFileType(suffix) if suffix in DocumentFileType._value2member_map_ else DocumentFileType.OTHER
+
+    @classmethod
+    def _content_search_result(
+        cls, entity: Document, source_name: str, query: str
+    ) -> ContentSearchResult:
+        """Build a locator from parser output; unknown is safer than an invented page."""
+        try:
+            parsed = ParsedDocument.model_validate_json(entity.parsed_content or "")
+        except ValueError:
+            return ContentSearchResult(
+                document_id=entity.id,
+                document_name=entity.original_filename or entity.file_path,
+                knowledge_source_id=entity.knowledge_source_id,
+                source_name=source_name,
+                locator_type=ContentLocatorType.UNKNOWN,
+                snippet="解析内容格式无效，无法提供定位摘录。",
+            )
+
+        needle = query.casefold()
+        for page in parsed.pages:
+            if needle in page.text.casefold():
+                locator_type = (
+                    ContentLocatorType.SLIDE
+                    if cls._file_type(entity) == DocumentFileType.PPTX
+                    else ContentLocatorType.PAGE
+                )
+                unit = "张幻灯片" if locator_type == ContentLocatorType.SLIDE else "页"
+                return ContentSearchResult(
+                    document_id=entity.id,
+                    document_name=entity.original_filename or entity.file_path,
+                    knowledge_source_id=entity.knowledge_source_id,
+                    source_name=source_name,
+                    locator_type=locator_type,
+                    locator=f"第 {page.page_number} {unit}",
+                    snippet=cls._excerpt(page.text, query),
+                )
+        for section in parsed.sections:
+            if needle in section.text.casefold():
+                return ContentSearchResult(
+                    document_id=entity.id,
+                    document_name=entity.original_filename or entity.file_path,
+                    knowledge_source_id=entity.knowledge_source_id,
+                    source_name=source_name,
+                    locator_type=ContentLocatorType.SECTION,
+                    locator=f"章节：{section.heading}",
+                    snippet=cls._excerpt(section.text, query),
+                )
+        return ContentSearchResult(
+            document_id=entity.id,
+            document_name=entity.original_filename or entity.file_path,
+            knowledge_source_id=entity.knowledge_source_id,
+            source_name=source_name,
+            locator_type=ContentLocatorType.UNKNOWN,
+            snippet=cls._excerpt(parsed.text, query),
+        )
+
+    @staticmethod
+    def _excerpt(text: str, query: str, radius: int = 96) -> str:
+        """Return a bounded plain-text excerpt without interpreting it as HTML."""
+        position = text.casefold().find(query.casefold())
+        if position < 0:
+            return "定位信息不可用"
+        start = max(0, position - radius)
+        end = min(len(text), position + len(query) + radius)
+        prefix = "…" if start else ""
+        suffix = "…" if end < len(text) else ""
+        return f"{prefix}{' '.join(text[start:end].split())}{suffix}"
+
+    @staticmethod
+    def _health_status(entity: Document) -> DocumentHealthStatus:
+        source_unavailable = entity.source is not None and entity.source.sync_status == "unavailable"
+        if entity.parse_status == ParseStatus.FAILED.value or entity.index_status in {IndexStatus.FAILED.value, IndexStatus.OUTDATED.value} or entity.error_code == SOURCE_FILE_MISSING or source_unavailable:
+            return DocumentHealthStatus.NEEDS_ATTENTION
+        if entity.parse_status == ParseStatus.SUCCEEDED.value and entity.index_status == IndexStatus.SUCCEEDED.value:
+            return DocumentHealthStatus.AVAILABLE
+        return DocumentHealthStatus.PROCESSING
+
+    def _to_read(self, entity: Document) -> DocumentRead:
+        health = self._health_status(entity)
+        actions = ["view"] if health == DocumentHealthStatus.AVAILABLE else (["repair", "view"] if health == DocumentHealthStatus.NEEDS_ATTENTION else ["view"])
+        reason = entity.error_message if health == DocumentHealthStatus.NEEDS_ATTENTION else ("内容处理已完成" if health == DocumentHealthStatus.AVAILABLE else "正在处理文档")
+        file_type = self._file_type(entity)
+        return DocumentRead.model_validate(entity).model_copy(update={"file_type": file_type, "extension": Path(entity.original_filename or entity.file_path).suffix.lower().lstrip(".") or None, "preview_capability": file_type == DocumentFileType.PDF, "health_status": health, "health_reason": reason, "available_actions": actions, "progress": None, "task_id": None})
 
     @staticmethod
     def _content_summary(

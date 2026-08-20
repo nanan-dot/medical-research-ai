@@ -16,9 +16,6 @@ const documentKnowledgePage = computed(() => {
   if (route.path === "/sources") {
     return { active: "sources" as const, description: "让本地研究材料成为可追溯的证据资产。" };
   }
-  if (route.path === "/documents") {
-    return { active: "documents" as const, description: "查看每份材料的解析与索引状态，修复失败后再用于证据问答。" };
-  }
   return null;
 });
 

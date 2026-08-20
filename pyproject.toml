@@ -80,3 +80,8 @@ ignore_missing_imports = true
 # the baseline static check depend on a heavyweight NLP runtime.
 module = ["spacy", "spacy.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pypdfium2 is an optional OCR renderer and does not publish type metadata.
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
