@@ -1,0 +1,11 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import type { StrategyExecution } from "../../api/literatureStrategies";
+const props = defineProps<{ executions: StrategyExecution[] }>();
+const emit = defineEmits<{ rerun: [] }>();
+const recent = computed(() => props.executions.slice(0, 3));
+function label(time: string) { return new Intl.DateTimeFormat("zh-CN", { month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }).format(new Date(time)); }
+</script>
+<template><section class="block"><h3>执行历史</h3><p v-if="!recent.length" class="empty">尚无执行记录</p><ol v-else class="runs"><li v-for="run in recent" :key="run.id"><span class="play" :class="run.status">▶</span><div><b>{{ label(run.created_at) }}</b><small>策略版本：v{{ run.version }}</small><p v-if="run.status === 'failed'" role="alert">执行失败{{ run.error_message ? `：${run.error_message}` : '' }}</p></div><strong :class="run.status">{{ run.result_count }} 篇结果</strong><RouterLink v-if="run.result_id" :to="`/literature-search/results/${run.result_id}?from=history`">查看结果</RouterLink></li></ol><button v-if="recent.length" class="rerun-link" type="button" @click="emit('rerun')">再次检索</button></section></template>
+<style scoped>.block { padding:15px 0; border-bottom:1px solid var(--border-subtle); }.block h3 { margin:0 0 12px; font-size:13px; }.runs { display:grid; gap:11px; margin:0; padding:0; list-style:none; }.runs li { display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:7px; align-items:start; }.play { display:grid; width:17px; height:17px; place-items:center; border:1px solid #b8ceff; border-radius:50%; color:var(--color-primary); font-size:8px; }.play.failed { border-color:#fecaca; color:#ef4444; }.runs b,.runs small { display:block; font-size:10px; }.runs small { margin-top:2px; color:var(--text-muted); }.runs strong { color:#079669; font-size:11px; font-variant-numeric:tabular-nums; }.runs strong.failed { color:#ef4444; }.runs a { grid-column:3; color:var(--color-primary); font-size:10px; font-weight:700; text-decoration:none; }.runs p { margin:3px 0 0; color:#ef4444; font-size:10px; }.all,.rerun-link { margin-top:11px; padding:0; border:0; background:transparent; color:var(--color-primary); font:700 11px/1 inherit; cursor:pointer; }.rerun-link { float:right; }.empty { color:var(--text-muted); font-size:11px; }</style>
+

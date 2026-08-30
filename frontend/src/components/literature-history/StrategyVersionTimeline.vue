@@ -1,0 +1,13 @@
+<script setup lang="ts">
+import { computed } from "vue";
+import type { StrategyVersion } from "../../api/literatureStrategies";
+const props = defineProps<{ versions: StrategyVersion[]; currentVersion: number }>();
+const emit = defineEmits<{ compare: [] }>();
+const reverseVersions = computed(() => [...props.versions].sort((a, b) => b.version - a.version));
+function dateLabel(value: string) { return new Intl.DateTimeFormat("zh-CN", { month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }).format(new Date(value)); }
+function summary(version: StrategyVersion) { const keys=Object.keys(version.change_summary); return keys.length ? `调整 ${keys.length} 项检索内容` : "初始版本"; }
+</script>
+<template><section class="block"><h3>版本历史</h3><ol class="timeline"><li v-for="version in reverseVersions" :key="version.id" :class="{ current: version.version === props.currentVersion }"><span class="dot">{{ version.version === props.currentVersion ? '✓' : '' }}</span><div><b>v{{ version.version }} <em v-if="version.version === props.currentVersion">当前版本</em></b><time>{{ dateLabel(version.created_at) }}</time><p>{{ summary(version) }}</p></div></li></ol><button class="compare" type="button" :disabled="props.versions.length < 2" @click="emit('compare')">版本对比</button></section></template>
+<style scoped>.block { padding:15px 0; border-bottom:1px solid var(--border-subtle); }.block h3 { margin:0 0 12px; font-size:13px; }.timeline { display:grid; gap:10px; margin:0; padding:0; list-style:none; }.timeline li { position:relative; display:grid; grid-template-columns:18px 1fr; gap:8px; min-height:43px; }.timeline li:not(:last-child)::before { position:absolute; top:17px; left:8px; width:1px; height:calc(100% + 3px); background:var(--border-subtle); content:""; }.dot { position:relative; z-index:1; display:grid; width:16px; height:16px; place-items:center; border-radius:50%; background:#d9e0eb; color:#fff; font-size:9px; }.current .dot { background:#079669; }.timeline b { color:var(--text-primary); font-size:11px; }.timeline em { margin-left:5px; padding:2px 4px; border-radius:3px; background:#e8f8f1; color:#079669; font-size:9px; font-style:normal; }.timeline time { float:right; color:var(--text-muted); font-size:10px; }.timeline p { margin:4px 0 0; color:var(--text-secondary); font-size:10px; }.compare { float:right; min-height:29px; margin-top:2px; padding:0 11px; border:1px solid var(--border-subtle); border-radius:6px; background:var(--surface); color:var(--color-primary); font:700 11px/1 inherit; cursor:pointer; }.compare:disabled { cursor:not-allowed; opacity:.5; }</style>
+
+
