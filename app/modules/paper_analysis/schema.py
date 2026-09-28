@@ -13,6 +13,7 @@ class AnalysisStatus(StrEnum):
     ANALYZING = "analyzing"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class ClaimKind(StrEnum):
@@ -75,6 +76,9 @@ class PaperAnalysisRead(BaseModel):
     template_version: str
     model_version: str
     generation: int
+    task_set_version: str | None
+    task_names: list[str]
+    completed_task_names: list[str]
     structured_result: StructuredPaperResult | None
     sources: list[PaperSource]
     pending_confirmations: list[str]

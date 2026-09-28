@@ -21,7 +21,12 @@ class AgentLimits:
     total_timeout_seconds: float = 300.0
 
     def assert_allowed(
-        self, *, step_count: int, tool_calls: int, resource_units: int, elapsed_seconds: float
+        self,
+        *,
+        step_count: int,
+        tool_calls: int,
+        resource_units: int,
+        elapsed_seconds: float,
     ) -> None:
         """验证所有上限，超限时返回稳定错误代码。"""
 

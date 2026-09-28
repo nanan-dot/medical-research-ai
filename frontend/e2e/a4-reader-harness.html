@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>A4 isolated PDF reader test</title></head>
+<body>
+<div id="reader"></div>
+<script type="module">
+import { createApp, h } from 'vue';
+import PdfAnnotationReader from '../src/components/document/PdfAnnotationReader.vue';
+createApp({ render: () => h(PdfAnnotationReader, {
+  sourceUrl: '/a4-synthetic.pdf', annotations: [], selectedAnnotationId: null,
+}) }).mount('#reader');
+</script>
+</body>
+</html>

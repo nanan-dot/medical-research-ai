@@ -92,7 +92,7 @@ test("shows workspace title, tabs, and empty strategy state", async () => {
   router.push("/literature-search");
   await router.isReady();
   const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
-  expect(wrapper.text()).toContain("文献检索");
+  expect(wrapper.text()).toContain("检索中心");
   expect(wrapper.text()).toContain("检索中心");
   expect(wrapper.text()).toContain("结果展示");
   expect(wrapper.text()).toContain("历史记录");
@@ -138,6 +138,61 @@ test("restores the history workspace tab from the URL", async () => {
 
   expect(wrapper.get('button[role="tab"][aria-selected="true"]').text()).toContain("历史记录");
   expect(router.currentRoute.value.query.tab).toBe("history");
+});
+
+test("keeps the entry strategy and research question when the strategy is not a complete PICO", async () => {
+  const requestedStrategyId = 31;
+  const fetchMock = vi.fn((url: string) => {
+    if (url === `/api/v1/literature-search/strategies/${requestedStrategyId}`) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: requestedStrategyId,
+          research_question: "interstitial lung disease patients",
+          intent_mode: "unstructured",
+          intent: {},
+          limits: {},
+          query_text: "interstitial lung disease[Title/Abstract]",
+          query_source: "generated",
+          fingerprint: "entry-strategy-fingerprint",
+          revision: 1,
+          generation_state: "ready",
+          validation_state: "stale",
+          count_state: "stale",
+          count: {},
+          last_saved_at: "2026-08-29T00:00:00Z",
+          terms: [],
+          mesh_terms: [],
+        }),
+      });
+    }
+    if (url === `/api/v1/literature-search/strategies/${requestedStrategyId}/versions`) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({ items: [], total: 0, offset: 0, limit: 50 }) });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/literature-search/workspace", component: LiteratureSearchView }],
+  });
+  await router.push(`/literature-search/workspace?strategy_id=${requestedStrategyId}`);
+  await router.isReady();
+
+  const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
+  await flushPromises();
+
+  expect(wrapper.get(".strategy-basis .question p").text()).toBe("interstitial lung disease patients");
+  expect(wrapper.get(".strategy-basis .intent-grid").text()).toContain("当前关键词");
+  expect(wrapper.get(".strategy-basis").text()).not.toContain("Population");
+  expect(wrapper.get(".terms-mesh-section").findAll(".terms-mesh-grid > section")).toHaveLength(2);
+  expect(wrapper.get(".strategy-query").element).toBeTruthy();
+  expect(wrapper.get(".workspace-status-grid").find(".strategy-limits").exists()).toBe(true);
+  expect(wrapper.get(".workspace-status-grid").find(".strategy-ready").exists()).toBe(true);
+  expect(wrapper.get(".strategy-sticky").text()).toContain("开始检索");
+  expect(router.currentRoute.value.query.strategy_id).toBe(String(requestedStrategyId));
+  expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/v1/literature-search/strategies/latest-complete");
 });
 
 test("parses topic, fills PICO, builds query, and runs a real search task", async () => {
@@ -190,11 +245,11 @@ test("parses topic, fills PICO, builds query, and runs a real search task", asyn
   const searchRequest = fetchMock.mock.calls.find(([url]) => url === "/api/v1/literature-search");
   expect(JSON.parse(String(searchRequest?.[1]?.body)).retmax).toBe(500);
   expect(fetchMock).toHaveBeenCalledWith(
-    "/api/v1/literature-search/201/results?sort=relevance&page=1&page_size=100&duplicate_mode=all",
-    undefined,
+    "/api/v1/literature-search/201/results?sort=relevance&page=1&page_size=10&duplicate_mode=all",
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
   );
   // 成功后保留文件 3 的固定标题与页签，仅在下方切换至内嵌结果内容。
-  expect(wrapper.text()).toContain("文献检索");
+  expect(wrapper.text()).toContain("检索中心");
   expect(wrapper.text()).toContain("检索中心");
   expect(wrapper.text()).toContain("结果展示");
 });
@@ -216,4 +271,35 @@ test("rejects empty topic without calling the API", async () => {
   await flushPromises();
   expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(fetchMock).toHaveBeenCalledWith("/api/v1/literature-search?offset=0&limit=50", undefined);
+});
+
+test("prevents duplicate strategy execution while the first request is active", async () => {
+  let resolveExecution: ((value: unknown) => void) | undefined;
+  vi.stubGlobal("fetch", vi.fn((url: string) => {
+    if (url.includes("/execute")) {
+      return new Promise((resolve) => { resolveExecution = resolve; });
+    }
+    if (url.includes("/versions")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    if (url.includes("/strategies/12")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({
+        id: 12, research_question: "ILD", intent_mode: "unstructured", intent: {}, limits: {}, query_text: "ILD[tiab]", query_source: "generated", fingerprint: "fp", revision: 1, generation_state: "ready", validation_state: "stale", count_state: "stale", count: {}, last_saved_at: "2026-08-23T00:00:00Z", terms: [], mesh_terms: [],
+      }) });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  }));
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/literature-search/workspace", component: LiteratureSearchView }, { path: "/literature-search/results/:id", component: { template: "<div />" } }] });
+  await router.push("/literature-search/workspace?strategy_id=12");
+  await router.isReady();
+  const wrapper = mount(LiteratureSearchView, { global: { plugins: [router] } });
+  await flushPromises();
+
+  const button = wrapper.findAll("button").find((item) => item.text().includes("开始检索"));
+  expect(button?.attributes("disabled")).toBeUndefined();
+  await button?.trigger("click");
+  await button?.trigger("click");
+  expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/execute"))).toHaveLength(1);
+  resolveExecution?.({ ok: true, status: 200, json: async () => ({ new_result_id: 42 }) });
+  await flushPromises();
 });

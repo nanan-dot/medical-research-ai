@@ -26,8 +26,8 @@ class LiteratureSearchStrategy(Base):
     is_pinned:Mapped[bool]=mapped_column(Boolean,nullable=False,default=False)
     is_archived:Mapped[bool]=mapped_column(Boolean,nullable=False,default=False)
     copied_from_strategy_id:Mapped[int|None]=mapped_column(ForeignKey("literature_search_strategies.id",ondelete="SET NULL"))
-    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),server_default=text("CURRENT_TIMESTAMP"))
-    updated_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),server_default=text("CURRENT_TIMESTAMP"))
+    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),nullable=False,server_default=text("CURRENT_TIMESTAMP"))
+    updated_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),nullable=False,server_default=text("CURRENT_TIMESTAMP"))
     archived_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True))
 
 class LiteratureSearchStrategyVersion(Base):
@@ -47,7 +47,7 @@ class LiteratureSearchStrategyVersion(Base):
     start_year:Mapped[int|None]=mapped_column(Integer)
     end_year:Mapped[int|None]=mapped_column(Integer)
     change_summary_json:Mapped[str]=mapped_column(Text,nullable=False,default="{}")
-    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),server_default=text("CURRENT_TIMESTAMP"))
+    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),nullable=False,server_default=text("CURRENT_TIMESTAMP"))
 
 class LiteratureSearchExecution(Base):
     __tablename__="literature_search_executions"
@@ -64,6 +64,5 @@ class LiteratureSearchExecution(Base):
     removed_pmids_json:Mapped[str|None]=mapped_column(Text)
     has_changes:Mapped[bool|None]=mapped_column(Boolean)
     error_message:Mapped[str|None]=mapped_column(Text)
-    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),server_default=text("CURRENT_TIMESTAMP"))
+    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),nullable=False,server_default=text("CURRENT_TIMESTAMP"))
     completed_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True))
-

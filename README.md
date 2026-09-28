@@ -6,7 +6,7 @@
 
 - Conda 环境：`med-research-ai`
 - Python：3.12
-- 工作目录：`H:\AI_project\rag_medicine`
+- 工作目录：`D:\AI_project\rag_medicine`
 
 R0 验收版本可使用 `requirements-r0.lock` 安装；PaperQA2 使用独立的 `experiments/paperqa2_r0/requirements.lock`。阶段验收证据见 `docs/R0_ACCEPTANCE.md`，R1 候选事项见 `docs/R1_BACKLOG.md`。
 
@@ -15,7 +15,7 @@ R0 验收版本可使用 `requirements-r0.lock` 安装；PaperQA2 使用独立�
 ### Git Bash
 
 ```bash
-cd /h/AI_project/rag_medicine
+cd /d/AI_project/rag_medicine
 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe --version
 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m pytest
 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m uvicorn app.main:app --reload
@@ -26,7 +26,7 @@ env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe
 PowerShell 中用进程级环境变量达到同样效果：
 
 ```powershell
-Set-Location H:\AI_project\rag_medicine
+Set-Location D:\AI_project\rag_medicine
 $env:PYTHONPATH = ""
 & F:\software\programme\Anaconda\envs\med-research-ai\python.exe --version
 & F:\software\programme\Anaconda\envs\med-research-ai\python.exe -m pytest
@@ -42,6 +42,10 @@ Copy-Item .env.example .env
 ```
 
 `.env`、`data/`、数据库、索引和 PDF 均由 Git 忽略。R0 的实验数据统一放在 `data/`；不得提交未发表论文或敏感材料。
+
+### RAG Trace 审计与隐私
+
+`RAG_TRACE_ENABLED` 默认关闭。启用应用层 Trace 后，JSONL 只会写入 `DATA_DIR/rag_traces/`（或 `DATA_DIR` 内的 `RAG_TRACE_DIR`）；`RAG_TRACE_STORE_QUERY` 与 `RAG_TRACE_STORE_TEXT` 默认均为 `false`。候选数量、文本长度和保留期分别由 `RAG_TRACE_MAX_CANDIDATES`、`RAG_TRACE_MAX_TEXT_CHARS`、`RAG_TRACE_RETENTION_DAYS` 限制。清理由应用代码显式调用，不创建系统计划任务，也不持久修改系统日志或环境设置。
 
 ## 验证基线
 
@@ -62,6 +66,42 @@ git status --short --branch
 ```bash
 env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m uvicorn app.main:app --reload
 ```
+
+资料库导入会创建持久化的解析与索引任务；它们由独立 worker 消费。开发时请在另一个终端常驻运行下面的命令（`--once` 只用于维护排障，会在处理一项后退出）：
+
+```bash
+env PYTHONPATH="" /f/software/programme/Anaconda/envs/med-research-ai/python.exe -m app.cli.document_task_worker
+```
+
+worker 会持续轮询空队列；上传后的任务将从 `queued` 进入解析、索引，最终显示为可使用或带真实错误原因的失败状态。
+
+### 本地论文翻译完整启动
+
+论文导入后的结构提取、稳定分段和医学翻译分别由独立 worker 执行。Windows 下可从项目根目录一次启动 API、前端及全部后台 worker；脚本会跳过已经运行的同类进程，日志写入 `work/runtime-logs/`：
+
+```powershell
+Set-Location D:\AI_project\rag_medicine
+.\scripts\start_local_runtime.ps1
+```
+
+只启动 API 与后台任务、保留已经打开的前端时使用 `-NoFrontend`。完全手动启动时，除 `document_task_worker` 外还必须常驻运行：
+
+```powershell
+.\.venv\Scripts\python.exe -m app.cli.document_anchor_worker
+.\.venv\Scripts\python.exe -m app.cli.document_layout_worker
+.\.venv\Scripts\python.exe -m app.cli.medical_translation_worker
+```
+
+当前离线翻译引擎由 `MEDICAL_TRANSLATION_ENGINE` 选择。`ollama` 使用本机 `OLLAMA_MODEL` 的约束 JSON 医学翻译；`local-transformers` 使用 `MEDICAL_TRANSLATION_LOCAL_MODEL_DIR`；`auto` 才会优先选择本地 Transformers 资产。CPU 线程与单任务超时由 `MEDICAL_TRANSLATION_LOCAL_CPU_THREADS`、`MEDICAL_TRANSLATION_TIMEOUT_SECONDS` 限制。已下载的 ParaMed mBART 模型卡虽声明 Apache-2.0，但本项目真实论文验收出现严重重复退化，因此不作为当前生产引擎。当前生产配置使用本机 Qwen3 8B，并结合小型核心医学术语表、文档级人工术语覆盖及数字/统计量/否定/重复退化门禁。系统仍没有完整导入 UMLS、SNOMED CT 或 MeSH，不能把这份核心表表述成完整医学名词数据库。
+
+可选的离线英中临床术语索引使用 `TigerResearch/MedCT` 数据包（数据集页面声明 Apache-2.0）。首次配置执行：
+
+```powershell
+git clone --depth 1 https://huggingface.co/datasets/TigerResearch/MedCT data/medical_terminology/MedCT
+.\.venv\Scripts\python.exe -m scripts.import_medct_terminology data/medical_terminology/MedCT data/medical_terminology/medct.sqlite3
+```
+
+然后配置 `MEDICAL_TERMINOLOGY_INDEX_PATH=./data/medical_terminology/medct.sqlite3`。运行时只查询当前段落实际出现的最长非重叠术语，文档级覆盖与核心安全术语始终优先。MedCT 内容带有 SCTID，面向生产或再分发前仍应由部署方确认其所在地及用途符合相关上游术语许可要求；系统不会自动下载或声称获得 UMLS/SNOMED 授权。
 
 启动后访问：
 

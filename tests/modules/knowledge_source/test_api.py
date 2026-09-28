@@ -101,12 +101,10 @@ def test_browse_directory_returns_clear_4xx_when_picker_is_unavailable(
     response = client.post("/api/v1/knowledge-sources/browse-directory")
 
     assert response.status_code == 400
-    assert response.json() == {
-        "error": {
-            "code": "directory_picker_unavailable",
-            "message": DIRECTORY_PICKER_UNAVAILABLE_MESSAGE,
-        }
-    }
+    error = response.json()["error"]
+    assert error["code"] == "directory_picker_unavailable"
+    assert error["message"] == DIRECTORY_PICKER_UNAVAILABLE_MESSAGE
+    assert isinstance(error["request_id"], str)
 
 
 def test_import_document_requires_and_persists_explicit_source(
@@ -249,10 +247,10 @@ def test_stats_for_missing_source_returns_404(client: TestClient):
 def test_missing_path_returns_clear_400(client: TestClient, tmp_path: Path):
     response = create_source(client, tmp_path / "missing", "temporary_import")
     assert response.status_code == 400
-    assert response.json()["error"] == {
-        "code": "invalid_path",
-        "message": "Knowledge source directory does not exist",
-    }
+    error = response.json()["error"]
+    assert error["code"] == "invalid_path"
+    assert error["message"] == "Knowledge source directory does not exist"
+    assert isinstance(error["request_id"], str)
 
 
 def test_permission_and_network_errors_are_explicit(

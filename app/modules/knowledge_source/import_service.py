@@ -16,6 +16,7 @@ from app.common.path_utils import normalized_path_key
 from app.core.config import settings
 from app.modules.document.model import Document
 from app.modules.document.repository import DocumentRepository
+from app.modules.document_relocation.file_versions import FileVersionService
 from app.modules.document_upload.model import DocumentAsset
 from app.modules.document_upload.repository import DocumentAssetRepository
 from app.modules.document_upload.service import (
@@ -175,6 +176,9 @@ class KnowledgeSourceDocumentImportService:
             index_status="pending",
         )
         await self._documents.create(document)
+        await FileVersionService(self._session).observe(
+            document, content_available=True
+        )
         asset = DocumentAsset(
             document=document,
             asset_kind="upload",

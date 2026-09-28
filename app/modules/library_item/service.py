@@ -5,11 +5,12 @@ fulltext-retrieval 融合点：保存只记录全文状态（基于可验证信�
 """
 
 import json
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.exceptions import NotFoundError
+from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.document.matcher import find_exact_document_match, normalize_doi
 from app.modules.document.repository import DocumentRepository
 from app.modules.library_item.model import LibraryItem
@@ -23,6 +24,7 @@ from app.modules.literature_search.model import LiteratureSearchResult
 from app.modules.literature_search.schema import CitationItem
 
 _METADATA_REASON = "No local PDF or verified open-access signal in the saved result"
+logger = logging.getLogger(__name__)
 
 
 class LibraryItemService:
@@ -54,6 +56,23 @@ class LibraryItemService:
         doi = normalize_doi(citation.doi)
         existing = await self.repo.find_by_identifier(citation.pmid, doi)
         if existing is not None:
+            if existing.pmcid is None and citation.pmcid is not None:
+                existing.pmcid = citation.pmcid
+                existing.updated_at = datetime.now(UTC)
+                existing = await self.repo.save(existing)
+            elif (
+                existing.pmcid is not None
+                and citation.pmcid is not None
+                and existing.pmcid != citation.pmcid
+            ):
+                logger.warning(
+                    "PMCID conflict kept existing value library_item_id=%d pmid=%s",
+                    existing.id,
+                    citation.pmid,
+                )
+                raise ConflictError(
+                    "Saved LibraryItem PMCID conflicts with PubMed snapshot"
+                )
             return LibraryItemRead.model_validate(existing)
         match = find_exact_document_match(
             await self.document_repo.list_all(), pmid=citation.pmid, doi=doi
@@ -68,7 +87,7 @@ class LibraryItemService:
             document_id = None
         item = LibraryItem(
             pmid=citation.pmid,
-            pmcid=None,
+            pmcid=citation.pmcid,
             doi=doi,
             title=citation.title,
             journal=citation.journal,

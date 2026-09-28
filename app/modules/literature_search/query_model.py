@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 MIN_YEAR = 1900
 MAX_RETMX = 500
+DEFAULT_PUBLICATION_WINDOW_YEARS = 15
 
 
 class DateRange(BaseModel):
@@ -24,6 +25,64 @@ class DateRange(BaseModel):
         return self
 
 
+class ConstrainedDateRange(BaseModel):
+    """产品窗口约束后的可执行日期范围。"""
+
+    effective_range: DateRange
+    was_defaulted: bool = False
+    was_clipped: bool = False
+    warnings: list[str] = Field(default_factory=list)
+
+
+class LiteratureSearchRangeOutsidePolicyError(ValueError):
+    """请求日期与滚动产品窗口完全无交集。"""
+
+
+def publication_window(current_year: int) -> DateRange:
+    """返回包含首尾年份的滚动十五年窗口。"""
+    return DateRange(
+        start_year=current_year - DEFAULT_PUBLICATION_WINDOW_YEARS + 1,
+        end_year=current_year,
+    )
+
+
+def constrain_date_range(
+    requested: DateRange | None, current_year: int
+) -> ConstrainedDateRange:
+    """将用户范围与产品窗口取交集，保留可审计的裁剪信息。"""
+    policy = publication_window(current_year)
+    if requested is None:
+        return ConstrainedDateRange(effective_range=policy, was_defaulted=True)
+    requested_start = requested.start_year or MIN_YEAR
+    requested_end = requested.end_year or current_year
+    effective_start = max(requested_start, policy.start_year or MIN_YEAR)
+    effective_end = min(requested_end, policy.end_year or current_year)
+    if effective_start > effective_end:
+        raise LiteratureSearchRangeOutsidePolicyError(
+            "requested publication range is outside the rolling 15-year policy"
+        )
+    was_clipped = effective_start != requested_start or effective_end != requested_end
+    return ConstrainedDateRange(
+        effective_range=DateRange(
+            start_year=effective_start,
+            end_year=effective_end,
+            original_expression=requested.original_expression,
+        ),
+        was_clipped=was_clipped,
+        warnings=(
+            ["publication_date_range_clipped_to_15_year_policy"] if was_clipped else []
+        ),
+    )
+
+
+def append_publication_filter(query: str, date_range: DateRange) -> str:
+    """在最终执行边界追加 PubMed 日期过滤器，防止手改查询绕过策略。"""
+    return (
+        f'({query}) AND ("{date_range.start_year}"[Date - Publication] : '
+        f'"{date_range.end_year}"[Date - Publication])'
+    )
+
+
 class SearchIntentCandidate(BaseModel):
     """A proposed query intent, never a hidden final search expression."""
 
@@ -38,7 +97,7 @@ class SearchIntentCandidate(BaseModel):
     study_types: list[str] = Field(default_factory=list, max_length=10)
     language: list[str] = Field(default_factory=list, max_length=10)
     exclusions: list[str] = Field(default_factory=list, max_length=20)
-    retmax: int = Field(default=50, ge=1, le=MAX_RETMX)
+    retmax: int = Field(default=MAX_RETMX, ge=1, le=MAX_RETMX)
 
     @model_validator(mode="after")
     def remove_blank_and_duplicate_values(self) -> "SearchIntentCandidate":

@@ -189,6 +189,16 @@ def test_apply_filters_empty_result_when_nothing_matches():
     assert filtered == []
 
 
+def test_apply_filters_uses_inclusive_year_range_from_real_query_params():
+    items = [_item("1", year=2020), _item("2", year=2023), _item("3", year=2026)]
+    filtered = apply_filters(
+        items,
+        ResultQueryParams(year_from=2021, year_to=2025),
+        state_by_pmid=lambda pmid: (False, DEFAULT_READ_STATUS, []),
+    )
+    assert [item.pmid for item in filtered] == ["2"]
+
+
 def test_apply_filters_journal_is_substring_case_insensitive():
     items = [
         _item("1", journal="Nature Medicine"),
@@ -254,30 +264,23 @@ def test_sort_newest_orders_by_year_desc_with_pmid_tiebreak():
     assert all(entry.sort_reason for entry in ranked)
 
 
-def test_sort_classic_prefers_top_journal_and_recent_year():
+def test_sort_classic_is_rejected_without_commercial_or_journal_whitelist_signal():
     items = [
         _item("old", year=2010, journal="Nature"),
         _item("recent", year=2024, journal="Some Journal"),
         _item("none", year=None, journal="Science"),
     ]
-    ranked = sort_items(items, ResultQueryParams(sort="classic"), current_year=2026)
-    first = ranked[0].item
-    # Nature 权威期刊 + 老年份 应排在"普通期刊 + 新年份"之前；None 排最后。
-    assert first.pmid == "old"
-    assert ranked[-1].item.pmid == "none"
-    reasons = " ".join(entry.sort_reason for entry in ranked).lower()
-    assert "top journal" in reasons
-    assert "year unknown" in reasons
+    with pytest.raises(ValueError, match="unsupported sort: classic"):
+        sort_items(items, ResultQueryParams(sort="classic"), current_year=2026)
 
 
-def test_sort_classic_is_stable_for_same_score():
+def test_sort_classic_cannot_be_reintroduced_as_a_local_tiebreaker():
     items = [
         _item("p1", year=2024, journal="Nature"),
         _item("p2", year=2024, journal="Nature"),
     ]
-    ranked = sort_items(items, ResultQueryParams(sort="classic"), current_year=2026)
-    # 同分（同期刊、同年份）时按 pmid 升序兜底，翻页不跳动。
-    assert [entry.item.pmid for entry in ranked] == ["p1", "p2"]
+    with pytest.raises(ValueError, match="unsupported sort: classic"):
+        sort_items(items, ResultQueryParams(sort="classic"), current_year=2026)
 
 
 def test_sort_custom_places_configured_first_others_keep_relevance():
@@ -342,7 +345,11 @@ def test_get_result_page_filters_and_paginates(api_client):
 
 def test_consolidated_projection_precedes_filter_sort_and_page(api_client):
     client, executor = api_client
-    items = [_item("same", year=2023), _item("same", year=2024), _item("other", year=2022)]
+    items = [
+        _item("same", year=2023),
+        _item("same", year=2024),
+        _item("other", year=2022),
+    ]
     result_id = _seed_result((client, executor), items)
     client.put(f"/api/v1/literature-search/results/{result_id}/deduplication")
     consolidated = client.get(

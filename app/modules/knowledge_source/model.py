@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -10,6 +10,14 @@ from app.core.database import Base
 
 class KnowledgeSource(Base):
     __tablename__ = "knowledge_sources"
+    __table_args__ = (
+        Index(
+            "ix_knowledge_sources_auto_sync_due",
+            "auto_sync",
+            "enabled",
+            "next_auto_sync_at",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -18,6 +26,16 @@ class KnowledgeSource(Base):
     normalized_root_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     auto_sync: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sync_interval_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=60
+    )
+    next_auto_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_auto_sync_enqueued_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    auto_sync_failure_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
     is_pinned: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, index=True
     )

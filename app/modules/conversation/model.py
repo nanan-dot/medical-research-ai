@@ -36,6 +36,24 @@ class Message(Base):
     sequence: Mapped[int] = mapped_column(nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    reader_document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL"), index=True
+    )
+    reader_source_anchor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_source_anchors.id", ondelete="SET NULL"), index=True
+    )
+    reader_active_segment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_layout_segments.id", ondelete="SET NULL")
+    )
+    reader_section_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_layout_sections.id", ondelete="SET NULL")
+    )
+    reader_anchor_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_anchor_revisions.id", ondelete="SET NULL")
+    )
+    reader_segmentation_revision_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_segmentation_revisions.id", ondelete="SET NULL")
+    )
     model_version: Mapped[str | None] = mapped_column(String(100))
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     feedback: Mapped[int | None] = mapped_column(Integer)
@@ -50,6 +68,12 @@ class Message(Base):
 class Citation(Base):
     __tablename__ = "citations"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    source_anchor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_source_anchors.id", ondelete="SET NULL"), index=True
+    )
+    anchor_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="legacy_unversioned"
+    )
     message_id: Mapped[int] = mapped_column(
         ForeignKey("messages.id", ondelete="CASCADE"), index=True
     )

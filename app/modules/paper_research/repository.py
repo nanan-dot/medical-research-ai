@@ -43,9 +43,11 @@ class PaperResearchRepository:
             self._original_filename(),
             Document.file_path,
         )
-        return title.label("title"), self._library_column(LibraryItem.year).label(
-            "year"
-        ), self._library_column(LibraryItem.pmid).label("pmid")
+        return (
+            title.label("title"),
+            self._library_column(LibraryItem.year).label("year"),
+            self._library_column(LibraryItem.pmid).label("pmid"),
+        )
 
     @staticmethod
     def _indexed_filter():
@@ -59,16 +61,20 @@ class PaperResearchRepository:
     ) -> tuple[list[tuple[Document, str, int | None, str | None]], int]:
         title, year, pmid = self._document_columns()
         statement = select(Document, title, year, pmid).where(*self._indexed_filter())
-        count_statement = select(func.count()).select_from(Document).where(
-            *self._indexed_filter()
+        count_statement = (
+            select(func.count()).select_from(Document).where(*self._indexed_filter())
         )
         if q:
             pattern = f"%{q.casefold()}%"
-            search_filter = or_(func.lower(title).like(pattern), func.lower(pmid).like(pattern))
+            search_filter = or_(
+                func.lower(title).like(pattern), func.lower(pmid).like(pattern)
+            )
             statement = statement.where(search_filter)
             count_statement = count_statement.where(search_filter)
         result = await self.session.execute(
-            statement.order_by(func.lower(title), Document.id).offset(offset).limit(limit)
+            statement.order_by(func.lower(title), Document.id)
+            .offset(offset)
+            .limit(limit)
         )
         total = await self.session.scalar(count_statement)
         documents: list[tuple[Document, str, int | None, str | None]] = list(

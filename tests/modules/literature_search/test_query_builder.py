@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 from app.modules.literature_search.mesh_client import MeshClient
@@ -5,6 +6,26 @@ from app.modules.literature_search.query_builder import build_boolean_query
 from app.modules.literature_search.query_model import SearchIntentCandidate
 from app.modules.literature_search.schema import SearchTermGroup
 from app.modules.literature_search.service import LiteratureSearchService
+
+
+async def test_mesh_client_falls_back_to_environment_proxy_after_direct_transport_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = MeshClient()
+    attempted_transports: list[bool] = []
+
+    async def request_with_proxy_fallback(_: str, *, trust_env: bool) -> list[dict[str, str]]:
+        attempted_transports.append(trust_env)
+        if not trust_env:
+            raise httpx.ConnectTimeout("direct TLS handshake timed out")
+        return [{"label": "Metformin", "resource": "http://id.nlm.nih.gov/mesh/D008687"}]
+
+    monkeypatch.setattr(client, "_request", request_with_proxy_fallback)
+
+    candidates = await client.lookup("Metformin")
+
+    assert attempted_transports == [False, True]
+    assert candidates[0]["mesh_id"] == "D008687"
 
 
 async def test_expands_synonyms_and_official_mesh_candidates() -> None:
@@ -35,10 +56,26 @@ async def test_empty_mesh_is_valid_and_does_not_invent_descriptor() -> None:
     )
 
     assert response.mesh_candidates == []
+    assert response.mesh_status_by_group == {"target": "not_found"}
     assert response.term_groups[0].terms == [
         "epidermal growth factor receptor",
         "ERBB1",
     ]
+
+
+async def test_mesh_unavailable_keeps_expanded_terms_and_reports_a_partial_state() -> None:
+    async def unavailable_fetcher(_: str) -> list[dict[str, str]]:
+        raise OSError("NLM unavailable")
+
+    service = LiteratureSearchService(None, mesh_client=MeshClient(unavailable_fetcher))  # type: ignore[arg-type]
+    response = await service.expand_terms(
+        SearchIntentCandidate(topic="ILD with antifibrotic therapy", disease="间质性肺疾病患者", intervention="抗纤维化药物"),
+        {},
+    )
+
+    assert [group.name for group in response.term_groups] == ["disease", "intervention"]
+    assert response.mesh_candidates == []
+    assert response.mesh_status_by_group == {"disease": "unavailable", "intervention": "unavailable"}
 
 
 async def test_expands_curated_chinese_rectal_cancer_and_neoadjuvant_immunotherapy() -> None:
@@ -65,6 +102,39 @@ async def test_expands_curated_chinese_rectal_cancer_and_neoadjuvant_immunothera
         "neoadjuvant immune checkpoint inhibitor",
     ]
     assert not any("Chinese-only" in warning for warning in response.warnings)
+
+
+async def test_expands_curated_ild_and_antifibrotic_question_used_by_entry_page() -> None:
+    """The documented entry-page example must produce a buildable PubMed query."""
+    async def fetcher(_: str) -> list[dict[str, str]]:
+        return []
+
+    service = LiteratureSearchService(None, mesh_client=MeshClient(fetcher))  # type: ignore[arg-type]
+    response = await service.expand_terms(
+        SearchIntentCandidate(
+            topic="间质性肺疾病患者中，抗纤维化药物的疗效与安全性如何？",
+            disease="间质性肺疾病患者",
+            intervention="抗纤维化药物",
+            outcome="疗效与安全性",
+        ),
+        {},
+    )
+
+    groups = {group.name: group.terms for group in response.term_groups}
+    assert "interstitial lung disease" in groups["disease"]
+    assert "antifibrotic agents" in groups["intervention"]
+    assert groups["outcome"] == ["treatment outcome", "safety", "survival"]
+    assert not any("Chinese-only" in warning for warning in response.warnings)
+
+
+def test_curated_ild_entry_question_has_auditable_pico_fallback() -> None:
+    from app.modules.literature_search.pico_fallback import extract_curated_pico
+
+    fallback = extract_curated_pico("间质性肺疾病患者中，抗纤维化药物的疗效与安全性如何？")
+
+    assert fallback.population == "间质性肺疾病患者"
+    assert fallback.intervention == "抗纤维化药物"
+    assert fallback.outcome == "疗效与安全性"
 
 
 @pytest.mark.parametrize(

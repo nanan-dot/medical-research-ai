@@ -61,7 +61,9 @@ def test_search_limits_results_when_top_k_exceeds_total(medical_chunks) -> None:
     store = BM25Store()
     store.build(medical_chunks)
 
-    assert len(store.search("患者", top_k=99)) == len(medical_chunks)
+    results = store.search("患者", top_k=99)
+    assert len(results) <= len(medical_chunks)
+    assert all(result.raw_score and result.raw_score > 0 for result in results)
 
 
 def test_add_recalculates_index_for_new_exact_term(medical_chunks: list[Chunk]) -> None:
@@ -72,3 +74,10 @@ def test_add_recalculates_index_for_new_exact_term(medical_chunks: list[Chunk]) 
     results = store.search("NCT04209660", top_k=1)
 
     assert results[0].chunk_id == "trial:0"
+
+
+def test_wp1_07_zero_bm25_score_is_not_returned_as_a_match(medical_chunks) -> None:
+    store = BM25Store()
+    store.build(medical_chunks)
+
+    assert store.search("unrelated-term", top_k=5) == []

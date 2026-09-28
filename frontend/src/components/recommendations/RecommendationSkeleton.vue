@@ -1,9 +1,2 @@
-<template>
-  <section class="skeleton" role="status" aria-live="polite" aria-label="正在检索推荐文献">
-    <div v-for="row in 3" :key="row" class="skeleton-row"><span class="rank" /><div><span class="title" /><span class="meta" /><span class="action" /></div><span class="reason" /></div>
-  </section>
-</template>
-
-<style scoped>
-.skeleton{overflow:hidden;border:1px solid var(--border-subtle);border-radius:8px;background:var(--surface)}.skeleton-row{display:grid;grid-template-columns:28px minmax(0,1fr) 240px;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border-subtle)}.skeleton-row:last-child{border:0}.skeleton span{display:block;border-radius:4px;background:var(--surface-muted)}.rank{height:24px}.title{height:16px;width:72%}.meta{height:12px;width:52%;margin-top:8px}.action{height:20px;width:96px;margin-top:12px}.reason{height:72px}@media(max-width:900px){.skeleton-row{grid-template-columns:28px minmax(0,1fr)}.reason{grid-column:2;height:40px}}
-</style>
+<template><div class="skeleton" aria-label="正在生成推荐" role="status"><div v-for="index in 3" :key="index" class="row"><span></span><div><i></i><i></i><i></i></div><div><i></i><i></i><i></i></div></div></div></template>
+<style scoped>.row{display:grid;grid-template-columns:30px minmax(0,3fr) minmax(360px,2fr);gap:14px;min-height:176px;padding:16px;border-bottom:1px solid #dce5f0;box-sizing:border-box}.row span,.row i{display:block;border-radius:4px;background:#e9eef6}.row span{width:29px;height:29px}.row div:last-child{padding-left:18px;border-left:1px solid #dce5f0}.row i{height:11px;margin:0 0 13px}.row i:nth-child(2){width:88%}.row i:nth-child(3){width:68%}@media(prefers-reduced-motion:no-preference){.row i,.row span{animation:pulse 1.4s ease-in-out infinite}@keyframes pulse{50%{opacity:.45}}}@media(max-width:899px){.row{grid-template-columns:30px 1fr}.row div:last-child{grid-column:2;padding:12px 0 0;border-top:1px solid #dce5f0;border-left:0}}</style>

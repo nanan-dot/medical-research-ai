@@ -29,13 +29,22 @@ class PubMedRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     pmid: str = Field(min_length=1, max_length=20)
+    pmcid: str | None = Field(default=None, max_length=32)
     doi: str | None = Field(default=None, max_length=200)
     title: str | None = Field(default=None, max_length=1000)
     authors: list[str] = Field(default_factory=list)
     journal: str | None = Field(default=None, max_length=500)
+    issn: str | None = Field(default=None, max_length=9)
+    eissn: str | None = Field(default=None, max_length=9)
+    issn_l: str | None = Field(default=None, max_length=9)
+    journal_abbreviation: str | None = Field(default=None, max_length=200)
     year: int | None = Field(default=None)
+    volume: str | None = Field(default=None, max_length=100)
+    issue: str | None = Field(default=None, max_length=100)
+    pages: str | None = Field(default=None, max_length=200)
     abstract: str | None = None
     publication_types: list[str] = Field(default_factory=list)
+    mesh_terms: list[str] = Field(default_factory=list)
     is_open_access: bool = False
     withdrawn: bool = False
 

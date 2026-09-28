@@ -1,13 +1,16 @@
 """Literature-search endpoints."""
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.modules.literature_search.journal_metric_schema import JournalMetricDetail
 from app.modules.literature_search.schema import (
     BuildQueryRequest,
     BuildQueryResponse,
+    BulkItemStateResult,
+    BulkItemStateUpdate,
     DeduplicationSummary,
     DuplicateGroupList,
     DuplicateGroupPage,
@@ -26,6 +29,7 @@ from app.modules.literature_search.schema import (
     LiteratureSearchTaskRead,
     LiteratureSearchTaskRerun,
     LiteratureSearchTaskRerunRequest,
+    LiteratureSearchTaskResearchContextBind,
     ParseQueryRequest,
     ParseQueryResponse,
     ReadingOrderRead,
@@ -67,7 +71,9 @@ async def list_history(
     session: AsyncSession = Depends(get_session),
 ) -> LiteratureSearchHistoryList:
     """Return one current research record per equivalent search strategy."""
-    return await LiteratureSearchService(session).list_history(offset=offset, limit=limit)
+    return await LiteratureSearchService(session).list_history(
+        offset=offset, limit=limit
+    )
 
 
 @router.post("", response_model=LiteratureSearchTaskCreateResult, status_code=201)
@@ -108,6 +114,18 @@ async def get_task(
 ) -> LiteratureSearchTaskRead:
     """返回单个检索任务详情（含全部结果版本）。"""
     return await LiteratureSearchService(session).get_task(id)
+
+
+@router.patch("/{id}/research-context", response_model=LiteratureSearchTaskRead)
+async def bind_task_research_context(
+    id: int,
+    request: LiteratureSearchTaskResearchContextBind,
+    session: AsyncSession = Depends(get_session),
+) -> LiteratureSearchTaskRead:
+    """Bind a previously unbound task before persisting a confirmed Intent."""
+    return await LiteratureSearchService(session).bind_task_research_context(
+        id, request.research_context_id
+    )
 
 
 # ----------------------------------------------------------------------
@@ -162,6 +180,38 @@ async def get_search_results(
     return await LiteratureSearchService(session).get_result_page(id, params)
 
 
+@router.get(
+    "/{result_id}/items/{pmid}/journal-metrics", response_model=JournalMetricDetail
+)
+async def get_journal_metrics(
+    result_id: int, pmid: str, session: AsyncSession = Depends(get_session)
+) -> JournalMetricDetail:
+    return await LiteratureSearchService(session).get_journal_metric_detail(
+        result_id, pmid
+    )
+
+
+@router.get("/{id}/results/export")
+async def export_search_results(
+    id: int,
+    format: str = "csv",
+    params: ResultQueryParams = Depends(),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    if format not in {"csv", "ris", "bibtex"}:
+        return Response(status_code=422, content="unsupported export format")
+    content, media_type, extension = await LiteratureSearchService(
+        session
+    ).export_filtered_results(id, params, format)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="literature-results-{id}.{extension}"'
+        },
+    )
+
+
 @router.patch("/{id}/items/{pmid}/state", response_model=ItemStateRead)
 async def update_item_state(
     id: int,
@@ -171,6 +221,18 @@ async def update_item_state(
 ) -> ItemStateRead:
     """写入单条结果的用户态（saved / read_status / tags / 自定义排序序号）。"""
     return await LiteratureSearchService(session).update_item_state(id, pmid, request)
+
+
+@router.patch("/{id}/items/state/bulk", response_model=BulkItemStateResult)
+async def update_item_states_bulk(
+    id: int,
+    request: BulkItemStateUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> BulkItemStateResult:
+    """批量更新阅读计划、重点标记等本地用户态。"""
+    return await LiteratureSearchService(session).update_item_states_bulk(
+        id, request.pmids, request.state
+    )
 
 
 @router.get("/{id}/items/{pmid}/state", response_model=ItemStateRead)
@@ -273,7 +335,7 @@ async def resolve_duplicate_group(
 # ----------------------------------------------------------------------
 
 
-@router.post("/{id}/reading-order", response_model=ReadingOrderRead)
+@router.post("/{id}/reading-order", response_model=ReadingOrderRead, deprecated=True)
 async def generate_reading_order(
     id: int,
     request: ReadingOrderRequest,
@@ -289,7 +351,7 @@ async def generate_reading_order(
     )
 
 
-@router.put("/{id}/reading-order/order", response_model=ReadingOrderRead)
+@router.put("/{id}/reading-order/order", response_model=ReadingOrderRead, deprecated=True)
 async def save_reading_order(
     id: int,
     request: ReadingOrderSaveRequest,

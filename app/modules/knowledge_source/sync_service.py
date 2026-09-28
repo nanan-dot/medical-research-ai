@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from app.modules.document.model import Document
 from app.modules.document.repository import DocumentRepository
 from app.modules.document.schema import DocumentScanState, IndexStatus, ParseStatus
 from app.modules.document.service import SOURCE_FILE_MISSING, DocumentService
+from app.modules.document_relocation.file_versions import FileVersionService
 from app.modules.knowledge_source.model import KnowledgeSource
 from app.modules.knowledge_source.scanner import scan_directory
 from app.modules.knowledge_source.schema import (
@@ -21,8 +23,15 @@ from app.modules.knowledge_source.schema import (
     KnowledgeSourceSyncSummary,
 )
 from app.modules.knowledge_source.service import KnowledgeSourceService
+from app.modules.knowledge_source.sync_progress import (
+    SyncPhase,
+    SyncProgress,
+    calculate_progress,
+)
 
 logger = logging.getLogger(__name__)
+
+SyncProgressReporter = Callable[[SyncProgress], Awaitable[None]]
 
 
 class KnowledgeSourceSyncService:
@@ -31,7 +40,11 @@ class KnowledgeSourceSyncService:
         self.source_service = KnowledgeSourceService(session)
         self.document_repo = DocumentRepository(session)
 
-    async def sync(self, source_id: int) -> KnowledgeSourceSyncSummary:
+    async def sync(
+        self,
+        source_id: int,
+        progress_reporter: SyncProgressReporter | None = None,
+    ) -> KnowledgeSourceSyncSummary:
         source = await self.source_service.get(source_id)
         if not source.enabled:
             raise ConflictError("Disabled knowledge source cannot be synchronized")
@@ -42,6 +55,10 @@ class KnowledgeSourceSyncService:
         source.error_message = None
         await self.source_service.repo.save(source)
 
+        await self._report(
+            progress_reporter,
+            calculate_progress(SyncPhase.SCANNING, 0, None),
+        )
         scan = await asyncio.to_thread(scan_directory, Path(source.root_path))
         existing = {
             document.normalized_file_path: document
@@ -55,6 +72,7 @@ class KnowledgeSourceSyncService:
             "failed": scan.failures,
         }
         documents_to_parse: list[int] = []
+        completed_units = 0
 
         for path_key, scanned in scan.files.items():
             document = existing.pop(path_key, None)
@@ -74,13 +92,16 @@ class KnowledgeSourceSyncService:
                     await self.document_repo.save(document)
                     documents_to_parse.append(document.id)
                     counts["modified"] += 1
+                    completed_units += 1
                     continue
                 if document.parse_status == ParseStatus.PENDING.value:
                     # 手动重试此前仅改为 pending 的文档也要由同步真正执行解析。
                     documents_to_parse.append(document.id)
                     counts["modified"] += 1
+                    completed_units += 1
                     continue
                 counts["skipped"] += 1
+                completed_units += 1
                 continue
             try:
                 file_hash = await asyncio.to_thread(sha256_file, scanned.path)
@@ -107,6 +128,7 @@ class KnowledgeSourceSyncService:
                     )
                 )
                 documents_to_parse.append(created.id)
+                await FileVersionService(self.session).observe(created)
                 counts["added"] += 1
             elif document.file_hash == file_hash:
                 document.file_size = scanned.file_size
@@ -128,8 +150,10 @@ class KnowledgeSourceSyncService:
                 document.started_at = None
                 document.finished_at = None
                 await self.document_repo.save(document)
+                await FileVersionService(self.session).observe(document)
                 counts["modified"] += 1
                 documents_to_parse.append(document.id)
+            completed_units += 1
 
         for path_key, document in existing.items():
             belongs_to_failed_directory = any(
@@ -164,8 +188,27 @@ class KnowledgeSourceSyncService:
         # 不影响其余文件，也不计入同步 failed（failed 仅代表扫描/文件系统层失败，
         # 解析失败体现在文档 parse_status=failed，由文档库与知识库 stats 呈现）。
         await self.session.commit()
+        total_work_units = completed_units + len(documents_to_parse)
+        await self._report(
+            progress_reporter,
+            calculate_progress(
+                SyncPhase.PERSISTING,
+                completed_units,
+                total_work_units,
+            ),
+        )
         parser = DocumentService(self.session)
-        for document_id in documents_to_parse:
+        for parse_index, document_id in enumerate(documents_to_parse, start=1):
+            document = await self.document_repo.get(document_id)
+            await self._report(
+                progress_reporter,
+                calculate_progress(
+                    SyncPhase.PARSING,
+                    completed_units + parse_index - 1,
+                    total_work_units,
+                    Path(document.file_path).name if document is not None else None,
+                ),
+            )
             try:
                 await parser.parse(document_id)
             except ConflictError:
@@ -179,7 +222,24 @@ class KnowledgeSourceSyncService:
                     document_id,
                 )
 
+        await self._report(
+            progress_reporter,
+            calculate_progress(
+                SyncPhase.FINALIZING,
+                completed_units + len(documents_to_parse),
+                total_work_units,
+            ),
+        )
+
         return self._summary(await self.source_service.get(source_id))
+
+    @staticmethod
+    async def _report(
+        progress_reporter: SyncProgressReporter | None,
+        progress: SyncProgress,
+    ) -> None:
+        if progress_reporter is not None:
+            await progress_reporter(progress)
 
     async def status(self, source_id: int) -> KnowledgeSourceSyncSummary:
         return self._summary(await self.source_service.get(source_id))

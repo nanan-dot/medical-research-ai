@@ -9,6 +9,14 @@ class NotesRAGError(AppError):
     code = "notes_rag_error"
 
 
+class GroundedGenerationError(NotesRAGError):
+    """A generator adapter failed without exposing model internals."""
+
+
+class InvalidGeneratedAnswerError(GroundedGenerationError):
+    """A generator returned an application-invalid grounded response."""
+
+
 class EmbeddingDimensionMismatchError(NotesRAGError):
     """已保存索引的向量维度与当前 Embedding 配置不一致。
 

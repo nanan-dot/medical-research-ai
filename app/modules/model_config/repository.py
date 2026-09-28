@@ -17,6 +17,16 @@ class ModelConfigRepository:
         )
         return list(result.scalars())
 
+    async def default_local(self):
+        result = await self.session.execute(
+            select(ModelConfig).where(
+                ModelConfig.is_default.is_(True),
+                ModelConfig.provider == "ollama",
+                ModelConfig.deployment_mode.in_(("local", "hybrid")),
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def create(self, entity):
         self.session.add(entity)
         await self.session.flush()

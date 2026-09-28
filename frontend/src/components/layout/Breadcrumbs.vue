@@ -3,18 +3,24 @@ import { computed } from "vue";
 import { RouterLink, type RouteLocationNormalized, useRoute } from "vue-router";
 
 const route = useRoute();
-const documentSpaceLabel = "\u6587\u6863\u4e0e\u77e5\u8bc6";
-const documentLibraryLabel = "\u6587\u6863\u5e93";
+const documentSpaceLabel = "\u7814\u7a76\u8d44\u6e90";
+const documentLibraryLabel = "\u8d44\u6599\u5e93";
 const workspaceLabel = "\u5de5\u4f5c\u53f0";
 const literatureSearchLabel = "文献检索";
 const historyLabel = "历史记录";
+const searchHistoryLabel = "检索历史";
+const searchCenterLabel = "检索中心";
+const searchResultsLabel = "检索结果";
 
 // Only confirmed product-space ancestors receive links; unrelated breadcrumb labels remain plain text.
 const breadcrumbLinkByLabel: Readonly<Record<string, string>> = {
   [documentSpaceLabel]: "/documents",
   [documentLibraryLabel]: "/documents",
   [literatureSearchLabel]: "/literature-search",
-  [historyLabel]: "/literature-search?tab=history",
+  [historyLabel]: "/literature-search/history",
+  [searchHistoryLabel]: "/literature-search/history",
+  [searchCenterLabel]: "/literature-search",
+  [searchResultsLabel]: "/literature-search/results",
 };
 
 function breadcrumbTarget(label: string): string | undefined {
@@ -23,14 +29,6 @@ function breadcrumbTarget(label: string): string | undefined {
 
 const breadcrumbs = computed<string[]>(() => {
   const base = route.meta.breadcrumb;
-  if (route.path === "/analysis") {
-    const label = route.query.tab === "reading"
-      ? "\u5355\u7bc7\u7cbe\u8bfb"
-      : route.query.tab === "evidence"
-        ? "\u8bc1\u636e\u95ee\u7b54"
-        : "\u7814\u7a76\u6982\u89c8";
-    return ["\u8bba\u6587\u7814\u7a76", label];
-  }
   if (typeof base === "function") {
     return base(route as RouteLocationNormalized).map(String);
   }
@@ -39,10 +37,23 @@ const breadcrumbs = computed<string[]>(() => {
 </script>
 
 <template>
-  <nav class="breadcrumbs" aria-label="面包屑">
-    <template v-for="(item, index) in breadcrumbs" :key="`${item}-${index}`">
-      <span v-if="index" class="separator" aria-hidden="true">/</span>
-      <strong v-if="index === breadcrumbs.length - 1" aria-current="page">{{ item }}</strong>
+  <nav
+    class="breadcrumbs"
+    aria-label="面包屑"
+  >
+    <template
+      v-for="(item, index) in breadcrumbs"
+      :key="`${item}-${index}`"
+    >
+      <span
+        v-if="index"
+        class="separator"
+        aria-hidden="true"
+      >/</span>
+      <strong
+        v-if="index === breadcrumbs.length - 1"
+        aria-current="page"
+      >{{ item }}</strong>
       <RouterLink
         v-else-if="breadcrumbTarget(item)"
         :to="breadcrumbTarget(item)!"

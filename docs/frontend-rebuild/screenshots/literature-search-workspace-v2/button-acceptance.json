@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "redirect": "http://127.0.0.1:5173/literature-search/workspace?strategy_id=22",
+    "viewAllClicked": true,
+    "viewAllExpanded": true,
+    "versionMenu": true,
+    "addOpened": true,
+    "termAdded": true,
+    "termMenuOpened": true,
+    "termLocked": true,
+    "termUnlocked": true,
+    "termDeleted": true,
+    "remapClicked": true,
+    "remapReturned": true,
+    "versionCreated": true,
+    "versionReturned": true,
+    "copyClicked": true,
+    "validateClicked": true,
+    "validationReturned": true,
+    "countClicked": true,
+    "countReturned": true,
+    "regenerateClicked": true,
+    "regenerateNavigated": true,
+    "limitsClicked": true,
+    "limitsLocation": "http://127.0.0.1:5173/literature-search?raw_topic=%E9%97%B4%E8%B4%A8%E6%80%A7%E8%82%BA%E7%96%BE%E7%97%85%EF%BC%88ILD%EF%BC%89%E6%82%A3%E8%80%85%E4%B8%AD%EF%BC%8C%E6%8A%97%E7%BA%A4%E7%BB%B4%E5%8C%96%E8%8D%AF%E7%89%A9%E7%9A%84%E7%96%97%E6%95%88%E4%B8%8E%E5%AE%89%E5%85%A8%E6%80%A7%E5%A6%82%E4%BD%95%EF%BC%9F",
+    "limitsNavigated": true,
+    "executeClicked": true,
+    "executeCompleted": true
+  },
+  "failed": []
+}

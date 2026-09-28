@@ -1,70 +1,135 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ResourceLibraryItem, ResourceSourceTree } from "../../api/resourceLibrary";
 import DocumentScopeNav from "./DocumentScopeNav.vue";
 
-const source = {
-  id: 8,
-  name: "临床肿瘤资料",
-  source_type: "local_folder" as const,
-  root_path: "H:\\\\clinical",
-  enabled: true,
-  sync_status: "completed" as const,
-  last_sync_time: null,
-  error_message: null,
-  stats: { total_files: 12, parsed: 10, indexed: 9, pending: 1, failed: 2 },
+const tree: ResourceSourceTree = {
+  groups: [
+    {
+      source_type: "local",
+      node_id: "group:local",
+      descendant_count: 4,
+      health: "ready",
+      children: [{
+        node_id: "source:7",
+        parent_id: "group:local",
+        name: "本地临床资料",
+        relative_path: "",
+        source_id: 7,
+        direct_count: 1,
+        descendant_count: 4,
+        health: "ready",
+        children: [{
+          node_id: "tree:7:ild",
+          parent_id: "source:7",
+          name: "ILD 核心文献",
+          relative_path: "ild",
+          source_id: 7,
+          direct_count: 1,
+          descendant_count: 3,
+          health: "ready",
+          children: [],
+        }],
+      }],
+    },
+    { source_type: "obsidian", node_id: "group:obsidian", descendant_count: 0, health: "unavailable", children: [] },
+    { source_type: "zotero", node_id: "group:zotero", descendant_count: 0, health: "ready", children: [] },
+  ],
 };
 
+const recentItems: ResourceLibraryItem[] = [{
+  id: 12,
+  knowledge_source_id: 7,
+  file_path: "ild/study.pdf",
+  original_filename: "study.pdf",
+  media_type: "application/pdf",
+  file_hash: "hash",
+  file_size: 12,
+  modified_time: "2026-08-30T00:00:00Z",
+  scan_state: "pending",
+  parse_status: "succeeded",
+  index_status: "succeeded",
+  error_code: null,
+  error_message: null,
+  retry_count: 0,
+  started_at: null,
+  finished_at: null,
+  parsed_is_scanned: false,
+  source_name: "本地临床资料",
+  source_type: "local_folder",
+  relative_path: "ild/study.pdf",
+  display_name: "study.pdf",
+  task_status: null,
+  phase: null,
+  current_item: null,
+  last_opened_at: "2026-08-30T00:00:00Z",
+  open_count: 1,
+  status: "ai_available",
+  match_fields: [],
+  snippet: null,
+  locator: null,
+}];
+
+function mountRail() {
+  return mount(DocumentScopeNav, {
+    props: { tree, recentItems, selectedNodeId: null, total: 4, loading: false },
+    global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
+  });
+}
+
 describe("DocumentScopeNav", () => {
-  it("renders the real source count and selected range without failure-hint noise", () => {
-    const wrapper = mount(DocumentScopeNav, {
-      props: { sources: [source], selectedSourceId: 8, recentSourceIds: [], total: 12 },
-      global: { stubs: { RouterLink: { props: ["to"], template: "<a :href='to'><slot /></a>" } } },
-    });
-    const items = wrapper.findAll(".scope-item");
-    expect(items[1].classes()).toContain("active");
-    expect(items[1].text()).toContain("临床肿瘤资料");
-    expect(items[1].text()).toContain("12");
-    // 不再显示“N 个需处理”红字提示，避免来源树拥挤。
-    expect(wrapper.text()).not.toContain("需处理");
-    expect(wrapper.text()).not.toContain("异常");
-    expect(wrapper.find(".scope-heading a").attributes("href")).toBe("/sources");
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps the prescribed all/search/recent/tree/manage order without fabricating counts", () => {
+    const wrapper = mountRail();
+    const text = wrapper.text();
+    const headings = wrapper.findAll("h2").map((heading) => heading.text());
+    const railSections = wrapper.findAll(".scope-nav > *").map((element) => element.classes()[0]);
+
+    expect(text.indexOf("全部资料")).toBeLessThan(text.indexOf("搜索资料来源或文件夹"));
+    expect(text.indexOf("搜索资料来源或文件夹")).toBeLessThan(text.indexOf("最近使用"));
+    expect(headings).toEqual(["最近使用", "资料来源"]);
+    expect(railSections).toEqual(["all-resources", "source-search", "recent-section", "tree-section", "manage-sources"]);
+    expect(text).toContain("不可用");
+    expect(text).not.toContain("1280");
   });
 
-  it("uses real folder/vault svg icons, not text glyphs", () => {
-    const obsidianSource = { ...source, id: 9, name: "临床笔记库", source_type: "obsidian_vault" as const };
+  it("filters only the source tree after 150 ms and restores the previous expansion when cleared", async () => {
+    vi.useFakeTimers();
+    const wrapper = mountRail();
+    const input = wrapper.get('input[placeholder="搜索资料来源或文件夹…"]');
+
+    await input.setValue("ILD");
+    await vi.advanceTimersByTimeAsync(150);
+    expect(wrapper.text()).toContain("ILD 核心文献");
+    // 资料树搜索不会干扰“最近使用”区；命中的祖先来源会保留以表达路径。
+    expect(wrapper.text()).toContain("study.pdf");
+    await input.setValue("");
+    await vi.advanceTimersByTimeAsync(150);
+    expect(wrapper.text()).toContain("本地临床资料");
+  });
+
+  it("supports tree keyboard expansion and opens recent items without changing the selected source", async () => {
+    const wrapper = mountRail();
+    const source = wrapper.get('[data-node-id="source:7"]');
+    await source.trigger("keydown", { key: "ArrowRight" });
+    expect(wrapper.find('[data-node-id="tree:7:ild"]').exists()).toBe(true);
+    await source.trigger("keydown", { key: "ArrowLeft" });
+    expect(wrapper.find('[data-node-id="tree:7:ild"]').exists()).toBe(false);
+
+    await wrapper.get('[aria-label="打开资料 study.pdf"]').trigger("click");
+    expect(wrapper.emitted("openRecent")).toEqual([[recentItems[0]]]);
+    expect(wrapper.emitted("selectNode")).toBeUndefined();
+  });
+
+  it("expands collapsed ancestors for a deep-linked tree node", async () => {
     const wrapper = mount(DocumentScopeNav, {
-      props: { sources: [source, obsidianSource], selectedSourceId: null, recentSourceIds: [], total: 24 },
+      props: { tree, recentItems, selectedNodeId: "tree:7:ild", total: 4, loading: false },
       global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
     });
 
-    // 图标是内联 SVG，不再是 □ / ▣ 文字符号。
-    expect(wrapper.findAll(".type-icon svg").length + wrapper.findAll("svg.type-icon").length).toBeGreaterThan(0);
-    expect(wrapper.text()).not.toContain("□");
-    expect(wrapper.text()).not.toContain("▣");
-    expect(wrapper.text()).toContain("Obsidian Vault (1)");
-    expect(wrapper.text()).toContain("临床笔记库");
-  });
-
-  it("emits the selected source id when a source is clicked", async () => {
-    const wrapper = mount(DocumentScopeNav, {
-      props: { sources: [source], selectedSourceId: null, recentSourceIds: [], total: 12 },
-      global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
-    });
-
-    await wrapper.findAll(".scope-item")[1].trigger("click");
-
-    expect(wrapper.emitted("select")).toEqual([[8]]);
-  });
-
-  it("separates actual recent selections without inventing entries", () => {
-    const obsidianSource = { ...source, id: 9, name: "临床笔记库", source_type: "obsidian_vault" as const };
-    const wrapper = mount(DocumentScopeNav, {
-      props: { sources: [source, obsidianSource], selectedSourceId: 8, recentSourceIds: [9, 8, 9], total: 24 },
-      global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
-    });
-
-    expect(wrapper.text()).toContain("最近使用");
-    expect(wrapper.findAll(".scope-item--recent")).toHaveLength(2);
+    expect(wrapper.get('[data-node-id="source:7"]').attributes("aria-expanded")).toBe("true");
+    expect(wrapper.find('[data-node-id="tree:7:ild"]').exists()).toBe(true);
   });
 });

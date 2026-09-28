@@ -14,7 +14,13 @@ from app.modules.knowledge_source.model import KnowledgeSource
 
 
 @pytest.fixture
-def navigation_client(tmp_path: Path):
+def navigation_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from app.modules.document_navigation import service as navigation_service
+
+    # 本机 .env 可启用真实重排；接口测试默认隔离运行时模型配置。
+    monkeypatch.setattr(
+        navigation_service.settings, "NAVIGATION_RERANK_ENABLED", False
+    )
     engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'navigation.db').as_posix()}")
     factory = async_sessionmaker(engine, expire_on_commit=False)
 

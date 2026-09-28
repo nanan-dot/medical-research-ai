@@ -13,9 +13,11 @@ class FakeClient:
     def __init__(self, fail=False):
         self.fail = fail
         self.calls = []
+        self.questions = []
 
     async def ask(self, index, question):
         self.calls.append(index.index_id)
+        self.questions.append(question)
         if self.fail:
             raise PaperQA2OperationError("offline")
         return PaperQAAnswer(
@@ -49,6 +51,8 @@ async def test_single_document_answer_sources_and_restore(session, tmp_path):
     message = await service.ask(conversation.id, "How many?")
     assert message.sequence == 2 and message.citations[0].page is None
     assert len(message.citations[0].evidence_text) == MAX_EVIDENCE_LENGTH
+    assert "Respond in the same language as the user's question" in client.questions[0]
+    assert client.questions[0].endswith("How many?")
     restored = await service.get(conversation.id)
     assert [item.role for item in restored.messages] == ["user", "assistant"]
     assert restored.messages[1].citations[0].retrieval_score == 0.8

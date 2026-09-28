@@ -26,19 +26,22 @@ class PubMedExecutor:
         self._client = client
 
     async def execute(
-        self, query: str, *, retmax: int = 20
+        self, query: str, *, retmax: int = 500
     ) -> tuple[list[CitationItem], int]:
         """执行检索，返回 (条目列表, 命中总数)。
 
-        ESearch 无命中时直接返回空列表；命中时用 EFetch 拉取记录。EFetch 可能
-        因个别 PMID 已失效而少返回，此时不会为缺失条目补造占位数据。
+        ESearch 无命中时直接返回空列表；命中时用 EFetch 拉取记录。为抵消个别
+        PMID 已失效或详情缺失，会额外请求少量候选作补位，但最终绝不超过 retmax，
+        也绝不为缺失条目伪造占位数据。
         """
-        search = await self._client.search(query, retmax=retmax)
+        # EFetch 可能少回个别 PMID；仅在上游请求多 25 条候选，随后严格截断到
+        # 用户请求的本地快照上限。
+        search = await self._client.search(query, retmax=retmax + 25)
         if not search.pmids:
             return [], search.total_count
         records = await self._client.fetch_records(search.pmids)
         verified_on = datetime.now(UTC).isoformat()
-        items = [self._to_citation(record, verified_on) for record in records]
+        items = [self._to_citation(record, verified_on) for record in records[:retmax]]
         return items, search.total_count
 
     @staticmethod
@@ -51,16 +54,25 @@ class PubMedExecutor:
         """
         return CitationItem(
             pmid=record.pmid,
+            pmcid=record.pmcid,
             doi=record.doi,
             title=record.title,
             authors=record.authors,
             journal=record.journal,
+            issn=record.issn,
+            eissn=record.eissn,
+            issn_l=record.issn_l,
+            journal_abbreviation=record.journal_abbreviation,
             year=record.year,
+            volume=record.volume,
+            issue=record.issue,
+            pages=record.pages,
             verified=True,
             verified_by=VERIFIED_BY_PUBMED,
             verified_on=verified_on,
             has_abstract=bool(record.abstract),
             publication_types=record.publication_types,
+            mesh_terms=record.mesh_terms,
             abstract=record.abstract,
             withdrawn=record.withdrawn,
         )

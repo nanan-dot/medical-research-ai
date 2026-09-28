@@ -3,6 +3,7 @@
 import math
 import re
 
+from app.rag.medical_normalizer import normalize_medical_text
 from app.rag.schemas import Chunk, RetrievalResult
 
 BM25_K1 = 1.5
@@ -13,16 +14,7 @@ _CHINESE_RUN_PATTERN = re.compile(r"[\u4e00-\u9fff]+")
 
 def tokenize_medical_text(text: str) -> list[str]:
     """为医学精确词保留字母数字 token，并以中文二元组处理未登录词。"""
-    normalized = text.casefold()
-    tokens = _ALPHANUMERIC_TOKEN_PATTERN.findall(normalized)
-    for chinese_run in _CHINESE_RUN_PATTERN.findall(normalized):
-        if len(chinese_run) == 1:
-            tokens.append(chinese_run)
-            continue
-        tokens.extend(
-            chinese_run[index : index + 2] for index in range(len(chinese_run) - 1)
-        )
-    return tokens
+    return sorted(normalize_medical_text(text).tokens)
 
 
 class BM25Store:
@@ -64,6 +56,8 @@ class BM25Store:
         for index in ranked_indices[:top_k]:
             chunk = self._chunks[index]
             score = self._score_document(index, query_tokens)
+            if score <= 0:
+                continue
             results.append(
                 RetrievalResult(
                     chunk_id=chunk.chunk_id,

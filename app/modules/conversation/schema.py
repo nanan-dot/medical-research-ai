@@ -11,10 +11,32 @@ class ConversationCreate(BaseModel):
 
 class MessageCreate(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
+    document_id: int | None = Field(default=None, gt=0)
+    source_anchor_id: int | None = Field(default=None, gt=0)
+    active_segment_id: int | None = Field(default=None, gt=0)
+    section_id: int | None = Field(default=None, gt=0)
+    expected_anchor_revision_id: int | None = Field(default=None, gt=0)
+    expected_segmentation_revision_id: int | None = Field(default=None, gt=0)
+
+    def reader_context(self) -> "ReaderContext | None":
+        """Return an explicit persisted context only when the reader supplied one."""
+        values = self.model_dump(exclude={"question"}, exclude_none=True)
+        return ReaderContext(**values) if values else None
+
+
+class ReaderContext(BaseModel):
+    document_id: int
+    source_anchor_id: int | None = None
+    active_segment_id: int | None = None
+    section_id: int | None = None
+    expected_anchor_revision_id: int
+    expected_segmentation_revision_id: int | None = None
 
 
 class CitationRead(BaseModel):
     id: int
+    source_anchor_id: int | None = None
+    anchor_status: str = "legacy_unversioned"
     evidence_type: str
     document_id: int
     page: int | None

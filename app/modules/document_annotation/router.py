@@ -2,16 +2,18 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.modules.document_annotation.schema import (
+    AnchoredAnnotationCreate,
     AnnotationCreate,
     AnnotationRead,
     AnnotationUpdate,
 )
 from app.modules.document_annotation.service import DocumentAnnotationService
+from app.modules.document_selection.assets import AnchoredAssetService
 
 router = APIRouter(tags=["document-annotations"])
 
@@ -31,9 +33,16 @@ async def list_annotations(
 )
 async def create_annotation(
     document_id: int,
-    payload: AnnotationCreate,
+    payload: AnchoredAnnotationCreate | AnnotationCreate,
     session: Annotated[AsyncSession, Depends(get_session)],
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", max_length=128)
+    ] = "",
 ) -> AnnotationRead:
+    if isinstance(payload, AnchoredAnnotationCreate):
+        return await AnchoredAssetService(session).annotation(
+            document_id, payload, idempotency_key
+        )
     return await DocumentAnnotationService(session).create(document_id, payload)
 
 

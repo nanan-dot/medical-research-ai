@@ -8,6 +8,7 @@ import pytest
 
 from app.rag.hybrid_retriever import HybridRetriever
 from app.rag.schemas import RetrievalResult
+from app.rag.trace import TracePolicy
 
 
 class StaticRetriever:
@@ -67,14 +68,27 @@ def test_search_writes_traceable_jsonl_log(tmp_path: Path) -> None:
         vector_retriever=StaticRetriever([_result("vector", "vector", 1)]),
         bm25_retriever=StaticRetriever([_result("bm25", "bm25", 1)]),
         log_path=log_path,
+        trace_policy=TracePolicy(data_dir=tmp_path),
     )
 
     retriever.search("EGFR", top_k=1)
 
     payload = json.loads(log_path.read_text(encoding="utf-8"))
-    assert payload["query"] == "EGFR"
+    assert payload["query"] is None
     assert payload["vector_top_k"][0]["rank"] == 1
     assert payload["hybrid_results"][0]["retriever_name"] == "hybrid"
+    assert "text" not in payload["vector_top_k"][0]
+    assert payload["vector_top_k"][0]["source_path"] == "example.md"
+
+
+def test_trace_log_path_must_stay_under_project_trace_data_dir(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="must stay under trace DATA_DIR"):
+        HybridRetriever(
+            vector_retriever=StaticRetriever([]),
+            bm25_retriever=StaticRetriever([]),
+            log_path=tmp_path / "outside" / "retrieval.jsonl",
+            trace_policy=TracePolicy(data_dir=tmp_path / "data"),
+        )
 
 
 @pytest.mark.parametrize("top_k", [0, -1])

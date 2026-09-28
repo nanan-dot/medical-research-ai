@@ -38,6 +38,11 @@ class TaskRead(BaseModel):
     title: str
     status: TaskStatus
     progress: int
+    phase: str | None = None
+    completed_units: int = 0
+    total_units: int | None = None
+    current_item: str | None = None
+    progress_updated_at: datetime | None = None
     source_type: str | None
     source_id: int | None
     detail: dict[str, str | int | float | bool | None]

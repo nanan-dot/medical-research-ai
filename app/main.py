@@ -10,13 +10,32 @@ from app.common.exception_handlers import app_error_handler
 from app.common.exceptions import AppError
 from app.core.config import settings
 from app.core.database import engine
+from app.modules.document_anchor.extractor_runner import (
+    ExtractorUnavailableError,
+    PdfTextItemExtractor,
+)
+from app.modules.recommendation.v5_scheduler import RecommendationScheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    yield
-    await engine.dispose()
+    try:
+        app.state.document_anchor_capability = {
+            "status": "AVAILABLE",
+            "toolchain": await PdfTextItemExtractor().probe(),
+        }
+    except ExtractorUnavailableError:
+        app.state.document_anchor_capability = {
+            "status": "UNAVAILABLE",
+            "code": "anchor_extractor_unavailable",
+        }
+    RecommendationScheduler.start_recovery_loop()
+    try:
+        yield
+    finally:
+        await RecommendationScheduler.stop_recovery_loop()
+        await engine.dispose()
 
 
 app = FastAPI(

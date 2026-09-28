@@ -1,0 +1,3 @@
+export interface ResolutionIssue { asset_type: string; asset_id: number; original_anchor_id: number; resolved_anchor_id: number | null; resolution_status: string; resolution_version: number; candidate_count: number }
+export interface RelocationCandidate { id: number; source_anchor_id: number; target_anchor_revision_id: number; candidate_anchor_id: number | null; method: string; algorithm_version: string; score_breakdown: Record<string, number>; protected_token_status: string; status: string; decision_source: string | null; created_at: string }
+export interface AssetResolution { asset_type: string; asset_id: number; original_anchor_id: number; resolved_anchor_id: number | null; resolution_status: string; resolution_version: number }

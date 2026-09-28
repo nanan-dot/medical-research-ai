@@ -39,6 +39,7 @@ async def client(tmp_path):
         async with factory() as session:
             citation = CitationItem(
                 pmid="123",
+                pmcid="PMC1234567",
                 doi="10.1234/ABC",
                 title="Test",
                 journal="Journal",
@@ -66,7 +67,49 @@ def test_save_metadata_is_idempotent_and_explains_no_fulltext(client):
     assert first.status_code == second.status_code == 200
     assert first.json()["id"] == second.json()["id"]
     assert first.json()["fulltext_status"] == "metadata_only"
+    assert first.json()["pmcid"] == "PMC1234567"
+    assert first.json()["document_id"] is None
     assert "No local PDF" in first.json()["fulltext_status_reason"]
+
+
+@pytest.mark.asyncio
+async def test_idempotent_save_only_backfills_missing_pmcid(client):
+    api, factory = client
+    first = api.post("/api/v1/literature-results/1/save", json={"pmid": "123"})
+    assert first.status_code == 200
+    async with factory() as session:
+        from app.modules.library_item.model import LibraryItem
+
+        item = await session.get(LibraryItem, first.json()["id"])
+        assert item is not None
+        item.pmcid = None
+        await session.commit()
+
+    second = api.post("/api/v1/literature-results/1/save", json={"pmid": "123"})
+
+    assert second.status_code == 200
+    assert second.json()["pmcid"] == "PMC1234567"
+
+
+@pytest.mark.asyncio
+async def test_idempotent_save_rejects_different_nonempty_pmcid(client):
+    api, factory = client
+    assert (
+        api.post("/api/v1/literature-results/1/save", json={"pmid": "123"}).status_code
+        == 200
+    )
+    async with factory() as session:
+        result = await session.get(LiteratureSearchResult, 1)
+        assert result is not None
+        snapshot = json.loads(result.items_json)
+        snapshot[0]["pmcid"] = "PMC7654321"
+        result.items_json = json.dumps(snapshot)
+        await session.commit()
+
+    conflict = api.post("/api/v1/literature-results/1/save", json={"pmid": "123"})
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "conflict"
 
 
 @pytest.mark.asyncio

@@ -41,11 +41,12 @@ describe("DocumentAnnotationWorkspace", () => {
       created_at: "2026-08-10T00:00:00Z",
       updated_at: "2026-08-10T00:00:00Z",
     };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify([])))
-      .mockResolvedValueOnce(new Response(JSON.stringify(annotation), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify([annotation])));
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("reading-notes")) return Promise.resolve(new Response(JSON.stringify([])));
+      if (init?.method === "POST") return Promise.resolve(new Response(JSON.stringify(annotation), { status: 201 }));
+      return Promise.resolve(new Response(JSON.stringify([annotation])));
+    });
     vi.stubGlobal("fetch", fetchMock);
     const wrapper = mount(DocumentAnnotationWorkspace, {
       props: { document: documentRecord, sourceUrl: "/api/v1/documents/7/original", summary: null, actionLoading: false },
@@ -65,12 +66,9 @@ describe("DocumentAnnotationWorkspace", () => {
     await wrapper.get(".save-button").trigger("click");
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "/api/v1/documents/7/annotations",
-      expect.objectContaining({ method: "POST" }),
-    );
-    const requestBody = JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body));
+    const annotationCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith("/annotations") && (init as RequestInit | undefined)?.method === "POST");
+    expect(annotationCall).toBeDefined();
+    const requestBody = JSON.parse(String((annotationCall?.[1] as RequestInit).body));
     expect(requestBody).toMatchObject({
       expected_file_hash: "a".repeat(64),
       page_number: 1,

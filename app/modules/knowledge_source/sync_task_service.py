@@ -5,10 +5,12 @@ import json
 import logging
 from uuid import uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.modules.knowledge_source.schema import KnowledgeSourceSyncSummary
+from app.modules.knowledge_source.sync_progress import SyncPhase, SyncProgress
 from app.modules.knowledge_source.sync_service import KnowledgeSourceSyncService
 from app.modules.task.model import TaskRecord
 from app.modules.task.repository import TaskRepository
@@ -27,7 +29,7 @@ class KnowledgeSourceSyncTaskService:
         self._session = session
         self._tasks = TaskRepository(session)
 
-    async def enqueue(self, source_id: int) -> TaskRecord:
+    async def enqueue(self, source_id: int, trigger: str = "manual") -> TaskRecord:
         """Persist one idempotent queued command for a knowledge source."""
         source = await KnowledgeSourceSyncService(self._session).source_service.get(
             source_id
@@ -38,18 +40,29 @@ class KnowledgeSourceSyncTaskService:
         active = await self._tasks.find_active_by_key(key)
         if active is not None:
             return active
-        return await self._tasks.create(
-            TaskRecord(
-                task_type=TASK_TYPE,
-                title=f"Synchronize knowledge source {source.id}",
-                status=TaskStatus.QUEUED.value,
-                progress=0,
-                source_type="knowledge_source",
-                source_id=source.id,
-                detail_json=json.dumps({}, ensure_ascii=False),
-                idempotency_key=key,
-            )
-        )
+        try:
+            # 检查与插入之间可能有另一个调度器抢先；唯一活动键是最终裁决，
+            # SAVEPOINT 使冲突不会污染本请求后续读取的事务。
+            async with self._session.begin_nested():
+                return await self._tasks.create(
+                    TaskRecord(
+                        task_type=TASK_TYPE,
+                        title=f"Synchronize knowledge source {source.id}",
+                        status=TaskStatus.QUEUED.value,
+                        progress=0,
+                        phase=SyncPhase.QUEUED.value,
+                        source_type="knowledge_source",
+                        source_id=source.id,
+                        detail_json=json.dumps({"trigger": trigger}, ensure_ascii=False),
+                        idempotency_key=key,
+                        active_idempotency_key=key,
+                    )
+                )
+        except IntegrityError:
+            active = await self._tasks.find_active_by_key(key)
+            if active is None:
+                raise
+            return active
 
 
 class KnowledgeSourceSyncWorker:
@@ -77,12 +90,15 @@ class KnowledgeSourceSyncWorker:
                 raise NotFoundError("Sync task is missing its knowledge source")
             source_id = task.source_id
             try:
+                async def report_progress(progress: SyncProgress) -> None:
+                    await tasks.update_sync_progress(task, progress)
+
                 heartbeat_stop = asyncio.Event()
 
                 async def execute_sync() -> KnowledgeSourceSyncSummary:
                     try:
                         return await KnowledgeSourceSyncService(session).sync(
-                            source_id
+                            source_id, progress_reporter=report_progress
                         )
                     finally:
                         heartbeat_stop.set()

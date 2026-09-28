@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 检索前检查：根据真实表单状态计算完成项，不写死全部完成。
-// 提供保存策略（本地草稿，不伪称已保存到后端）与执行检索（真实 createTask）。
+// 保存策略通过父组件的真实后端草稿接口；执行检索创建真实任务与结果快照。
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -28,18 +28,40 @@ const allReady = computed(() => items.value.every((item) => item.done));
 </script>
 
 <template>
-  <section class="readiness-panel" aria-labelledby="readiness-panel-title">
+  <section
+    class="readiness-panel"
+    aria-labelledby="readiness-panel-title"
+  >
     <div class="readiness-summary">
-      <h2 id="readiness-panel-title" class="sr-only">检索前检查</h2>
+      <h2
+        id="readiness-panel-title"
+        class="sr-only"
+      >
+        检索前检查
+      </h2>
       <ul class="check-list">
-        <li v-for="item in items" :key="item.label" class="check-item" :class="{ done: item.done }">
-          <span class="check-mark" aria-hidden="true">{{ item.done ? "✓" : "○" }}</span>
+        <li
+          v-for="item in items"
+          :key="item.label"
+          class="check-item"
+          :class="{ done: item.done }"
+        >
+          <span
+            class="check-mark"
+            aria-hidden="true"
+          >{{ item.done ? "✓" : "○" }}</span>
           <span>{{ item.label }}</span>
         </li>
       </ul>
     </div>
     <div class="readiness-actions">
-      <button type="button" class="secondary-action" @click="emit('saveDraft')">保存草稿</button>
+      <button
+        type="button"
+        class="secondary-action"
+        @click="emit('saveDraft')"
+      >
+        保存草稿
+      </button>
       <button
         type="button"
         class="primary-action"
@@ -49,8 +71,14 @@ const allReady = computed(() => items.value.every((item) => item.done));
         {{ props.taskLoading ? "检索中…" : "开始检索" }}
       </button>
     </div>
-    <p v-if="props.taskError" class="request-error" role="alert">{{ props.taskError }}</p>
-    <p class="footnote">保存草稿仅存储在本机浏览器；执行后才会产生真实检索结果。</p>
+    <p
+      v-if="props.taskError"
+      class="request-error"
+      role="alert"
+    >
+      {{ props.taskError }}
+    </p>
+    <p class="footnote">策略草稿会保存到服务端；执行后才会产生真实检索结果。</p>
   </section>
 </template>
 

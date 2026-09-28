@@ -1,0 +1,173 @@
+{
+  "reference": "C:\\Users\\ADMIN\\AppData\\Local\\Temp\\codex-clipboard-dedb6d46-2133-4437-9aed-c08be3a7d6a0.png",
+  "actual": "docs\\frontend-rebuild\\screenshots\\literature-search-workspace-v2\\workspace-1536x1024.png",
+  "viewport": {
+    "width": 1536,
+    "height": 1024,
+    "dpr": 1
+  },
+  "source_metadata": {
+    "reference": {
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGB",
+      "info": {}
+    },
+    "actual": {
+      "size": [
+        1536,
+        1024
+      ],
+      "mode": "RGB",
+      "info": {}
+    }
+  },
+  "mean_abs_rgb": [
+    15.633,
+    12.492,
+    10.813
+  ],
+  "rms_rgb": [
+    45.919,
+    38.535,
+    32.267
+  ],
+  "changed_pixel_ratio": 0.935596,
+  "global_ssim_luminance": 0.28147,
+  "edge_changed_pixel_ratio": 0.48988,
+  "approved_difference_analysis": {
+    "approved_header_button_box": {
+      "left": 1370,
+      "top": 16,
+      "right": 1512,
+      "bottom": 60
+    },
+    "raw_changed_pixel_ratio": 0.935596,
+    "masked_analysis_changed_pixel_ratio": 0.931632,
+    "disclosure": "This mask is analysis-only. It overlaps the naturally reflowed version control, so raw diff remains the authoritative artifact."
+  },
+  "region_differences": {
+    "Sidebar": {
+      "box": {
+        "left": 0,
+        "top": 0,
+        "right": 229,
+        "bottom": 1024
+      },
+      "changed_pixel_ratio": 0.999748,
+      "mean_abs_rgb": [
+        12.142,
+        9.937,
+        7.411
+      ]
+    },
+    "Header": {
+      "box": {
+        "left": 229,
+        "top": 0,
+        "right": 1536,
+        "bottom": 75
+      },
+      "changed_pixel_ratio": 0.876817,
+      "mean_abs_rgb": [
+        20.958,
+        15.543,
+        7.453
+      ]
+    },
+    "Journey": {
+      "box": {
+        "left": 229,
+        "top": 75,
+        "right": 1536,
+        "bottom": 137
+      },
+      "changed_pixel_ratio": 0.994657,
+      "mean_abs_rgb": [
+        15.094,
+        11.845,
+        7.266
+      ]
+    },
+    "Basis": {
+      "box": {
+        "left": 255,
+        "top": 137,
+        "right": 1510,
+        "bottom": 333
+      },
+      "changed_pixel_ratio": 0.905257,
+      "mean_abs_rgb": [
+        13.059,
+        12.12,
+        9.899
+      ]
+    },
+    "Terms": {
+      "box": {
+        "left": 255,
+        "top": 343,
+        "right": 1510,
+        "bottom": 729
+      },
+      "changed_pixel_ratio": 0.912596,
+      "mean_abs_rgb": [
+        15.642,
+        13.309,
+        13.568
+      ]
+    },
+    "Query": {
+      "box": {
+        "left": 255,
+        "top": 739,
+        "right": 1510,
+        "bottom": 837
+      },
+      "changed_pixel_ratio": 0.952647,
+      "mean_abs_rgb": [
+        17.342,
+        15.262,
+        11.661
+      ]
+    },
+    "LimitsReady": {
+      "box": {
+        "left": 255,
+        "top": 857,
+        "right": 1510,
+        "bottom": 937
+      },
+      "changed_pixel_ratio": 0.960996,
+      "mean_abs_rgb": [
+        29.835,
+        16.985,
+        20.991
+      ]
+    },
+    "Sticky": {
+      "box": {
+        "left": 229,
+        "top": 937,
+        "right": 1536,
+        "bottom": 1016
+      },
+      "changed_pixel_ratio": 0.877873,
+      "mean_abs_rgb": [
+        18.332,
+        13.037,
+        9.75
+      ]
+    }
+  },
+  "note": "Pixel diff is an iteration signal, not a claim of pixel-perfect parity.",
+  "remaining_material_differences": [
+    "sidebar logo, navigation icon family, and density",
+    "typography and text rendering",
+    "header and journey spacing",
+    "PICO card internals, borders, and shadows",
+    "Terms, Limits, Ready, and Sticky internal layouts"
+  ]
+}

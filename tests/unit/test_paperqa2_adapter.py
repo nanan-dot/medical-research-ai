@@ -224,6 +224,15 @@ def test_factory_rejects_missing_model_and_non_local_url():
         )
 
 
+def test_factory_uses_chinese_final_answer_prompt():
+    backend = _OfficialPaperQA2Backend(make_client(FakeBackend()).config)
+
+    configured = backend._make_settings()
+
+    assert "始终使用简体中文" in configured.prompts.system
+    assert "不要输出页码、来源标识、引用键" in configured.prompts.qa
+
+
 def test_fixed_version_missing_and_mismatch_are_explicit(monkeypatch):
     config = make_client(FakeBackend()).config
     backend = _OfficialPaperQA2Backend(config)

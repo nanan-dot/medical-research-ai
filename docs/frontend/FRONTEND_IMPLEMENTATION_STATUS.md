@@ -193,6 +193,15 @@ FE-01 through FE-08 front-end scope is complete. No additional front-end or back
 - Vite `/recommendations` returned HTTP 200.
 - Browser rendering and console check completed; no JavaScript errors were observed.
 
+## Note Library V1.2 Frontend — 2026-09-01
+
+**Status:** functionally complete; visual-reference verification pending
+
+- Added the LIVE `/notes` three-column research-note workspace, real API adapter, local actor scope, URL-restorable views/search/facets/pagination/selection, in-page draft editing, autosave, version commits, CAS metadata, conflict-safe recovery, history/restore, archive lifecycle, capability-aware source degradation, keyboard controls, and responsive list/preview/edit layers.
+- Acceptance traceability: `docs/frontend/NOTE_LIBRARY_FRONTEND_TRACEABILITY_V1_2.md`.
+- Verification: typecheck PASS; targeted 15 tests PASS; full frontend 88 files / 266 tests PASS; build PASS; Playwright flow and 1774×887 current-implementation regression snapshot PASS; target ESLint 0 errors; diff check PASS. The regression snapshot is not a pixel-level comparison against the frozen visual reference.
+- Backend and migrations were not modified; the formal database was not accessed.
+
 ## FE-22 收尾 — 文献检索结果页·去重工作区（2026-08-17 提交）
 
 **Status:** complete

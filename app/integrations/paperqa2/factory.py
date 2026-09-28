@@ -131,6 +131,22 @@ class _OfficialPaperQA2Backend:
         paperqa_settings.answer.evidence_skip_summary = True
         paperqa_settings.answer.evidence_k = 10
         paperqa_settings.answer.answer_max_sources = 5
+        # PaperQA's built-in prompts are English and otherwise dominate a short
+        # user-supplied language instruction when the source paper is English.
+        # This product is Chinese-first, so constrain the final answer layer.
+        paperqa_settings.prompts.system = (
+            "你是医学论文阅读助手。始终使用简体中文直接、准确地回答用户，"
+            "保留必要的英文医学术语及其缩写。"
+        )
+        paperqa_settings.prompts.qa = (
+            "仅基于以下上下文回答问题。\n\n"
+            "上下文：\n\n{context}\n\n---\n\n"
+            "问题：{question}\n\n"
+            "请用简体中文给出直接、简洁的回答。不要输出页码、来源标识、"
+            "引用键、参考文献列表或任何额外说明。若上下文证据不足，"
+            "只回答“当前论文没有足够证据回答该问题”。\n\n"
+            "{prior_answer_prompt}回答（{answer_length}）："
+        )
         return paperqa_settings
 
     def _check_installed_version(self) -> None:
@@ -150,9 +166,11 @@ def create_paperqa2_client(
     app_settings: AppSettings = settings,
     *,
     provider: Literal["ollama", "openai", "openrouter"] | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
 ) -> PaperQA2Client:
     selected_provider = provider or app_settings.DEFAULT_MODEL_PROVIDER
-    model, base_url, api_key = {
+    configured_model, configured_base_url, api_key = {
         "ollama": (app_settings.OLLAMA_MODEL, app_settings.OLLAMA_BASE_URL, None),
         "openai": (
             app_settings.OPENAI_MODEL,
@@ -165,6 +183,8 @@ def create_paperqa2_client(
             app_settings.OPENROUTER_API_KEY,
         ),
     }[selected_provider]
+    model = model or configured_model
+    base_url = (base_url or configured_base_url).rstrip("/")
     if selected_provider == "ollama":
         _validate_local_ollama_url(base_url)
     elif not api_key:
@@ -178,7 +198,7 @@ def create_paperqa2_client(
     config = PaperQA2Config(
         version=app_settings.PAPERQA_VERSION,
         provider=selected_provider,
-        api_base_url=base_url.rstrip("/"),
+        api_base_url=base_url,
         api_key=SecretStr(api_key) if api_key else None,
         llm_model=model,
         embedding_model=app_settings.PAPERQA_EMBEDDING_MODEL,

@@ -19,11 +19,29 @@ class RoutePolicy:
 
 ROUTE_POLICIES: tuple[RoutePolicy, ...] = (
     RoutePolicy(AgentTaskType.SINGLE_PAPER_QA, ("单篇", "这篇", "pdf"), ("paper_qa",)),
-    RoutePolicy(AgentTaskType.NOTE_QA, ("笔记", "我的笔记", "note"), ("local_note_search",)),
-    RoutePolicy(AgentTaskType.EXTERNAL_SEARCH, ("外部文献", "pubmed", "最新文献", "检索"), ("pubmed_search",)),
-    RoutePolicy(AgentTaskType.MULTI_PAPER_COMPARISON, ("多篇", "比较", "对比", "几篇"), ("comparison_service",)),
-    RoutePolicy(AgentTaskType.CANDIDATE_DIRECTION, ("候选方向", "研究方向", "创新方向"), ("research_direction_service",)),
-    RoutePolicy(AgentTaskType.WRITING_OUTLINE, ("写作提纲", "提纲", "大纲", "outline"), ("outline_service",)),
+    RoutePolicy(
+        AgentTaskType.NOTE_QA, ("笔记", "我的笔记", "note"), ("local_note_search",)
+    ),
+    RoutePolicy(
+        AgentTaskType.EXTERNAL_SEARCH,
+        ("外部文献", "pubmed", "最新文献", "检索"),
+        ("pubmed_search",),
+    ),
+    RoutePolicy(
+        AgentTaskType.MULTI_PAPER_COMPARISON,
+        ("多篇", "比较", "对比", "几篇"),
+        ("comparison_service",),
+    ),
+    RoutePolicy(
+        AgentTaskType.CANDIDATE_DIRECTION,
+        ("候选方向", "研究方向", "创新方向"),
+        ("research_direction_service",),
+    ),
+    RoutePolicy(
+        AgentTaskType.WRITING_OUTLINE,
+        ("写作提纲", "提纲", "大纲", "outline"),
+        ("outline_service",),
+    ),
 )
 
 COMPLEX_CONFIDENCE = 0.92

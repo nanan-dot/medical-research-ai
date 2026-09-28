@@ -26,6 +26,18 @@ _TERM_MAPPINGS: dict[str, TermExpansion] = {
         "Rectal Neoplasms",
         ("locally advanced rectal cancer", "locally advanced rectal neoplasm"),
     ),
+    "interstitial lung disease": TermExpansion(
+        "Lung Diseases, Interstitial",
+        ("interstitial lung disease", "interstitial lung diseases", "ILD"),
+    ),
+    "antifibrotic agents": TermExpansion(
+        "Antifibrotic Agents",
+        ("antifibrotic agents", "nintedanib", "pirfenidone"),
+    ),
+    "treatment outcome": TermExpansion(
+        "Treatment Outcome",
+        ("treatment outcome", "safety", "survival"),
+    ),
     "diabetes": TermExpansion("Diabetes Mellitus", ("diabetes", "diabetic")),
     "alzheimer disease": TermExpansion(
         "Alzheimer Disease", ("Alzheimer's disease", "Alzheimer disease")
@@ -58,6 +70,9 @@ _CHINESE_ALIASES = {
     # 精确别名优先于猜测翻译，避免中文输入在生成查询时被静默丢弃。
     "局部晚期直肠癌": "locally advanced rectal cancer",
     "新辅助免疫治疗": "neoadjuvant immunotherapy",
+    "间质性肺疾病": "interstitial lung disease",
+    "抗纤维化药物": "antifibrotic agents",
+    "疗效与安全性": "treatment outcome",
 }
 
 

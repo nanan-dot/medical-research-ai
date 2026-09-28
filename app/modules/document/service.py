@@ -5,10 +5,12 @@ import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
 from app.common.logger import logger
+from app.core.config import settings
 from app.modules.document.model import Document
 from app.modules.document.parsers.base import DocumentParserError
 from app.modules.document.parsers.factory import create_parser
@@ -31,6 +33,8 @@ from app.modules.document.state_machine import (
     ensure_parse_transition,
 )
 from app.modules.knowledge_source.repository import KnowledgeSourceRepository
+from app.modules.library.model import DocumentAccess
+from app.modules.task.model import TaskRecord
 
 MAX_ERROR_CODE_LENGTH = 64
 MAX_ERROR_MESSAGE_LENGTH = 500
@@ -173,6 +177,18 @@ class DocumentService:
 
     async def delete(self, id: int) -> None:
         entity = await self.get(id)
+        # TaskRecord uses a polymorphic reference, so the database cannot enforce
+        # this relationship. Remove only this document's task history first.
+        await self.repo.session.execute(
+            delete(TaskRecord).where(
+                TaskRecord.source_type == "document", TaskRecord.source_id == entity.id
+            )
+        )
+        # Keep deletion deterministic on SQLite test deployments as well as on
+        # production databases where the declared FK cascade enforces this.
+        await self.repo.session.execute(
+            delete(DocumentAccess).where(DocumentAccess.document_id == entity.id)
+        )
         await self.repo.delete(entity)
 
     async def retry_parse(self, id: int) -> Document:
@@ -373,6 +389,17 @@ class DocumentService:
         await self._source_file_path(entity)
 
     async def _source_file_path(self, entity: Document) -> Path:
+        if entity.asset is not None and entity.asset.asset_kind in {
+            "upload",
+            "zotero_attachment",
+        }:
+            root = settings.UPLOAD_DIR.resolve()
+            path = (root / entity.asset.stored_relative_path).resolve()
+            try:
+                if path.is_relative_to(root) and path.is_file():
+                    return path
+            except OSError:
+                pass
         source = await self.source_repo.get(entity.knowledge_source_id)
         if source is None:
             raise ConflictError("Document source file is not available")

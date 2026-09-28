@@ -1,111 +1,96 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
-import type { DocumentRecord } from "../../api/documents";
+import type { ResourceLibraryItem } from "../../api/resourceLibrary";
 import DocumentTable from "./DocumentTable.vue";
 
-const documents: DocumentRecord[] = [
-  {
+function item(status: ResourceLibraryItem["status"], overrides: Partial<ResourceLibraryItem> = {}): ResourceLibraryItem {
+  return {
     id: 1,
     knowledge_source_id: 2,
     file_path: "trials/protocol.docx",
     original_filename: "protocol.docx",
     file_type: "docx",
-    file_size: 128,
     media_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     file_hash: "hash-1",
+    file_size: 128,
     modified_time: "2026-08-13T08:00:00Z",
     scan_state: "pending",
     parse_status: "succeeded",
-    index_status: "outdated",
+    index_status: "succeeded",
     parsed_is_scanned: false,
     error_code: null,
     error_message: null,
     retry_count: 0,
     started_at: null,
     finished_at: null,
-    health_status: "needs_attention",
-    health_reason: "索引过期",
-  },
-  {
-    id: 2,
-    knowledge_source_id: 2,
-    file_path: "trials/failed.pdf",
-    original_filename: "failed.pdf",
-    file_type: "pdf",
-    file_size: 128,
-    media_type: "application/pdf",
-    file_hash: "hash-2",
-    modified_time: "2026-08-13T08:00:00Z",
-    scan_state: "pending",
-    parse_status: "failed",
-    index_status: "pending",
-    parsed_is_scanned: false,
-    error_code: "parse_failed",
-    error_message: "解析服务暂不可用",
-    retry_count: 0,
-    started_at: null,
-    finished_at: null,
-    health_status: "needs_attention",
-    health_reason: "解析失败",
-  },
-];
+    source_name: "临床试验",
+    source_type: "local_folder",
+    relative_path: "trials/protocol.docx",
+    display_name: "protocol.docx",
+    task_status: null,
+    phase: null,
+    current_item: null,
+    last_opened_at: null,
+    open_count: 0,
+    status,
+    match_fields: [],
+    snippet: null,
+    locator: null,
+    ...overrides,
+  };
+}
 
 describe("DocumentTable", () => {
-  it("uses actual file extensions and exposes real processing states", () => {
+  it("uses the resource status mapping instead of parsing a backend error message", () => {
     const wrapper = mount(DocumentTable, {
       props: {
-        documents,
+        documents: [item("ai_available"), item("needs_attention", { id: 2, error_code: "parse_failed", error_message: "stack trace" }), item("outdated", { id: 3 })],
         disabled: false,
-        selectedDocumentId: null,
         selectedIds: [],
-        sourceNames: { 2: "临床试验" },
-      },
-      global: {
-        stubs: { RouterLink: { template: "<a><slot /></a>" } },
+        selectedDocumentId: null,
       },
     });
 
-    expect(wrapper.text()).toContain("DOCX");
-    expect(wrapper.text()).toContain("索引过期");
+    expect(wrapper.text()).toContain("AI 可使用");
+    expect(wrapper.text()).toContain("解析和索引完成");
     expect(wrapper.text()).toContain("解析失败");
-    expect(wrapper.text()).toContain("需处理");
-    expect(wrapper.text()).toContain("临床试验 · DOCX · 128 B");
+    expect(wrapper.text()).toContain("内容已更新");
+    expect(wrapper.text()).not.toContain("stack trace");
   });
 
-  it("uses table semantics and only selects the current page", async () => {
+  it("uses semantic table selection for only the current page", async () => {
     const wrapper = mount(DocumentTable, {
-      props: {
-        documents,
-        disabled: false,
-        selectedDocumentId: null,
-        selectedIds: [],
-        sourceNames: { 2: "临床试验" },
-      },
+      props: { documents: [item("ai_available"), item("processing", { id: 2 })], disabled: false, selectedIds: [], selectedDocumentId: null },
     });
 
     expect(wrapper.find("table").exists()).toBe(true);
-    expect(wrapper.find('input[aria-label="选择当前页全部文档"]').exists()).toBe(true);
-    await wrapper.get('input[aria-label="选择当前页全部文档"]').setValue(true);
-
-    expect(wrapper.emitted("toggleSelect")).toEqual([
-      [1, true],
-      [2, true],
-    ]);
+    expect(wrapper.find('input[aria-label="选择当前页全部资料"]').exists()).toBe(true);
+    await wrapper.get('input[aria-label="选择当前页全部资料"]').setValue(true);
+    expect(wrapper.emitted("toggleSelect")).toEqual([[1, true], [2, true]]);
   });
 
-  it("never invents a processing percentage when the API omits progress", () => {
+  it("never invents a processing percentage when the API omits it", () => {
     const wrapper = mount(DocumentTable, {
-      props: {
-        documents: [{ ...documents[0], health_status: "processing", health_reason: "建立问答索引", progress: null }],
-        disabled: false,
-        selectedDocumentId: null,
-        selectedIds: [],
-        sourceNames: { 2: "临床试验" },
-      },
+      props: { documents: [item("processing", { phase: "建立索引", progress: null })], disabled: false, selectedIds: [], selectedDocumentId: null },
     });
 
     expect(wrapper.text()).toContain("处理中");
     expect(wrapper.text()).not.toMatch(/\d+%/);
+  });
+
+  it("closes an action menu with Escape and returns focus to its trigger", async () => {
+    const wrapper = mount(DocumentTable, {
+      attachTo: document.body,
+      props: { documents: [item("ai_available")], disabled: false, selectedIds: [], selectedDocumentId: null },
+    });
+    const trigger = wrapper.get('button[aria-label="更多操作 protocol.docx"]');
+
+    await trigger.trigger("click");
+    await trigger.trigger("keydown", { key: "Escape" });
+
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger.element);
+    wrapper.unmount();
   });
 });

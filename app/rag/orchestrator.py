@@ -1,5 +1,6 @@
 """Failure-isolated orchestration for existing text retrievers."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from time import perf_counter
 
 from app.rag.hybrid_retriever import TextRetriever
 from app.rag.reranker import RerankCandidate, RerankerService
@@ -22,6 +23,8 @@ class OrchestrationResult:
     results: list[RetrievalResult]
     attempted_routes: list[str]
     failed_routes: list[str]
+    route_reasons: dict[str, str] = field(default_factory=dict)
+    stage_elapsed_ms: dict[str, int] = field(default_factory=dict)
 
 
 class RetrievalOrchestrator:
@@ -33,20 +36,32 @@ class RetrievalOrchestrator:
         self._routes = routes
         self._reranker = reranker
 
-    def search(self, query: str, top_k: int = 5) -> OrchestrationResult:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        *,
+        candidate_top_k: int | None = None,
+        fusion_top_k: int | None = None,
+    ) -> OrchestrationResult:
         if top_k <= 0:
             return OrchestrationResult([], [], [])
+        candidate_limit = candidate_top_k or top_k
+        fusion_limit = fusion_top_k or top_k
         seen: set[str] = set()
         results: list[RetrievalResult] = []
         attempted: list[str] = []
         failed: list[str] = []
+        reasons: dict[str, str] = {}
+        elapsed: dict[str, int] = {}
         rrf_sets: list[list[RetrievalResult]] = []
         for route in self._routes:
             if not route.enabled:
                 continue
             attempted.append(route.name)
+            started = perf_counter()
             try:
-                route_results = route.retriever.search(query, top_k)
+                route_results = route.retriever.search(query, candidate_limit)
                 # use_rrf 为 None 时按名称推断（兼容既有 vector/bm25 路由），
                 # 显式 True/False 覆盖推断。
                 use_rrf = (
@@ -62,14 +77,17 @@ class RetrievalOrchestrator:
                         results.append(item)
             except (RuntimeError, TimeoutError, ValueError):
                 failed.append(route.name)
+                reasons[route.name] = "route_unavailable"
+            finally:
+                elapsed[route.name] = round((perf_counter() - started) * 1000)
         try:
             # RRF 融合 + 其余成功路由结果合并去重：任何一路的成功证据都不被抹掉。
-            fused = fuse_ranked_results(rrf_sets, top_k) if rrf_sets else results[:top_k]
+            fused = fuse_ranked_results(rrf_sets, fusion_limit) if rrf_sets else results[:fusion_limit]
             fused_ids = {item.chunk_id for item in fused}
             for item in results:
                 if item.chunk_id not in fused_ids:
                     fused.append(item)
-            fused = fused[:top_k]
+            fused = fused[:fusion_limit]
             if self._reranker is not None and fused:
                 ranked = self._reranker.rerank(
                     query,
@@ -85,4 +103,4 @@ class RetrievalOrchestrator:
         except (RuntimeError, TimeoutError, ValueError):
             # 融合或重排失败时回退到原始检索结果，不因后处理崩溃而抹掉全部证据。
             fused = results[:top_k]
-        return OrchestrationResult(fused, attempted, failed)
+        return OrchestrationResult(fused[:top_k], attempted, failed, reasons, elapsed)

@@ -134,6 +134,10 @@ SAMPLE_EFETCH = """<?xml version="1.0" ?>
         <ArticleId IdType="doi">10.1148/radiol.202412345</ArticleId>
         <ArticleId IdType="pmc">PMC1234567</ArticleId>
       </ArticleIdList>
+      <MeshHeadingList>
+        <MeshHeading><DescriptorName UI="D003920">Diagnosis</DescriptorName></MeshHeading>
+        <MeshHeading><DescriptorName UI="D015331">Meta-Analysis as Topic</DescriptorName></MeshHeading>
+      </MeshHeadingList>
     </MedlineCitation>
   </PubmedArticle>
 </PubmedArticleSet>
@@ -268,7 +272,9 @@ async def test_fetch_records_parses_full_record():
     assert record.doi == "10.1148/radiol.202412345"
     assert "FOUND A HIGH ACCURACY." in record.abstract.upper()
     assert record.publication_types == ["Journal Article", "Meta-Analysis"]
+    assert record.mesh_terms == ["Diagnosis", "Meta-Analysis as Topic"]
     assert record.is_open_access is True
+    assert record.pmcid == "PMC1234567"
     assert record.withdrawn is False
 
 
@@ -309,6 +315,21 @@ async def test_fetch_records_missing_abstract_and_year_are_none():
     # 集体作者走 CollectiveName。
     assert records[0].authors == ["Global Health Group"]
     assert records[0].publication_types == []
+    assert records[0].is_open_access is False
+    assert records[0].pmcid is None
+
+
+def test_efetch_rejects_malformed_pmc_identifier_without_inference():
+    xml = """
+    <PubmedArticleSet><PubmedArticle><MedlineCitation>
+      <PMID>123</PMID><Article><ArticleTitle>Malformed PMC</ArticleTitle></Article>
+      <ArticleIdList><ArticleId IdType="pmc">PMC-not-a-number</ArticleId></ArticleIdList>
+    </MedlineCitation></PubmedArticle></PubmedArticleSet>
+    """
+
+    records = PubMedClient()._parse_efetch(xml)
+
+    assert records[0].pmcid is None
     assert records[0].is_open_access is False
 
 

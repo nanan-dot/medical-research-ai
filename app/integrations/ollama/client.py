@@ -1,6 +1,7 @@
 """通过统一 ``LLMClient.chat`` 调用本机 Ollama。"""
 
 import ipaddress
+import json
 from typing import Any, Self
 from urllib.parse import urlparse
 
@@ -142,6 +143,42 @@ class OllamaClient:
                     "Ollama failed to run the model; check RAM, VRAM, and Ollama logs"
                 ) from error
             raise OllamaResponseError("Ollama returned a request error") from error
+
+    async def generate_json(
+        self, messages: list[ChatMessage], json_schema: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Use Ollama's native constrained JSON mode with reasoning disabled."""
+        try:
+            response = await self._http_client.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "stream": False,
+                    "think": False,
+                    "format": json_schema,
+                    "options": {"temperature": 0},
+                    "messages": [message.model_dump() for message in messages],
+                },
+                timeout=self.timeout_seconds,
+            )
+        except httpx.TimeoutException as error:
+            raise OllamaTimeoutError("Ollama JSON generation timed out") from error
+        except httpx.TransportError as error:
+            raise OllamaServiceUnavailableError("Ollama is not reachable") from error
+        if response.status_code >= 400:
+            raise OllamaResponseError(
+                f"Ollama returned HTTP {response.status_code}",
+                status_code=response.status_code,
+            )
+        try:
+            envelope = response.json()
+            content = envelope["message"]["content"]
+            payload = json.loads(content)
+        except (ValueError, TypeError, KeyError) as error:
+            raise OllamaResponseError("Ollama returned invalid JSON") from error
+        if not isinstance(payload, dict):
+            raise OllamaResponseError("Ollama returned incompatible JSON")
+        return payload
 
     async def get_resource_usage(self) -> list[OllamaResourceUsage]:
         payload = await self._get_json("/api/ps")

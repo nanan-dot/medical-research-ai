@@ -11,6 +11,7 @@ from app.modules.conversation.schema import (
     MessageRead,
 )
 from app.modules.conversation.service import ConversationService
+from app.modules.document_reader.copilot import validate_copilot_context
 
 router = APIRouter(prefix="/conversations", tags=["会话"])
 
@@ -46,7 +47,10 @@ async def get_conversation(id: int, session: AsyncSession = Depends(get_session)
 async def create_message(
     id: int, request: MessageCreate, session: AsyncSession = Depends(get_session)
 ):
-    return await ConversationService(session).ask(id, request.question)
+    service = ConversationService(session)
+    conversation = await service.get(id)
+    await validate_copilot_context(session, request, set(conversation.document_ids))
+    return await service.ask(id, request.question, request.reader_context())
 
 
 @router.post("/{id}/messages/{message_id}/feedback", response_model=MessageRead)

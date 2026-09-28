@@ -50,18 +50,19 @@ class AgentRoutingDecision(BaseModel):
 
 
 class AgentRunRequest(BaseModel):
+    model_config = {"extra": "forbid"}
     query: str = Field(min_length=2, max_length=2_000)
     task_type: Literal[
         "evidence_qa", "literature_search", "research_direction", "writing"
     ] = "evidence_qa"
-    evidence: list[str] = Field(default_factory=list)
-    confirmations: list[str] = Field(min_length=1, max_length=3)
+    publish_requested: bool = False
 
 
 class AgentRunResponse(BaseModel):
     run_id: str
     workflow_status: str
     decision: str | None = None
+    approval_payload: dict[str, object] | None = None
 
 
 class AgentApprovalRequest(BaseModel):

@@ -16,3 +16,10 @@ test("routes through the workbench and preserves URL state", async () => {
   expect(wrapper.text()).toContain("匿名试用反馈");
   expect(router.currentRoute.value.fullPath).toBe("/feedback");
 });
+
+test("AC-NLF-01 reaches the note library with its research-resource breadcrumb", async () => {
+  await router.push("/notes?view=favorite&note_id=12");
+  await flushPromises();
+  expect(router.currentRoute.value.path).toBe("/notes");
+  expect(router.currentRoute.value.meta.breadcrumb).toEqual(["研究资源", "笔记库"]);
+});

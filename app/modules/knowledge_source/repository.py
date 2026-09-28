@@ -6,11 +6,16 @@ import builtins
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, case, delete, exists, func, not_, or_, select
+from sqlalchemy import and_, case, delete, exists, func, not_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.document.model import Document
+from app.modules.knowledge_source.auto_sync_policy import next_auto_sync_at
 from app.modules.knowledge_source.model import KnowledgeSource
+from app.modules.research_context.model import (
+    KnowledgeSourceResearchContext,
+    ResearchContext,
+)
 
 PARSE_STATUS_SUCCEEDED = "succeeded"
 PARSE_STATUS_PENDING = "pending"
@@ -55,7 +60,61 @@ class KnowledgeSourceRepository:
         entity.last_opened_by = actor_id
         await self.session.flush()
 
-    async def list(self, offset: int = 0, limit: int = 20) -> list[KnowledgeSource]:
+    async def due_auto_sync_ids(self, now: datetime) -> builtins.list[int]:
+        """返回候选 ID；并发声明由 claim_auto_sync 的条件更新负责。"""
+        result = await self.session.execute(
+            select(KnowledgeSource.id)
+            .where(
+                KnowledgeSource.auto_sync.is_(True),
+                KnowledgeSource.enabled.is_(True),
+                KnowledgeSource.sync_status.not_in(("unavailable", "scanning")),
+                KnowledgeSource.next_auto_sync_at.is_not(None),
+                KnowledgeSource.next_auto_sync_at <= now,
+            )
+            .order_by(KnowledgeSource.next_auto_sync_at, KnowledgeSource.id)
+        )
+        return list(result.scalars())
+
+    async def claim_auto_sync(
+        self, source_id: int, now: datetime
+    ) -> KnowledgeSource | None:
+        """通过条件 UPDATE 适配 SQLite，不依赖 SKIP LOCKED。"""
+        source = await self.get(source_id)
+        if source is None:
+            return None
+        result = await self.session.execute(
+            update(KnowledgeSource)
+            .where(
+                KnowledgeSource.id == source_id,
+                KnowledgeSource.auto_sync.is_(True),
+                KnowledgeSource.enabled.is_(True),
+                KnowledgeSource.sync_status.not_in(("unavailable", "scanning")),
+                KnowledgeSource.next_auto_sync_at.is_not(None),
+                KnowledgeSource.next_auto_sync_at <= now,
+            )
+            .values(
+                last_auto_sync_enqueued_at=now,
+                next_auto_sync_at=next_auto_sync_at(now, source.sync_interval_minutes),
+            )
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            return None
+        await self.session.refresh(source)
+        return source
+
+    async def record_auto_sync_enqueue_failure(
+        self, source: KnowledgeSource, now: datetime
+    ) -> None:
+        """投递失败也必须留下可恢复的退避计划，防止来源静默漏同步。"""
+        source.auto_sync_failure_count += 1
+        source.next_auto_sync_at = next_auto_sync_at(
+            now, source.sync_interval_minutes, source.auto_sync_failure_count
+        )
+        await self.session.flush()
+
+    async def list(
+        self, offset: int = 0, limit: int = 20
+    ) -> builtins.list[KnowledgeSource]:
         result = await self.session.execute(
             select(KnowledgeSource)
             .order_by(KnowledgeSource.id)
@@ -72,6 +131,7 @@ class KnowledgeSourceRepository:
         enabled: bool | None,
         auto_sync: bool | None,
         is_pinned: bool | None,
+        research_context_id: int | None,
         sort_by: str,
         sort_order: str,
         offset: int,
@@ -84,6 +144,32 @@ class KnowledgeSourceRepository:
                 or_(
                     func.lower(KnowledgeSource.name).like(pattern, escape="\\"),
                     func.lower(KnowledgeSource.root_path).like(pattern, escape="\\"),
+                    exists(
+                        select(KnowledgeSourceResearchContext.id)
+                        .join(
+                            ResearchContext,
+                            ResearchContext.id
+                            == KnowledgeSourceResearchContext.research_context_id,
+                        )
+                        .where(
+                            KnowledgeSourceResearchContext.knowledge_source_id
+                            == KnowledgeSource.id,
+                            func.lower(ResearchContext.name).like(
+                                pattern, escape="\\"
+                            ),
+                        )
+                    ),
+                )
+            )
+        if research_context_id is not None:
+            statement = statement.where(
+                exists(
+                    select(KnowledgeSourceResearchContext.id).where(
+                        KnowledgeSourceResearchContext.knowledge_source_id
+                        == KnowledgeSource.id,
+                        KnowledgeSourceResearchContext.research_context_id
+                        == research_context_id,
+                    )
                 )
             )
         for column, value in (
@@ -154,6 +240,17 @@ class KnowledgeSourceRepository:
                 else KnowledgeSource.last_sync_time.asc(),
                 KnowledgeSource.id,
             )
+        elif sort_by == "last_opened":
+            # 最近使用只反映用户显式访问；将 NULL 固定排末尾，避免不同数据库
+            # 对空值排序的默认差异破坏分页稳定性。
+            statement = statement.order_by(
+                KnowledgeSource.is_pinned.desc(),
+                KnowledgeSource.last_opened_at.is_(None),
+                KnowledgeSource.last_opened_at.desc()
+                if descending
+                else KnowledgeSource.last_opened_at.asc(),
+                KnowledgeSource.id.asc(),
+            )
         else:
             statement = statement.order_by(
                 KnowledgeSource.is_pinned.desc(),
@@ -163,6 +260,68 @@ class KnowledgeSourceRepository:
             )
         result = await self.session.execute(statement.offset(offset).limit(limit))
         return list(result.scalars().all()), total
+
+    async def research_contexts_by_source_ids(
+        self, source_ids: builtins.list[int]
+    ) -> dict[int, builtins.list[tuple[int, str]]]:
+        """批量读取来源关联，避免列表序列化形成 N+1 查询。"""
+        if not source_ids:
+            return {}
+        result = await self.session.execute(
+            select(
+                KnowledgeSourceResearchContext.knowledge_source_id,
+                ResearchContext.id,
+                ResearchContext.name,
+            )
+            .join(
+                ResearchContext,
+                ResearchContext.id
+                == KnowledgeSourceResearchContext.research_context_id,
+            )
+            .where(KnowledgeSourceResearchContext.knowledge_source_id.in_(source_ids))
+            .order_by(
+                KnowledgeSourceResearchContext.knowledge_source_id,
+                func.lower(ResearchContext.name),
+                ResearchContext.id,
+            )
+        )
+        contexts: dict[int, builtins.list[tuple[int, str]]] = {}
+        for source_id, context_id, name in result:
+            contexts.setdefault(source_id, []).append((context_id, name))
+        return contexts
+
+    async def research_context_link(
+        self, source_id: int, context_id: int
+    ) -> KnowledgeSourceResearchContext | None:
+        result = await self.session.execute(
+            select(KnowledgeSourceResearchContext).where(
+                KnowledgeSourceResearchContext.knowledge_source_id == source_id,
+                KnowledgeSourceResearchContext.research_context_id == context_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def add_research_context_link(
+        self, source_id: int, context_id: int
+    ) -> None:
+        self.session.add(
+            KnowledgeSourceResearchContext(
+                knowledge_source_id=source_id,
+                research_context_id=context_id,
+            )
+        )
+        await self.session.flush()
+
+    async def remove_research_context_link(
+        self, source_id: int, context_id: int
+    ) -> bool:
+        result = await self.session.execute(
+            delete(KnowledgeSourceResearchContext).where(
+                KnowledgeSourceResearchContext.knowledge_source_id == source_id,
+                KnowledgeSourceResearchContext.research_context_id == context_id,
+            )
+        )
+        return bool(getattr(result, "rowcount", 0))
 
     @staticmethod
     def _escape_like(value: str) -> str:

@@ -76,6 +76,10 @@ def apply_filters(
     def passes(item: CitationItem) -> bool:
         if params.year is not None and item.year != params.year:
             return False
+        if params.year_from is not None and (item.year is None or item.year < params.year_from):
+            return False
+        if params.year_to is not None and (item.year is None or item.year > params.year_to):
+            return False
         if params.publication_type is not None and not _matches_publication_type(
             item.publication_types, params.publication_type
         ):

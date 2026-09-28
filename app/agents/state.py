@@ -18,11 +18,14 @@ class AgentGraphState(TypedDict, total=False):
     user_query: str
     task_type: TaskType
     selected_documents: list[int]
-    evidence: list[str]
+    evidence: list[dict[str, object]]
+    grounded_answer: dict[str, object] | None
+    retrieval_trace: dict[str, object] | None
+    publish_requested: bool
     search_history: list[str]
     candidate_directions: list[str]
     draft: str | None
-    citations: list[str]
+    citations: list[dict[str, object]]
     pending_confirmations: list[str]
     errors: list[str]
     step_count: int
@@ -35,6 +38,7 @@ class AgentGraphState(TypedDict, total=False):
     max_resource_units: int
     decision: str | None
     approval_payload: dict[str, object]
+    execution: dict[str, object]
 
 
 @dataclass
@@ -44,11 +48,14 @@ class AgentState:
     user_query: str
     task_type: TaskType | None = None
     selected_documents: list[int] = field(default_factory=list)
-    evidence: list[str] = field(default_factory=list)
+    evidence: list[dict[str, object]] = field(default_factory=list)
+    grounded_answer: dict[str, object] | None = None
+    retrieval_trace: dict[str, object] | None = None
+    publish_requested: bool = False
     search_history: list[str] = field(default_factory=list)
     candidate_directions: list[str] = field(default_factory=list)
     draft: str | None = None
-    citations: list[str] = field(default_factory=list)
+    citations: list[dict[str, object]] = field(default_factory=list)
     pending_confirmations: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     step_count: int = 0

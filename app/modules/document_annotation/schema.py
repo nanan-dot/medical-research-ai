@@ -3,7 +3,9 @@
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.modules.document_selection.schema import AnchorReference
 
 _FILE_HASH_PATTERN = r"^[a-f0-9]{64}$"
 _GEOMETRY_TOLERANCE = 1e-9
@@ -39,6 +41,7 @@ class AnnotationRect(BaseModel):
 
 
 class AnnotationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     expected_file_hash: str = Field(pattern=_FILE_HASH_PATTERN)
     page_number: int = Field(ge=1)
     rectangles: list[AnnotationRect] = Field(min_length=1, max_length=100)
@@ -93,6 +96,8 @@ class AnnotationUpdate(BaseModel):
 
 class AnnotationRead(BaseModel):
     id: int
+    source_anchor_id: int | None = None
+    resolved_source_anchor_id: int | None = None
     document_id: int
     file_hash: str
     page_number: int
@@ -104,3 +109,8 @@ class AnnotationRead(BaseModel):
     version_status: AnnotationVersionStatus
     created_at: datetime
     updated_at: datetime
+
+
+class AnchoredAnnotationCreate(AnchorReference):
+    color: AnnotationColor = AnnotationColor.YELLOW
+    note: str | None = Field(default=None, max_length=2000)

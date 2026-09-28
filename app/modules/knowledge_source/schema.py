@@ -5,11 +5,17 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.modules.knowledge_source.auto_sync_policy import (
+    MAX_SYNC_INTERVAL_MINUTES,
+    MIN_SYNC_INTERVAL_MINUTES,
+)
+
 
 class KnowledgeSourceType(StrEnum):
     LOCAL_FOLDER = "local_folder"
     OBSIDIAN_VAULT = "obsidian_vault"
     TEMPORARY_IMPORT = "temporary_import"
+    ZOTERO_LIBRARY = "zotero_library"
 
 
 class KnowledgeSourceSyncStatus(StrEnum):
@@ -31,6 +37,7 @@ class KnowledgeSourceHealthStatus(StrEnum):
 class KnowledgeSourceSortBy(StrEnum):
     PINNED = "pinned"
     LAST_SYNC = "last_sync"
+    LAST_OPENED = "last_opened"
     NAME = "name"
     DOCUMENT_COUNT = "document_count"
 
@@ -56,6 +63,11 @@ class KnowledgeSourceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     enabled: bool | None = None
     auto_sync: bool | None = None
+    sync_interval_minutes: int | None = Field(
+        default=None,
+        ge=MIN_SYNC_INTERVAL_MINUTES,
+        le=MAX_SYNC_INTERVAL_MINUTES,
+    )
     is_pinned: bool | None = None
 
     @field_validator("name")
@@ -83,6 +95,13 @@ class KnowledgeSourceStats(BaseModel):
     availability_percent: float | None = None
 
 
+class KnowledgeSourceResearchContextRead(BaseModel):
+    """来源列表中的精简研究项目摘要。"""
+
+    id: int
+    name: str
+
+
 class KnowledgeSourceRead(BaseModel):
     """查询响应"""
 
@@ -93,11 +112,17 @@ class KnowledgeSourceRead(BaseModel):
     root_path: str
     enabled: bool
     auto_sync: bool
+    sync_interval_minutes: int = 60
+    next_auto_sync_at: datetime | None = None
     is_pinned: bool
     sync_status: KnowledgeSourceSyncStatus
     last_sync_time: datetime | None
     last_opened_at: datetime | None = None
     last_opened_by: str | None = None
+    research_contexts: list[KnowledgeSourceResearchContextRead] = Field(
+        default_factory=list
+    )
+    research_context_count: int = 0
     error_message: str | None
     health_status: KnowledgeSourceHealthStatus = KnowledgeSourceHealthStatus.READY
     stats: KnowledgeSourceStats = Field(default_factory=KnowledgeSourceStats)

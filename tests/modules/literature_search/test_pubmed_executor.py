@@ -22,9 +22,11 @@ class FakePubMedClient:
     search_result: PubMedSearchResult = field(default_factory=PubMedSearchResult)
     records: list[PubMedRecord] = field(default_factory=list)
     search_calls: int = 0
+    last_search_retmax: int | None = None
 
     async def search(self, query: str, *, retmax: int = 20) -> PubMedSearchResult:
         self.search_calls += 1
+        self.last_search_retmax = retmax
         return self.search_result
 
     async def fetch_records(self, pmids: list[str]) -> list[PubMedRecord]:
@@ -39,6 +41,7 @@ def _record(pmid: str = "39000401") -> PubMedRecord:
         authors=["Kim J"],
         journal="Nature Medicine",
         year=2024,
+        pmcid="PMC1234567",
     )
 
 
@@ -56,6 +59,15 @@ async def test_execute_marks_records_verified_from_pubmed():
     assert item.verified_by == VERIFIED_BY_PUBMED
     assert item.verified_on is not None
     assert item.pmid == "39000401"
+    assert item.pmcid == "PMC1234567"
+
+
+def test_legacy_citation_snapshot_without_pmcid_remains_readable():
+    from app.modules.literature_search.schema import CitationItem
+
+    citation = CitationItem.model_validate({"pmid": "123", "title": "Legacy"})
+
+    assert citation.pmcid is None
 
 
 async def test_execute_empty_search_returns_no_items():
@@ -79,3 +91,18 @@ async def test_execute_does_not_fabricate_missing_records():
 
     assert len(items) == 1
     assert items[0].pmid == "39000401"
+
+
+async def test_execute_uses_a_small_buffer_but_caps_persisted_items():
+    client = FakePubMedClient(
+        search_result=PubMedSearchResult(
+            pmids=[str(index) for index in range(525)], total_count=1000
+        ),
+        records=[_record(str(index)) for index in range(525)],
+    )
+
+    items, total = await PubMedExecutor(client).execute("query", retmax=500)
+
+    assert total == 1000
+    assert len(items) == 500
+    assert client.last_search_retmax == 525

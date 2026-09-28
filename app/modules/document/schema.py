@@ -52,6 +52,9 @@ class DocumentSortBy(StrEnum):
     UPDATED_AT = "updated_at"
     NAME = "name"
     FILE_SIZE = "file_size"
+    SOURCE_NAME = "source_name"
+    STATUS = "status"
+    LAST_OPENED = "last_opened"
 
 
 class ContentLocatorType(StrEnum):
@@ -83,6 +86,10 @@ class DocumentRead(BaseModel):
     file_path: str
     original_filename: str | None = None
     media_type: str | None = None
+    source_name: str | None = None
+    source_type: str | None = None
+    relative_path: str | None = None
+    display_name: str | None = None
     file_hash: str
     file_size: int
     modified_time: datetime
@@ -107,6 +114,11 @@ class DocumentRead(BaseModel):
     available_actions: list[str] = Field(default_factory=list)
     progress: int | None = None
     task_id: int | None = None
+    task_status: str | None = None
+    phase: str | None = None
+    current_item: str | None = None
+    last_opened_at: datetime | None = None
+    open_count: int = 0
 
 
 class DocumentStatistics(BaseModel):

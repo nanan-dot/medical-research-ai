@@ -1,119 +1,20 @@
-import { flushPromises, mount } from "@vue/test-utils";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { flushPromises,mount } from "@vue/test-utils";import { createMemoryHistory,createRouter } from "vue-router";import { afterEach,expect,test,vi } from "vitest";import RecommendationsView from "./RecommendationsView.vue";
+afterEach(()=>vi.unstubAllGlobals());
+test("keeps unverified legacy results out of the current recommendation list",async()=>{(run as {warnings:string[]}).warnings=["recommendation_quality_upgrade_required"];try{const {wrapper}=await render();expect(wrapper.text()).toContain("这组旧版结果缺少逐篇主题匹配核验");expect(wrapper.find(".item").exists()).toBe(false);}finally{(run as {warnings:string[]}).warnings=[];}});
+const run={run_id:9,status:"active",operation:"reused",active_run_id:9,mode:"balanced",candidate_count:10,expected_count:1,completed_count:1,covered_count:2,algorithm_version:"v5",feature_schema_version:"v5",intent_snapshot_id:7,source_result_id:42,source_score_generation_id:null,last_error:null,warnings:[],pubmed_query:null,pubmed_total_count:null,collected_at:null,created_at:"2026-08-29T01:00:00Z",activated_at:"2026-08-29T01:01:00Z"};
+const item={pmid:"12345678",citation:{pmid:"12345678",doi:null,title:"A long server returned medical citation title",authors:["Chen A","Wang B"],journal:"Medical Journal",year:2024,entry_type:"article",verified:true,verified_by:"pubmed",verified_on:null,has_abstract:true,abstract:"Exact PubMed abstract.",publication_types:["Clinical Trial"]},priority_score:.9,relevance_score:.8,incremental_value_score:.7,evidence_fit_score:.6,recency_score:null,overlap_status:"novel",overlap_evidence:[],open_signal:{source:"openalex",status:"not_requested",cited_by_count:null,counts_by_year:{},score:null},reason:{headline:"补充长期结局",narrative:"该文献提供与当前研究问题匹配的长期结局证据。",matches:[{dimension:"disease",status:"matched",matched_terms:["ILD"],source:"intent",field:"title",reason:"疾病人群匹配",version:"v5"}],incremental_value:"当前结果未覆盖",evidence_sources:["PubMed摘要"],limitations:[]},rank:1,decision:{decision:"pending",dismiss_reason:null}};
+function response(url:string,withActive=true,taskContextId:number|null=null,total=1,zeroNovel=false){if(url.includes("/recommendations/status"))return {building:null,active:withActive?run:null,can_retry:false};if(url.includes("/recommendations/active")){const covered=url.includes("overlap=covered");return {research_context_id:1,research_name:"真实研究",source_result_id:42,intent_snapshot_id:7,run_id:9,mode:"balanced",algorithm_version:"v5",total:zeroNovel?(covered?2:0):total,novel_count:zeroNovel?0:total,covered_count:2,page:1,page_size:10,items:zeroNovel&&!covered?[]:[structuredClone(item)]};}if(url.endsWith("/literature-search/history?offset=0&limit=100"))return {total:1,offset:0,limit:100,items:[{id:3,status:"succeeded",latest_result_id:42}]};if(url.endsWith("/literature-search/3"))return {id:3,original_query:"间质性肺病研究问题",research_context_id:taskContextId,database:"pubmed",result_count:500,latest_result_id:42,versions:[]};if(url.endsWith("/accept"))return {decision:"accepted",dismiss_reason:null};if(url.endsWith("/dismiss"))return {decision:"dismissed",dismiss_reason:"off_topic"};if(url.includes("/explanation"))return item;if(url.endsWith("/runs"))return [run];return {};}
+async function render(query="?result_id=42&intent_snapshot_id=7",withActive=true,taskContextId:number|null=null,mismatchOnce=false,total=1,zeroNovel=false){const router=createRouter({history:createMemoryHistory(),routes:[{path:"/recommendations",component:RecommendationsView},{path:"/literature-search",component:{template:"<div/>"}},{path:"/literature-search/results/:id",component:{template:"<div/>"}}]});await router.push(`/recommendations${query}`);await router.isReady();let rejected=false;const fetchMock=vi.fn((input:string|URL,init?:RequestInit)=>{const url=String(input);if(mismatchOnce&&!rejected&&url.endsWith("/recommendations/runs")&&init?.method==="POST"){rejected=true;return Promise.resolve(new Response(JSON.stringify({detail:"intent snapshot does not belong to the result research context"}),{status:409}))}return Promise.resolve(new Response(JSON.stringify(response(url,withActive,taskContextId,total,zeroNovel))))});vi.stubGlobal("fetch",fetchMock);const wrapper=mount(RecommendationsView,{global:{plugins:[router]}});await flushPromises();return {wrapper,fetchMock};}
 
-import RecommendationsView from "./RecommendationsView.vue";
-
-beforeEach(() => window.localStorage.clear());
-afterEach(() => vi.unstubAllGlobals());
-
-const citation = (overrides = {}) => ({
-  pmid: "12345678",
-  doi: null,
-  title: "Server returned citation title",
-  authors: ["Chen A", "Wang B"],
-  journal: "Medical Journal",
-  year: 2024,
-  entry_type: "article",
-  verified: true,
-  verified_by: "pubmed",
-  verified_on: "2026-08-11",
-  has_abstract: true,
-  abstract: "The exact abstract returned by the server.",
-  publication_types: ["Journal Article"],
-  withdrawn: false,
-  ...overrides,
-});
-
-const response = (overrides = {}) => ({
-  query: "test topic",
-  status: "completed",
-  warnings: [],
-  items: [{ citation: citation(), recommendation_reason: "Exact server recommendation reason." }],
-  ...overrides,
-});
-
-test("submits the topic to the recommendations API and renders server reason", async () => {
-  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(response())));
-  vi.stubGlobal("fetch", fetchMock);
-  const wrapper = mount(RecommendationsView);
-
-  await wrapper.get("textarea").setValue("test topic");
-  await wrapper.get("select").setValue("3");
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-
-  expect(fetchMock).toHaveBeenCalledWith(
-    "/api/v1/recommendations",
-    expect.objectContaining({ body: JSON.stringify({ query: "test topic", candidate_count: 3 }) }),
-  );
-  expect(wrapper.text()).toContain("Exact server recommendation reason.");
-  expect(wrapper.text()).toContain("Server returned citation title");
-});
-
-test("restores the last real server response from this browser after remount", async () => {
-  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(response())));
-  vi.stubGlobal("fetch", fetchMock);
-  const first = mount(RecommendationsView);
-  await first.get("textarea").setValue("test topic");
-  await first.get("form").trigger("submit");
-  await flushPromises();
-  first.unmount();
-
-  const restored = mount(RecommendationsView);
-  await flushPromises();
-  expect(restored.text()).toContain("Server returned citation title");
-  expect(restored.text()).toContain("已保存在本浏览器");
-  expect(fetchMock).toHaveBeenCalledTimes(1);
-  await restored.get(".clear-saved").trigger("click");
-  expect(window.localStorage.getItem("rag-medicine:recommendations:last-response")).toBeNull();
-});
-
-test("discloses only a returned abstract and makes missing abstracts unavailable", async () => {
-  const fetchMock = vi.fn()
-    .mockResolvedValueOnce(new Response(JSON.stringify(response())))
-    .mockResolvedValueOnce(new Response(JSON.stringify(response({ items: [{ citation: citation({ abstract: null, has_abstract: false }), recommendation_reason: "Reason" }] }))));
-  vi.stubGlobal("fetch", fetchMock);
-  const wrapper = mount(RecommendationsView);
-
-  await wrapper.get("textarea").setValue("topic");
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-  expect(wrapper.text()).not.toContain("The exact abstract returned by the server.");
-  await wrapper.get(".abstract-disclosure button").trigger("click");
-  expect(wrapper.text()).toContain("The exact abstract returned by the server.");
-
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-  expect(wrapper.find(".abstract-disclosure button").exists()).toBe(false);
-  expect(wrapper.text()).toContain("摘要不可用");
-});
-
-test("uses a safe PubMed link and states full-text access is restricted without a library item", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(response()))));
-  const wrapper = mount(RecommendationsView);
-  await wrapper.get("textarea").setValue("topic");
-  await wrapper.get("form").trigger("submit");
-  await flushPromises();
-
-  const link = wrapper.get('a[href="https://pubmed.ncbi.nlm.nih.gov/12345678/"]');
-  expect(link.attributes("target")).toBe("_blank");
-  expect(link.attributes("rel")).toBe("noopener noreferrer");
-  expect(wrapper.text()).toContain("全文获取受限");
-});
-
-test("renders warning, empty, unavailable, and request-error states", async () => {
-  const fetchMock = vi.fn()
-    .mockResolvedValueOnce(new Response(JSON.stringify(response({ status: "completed_with_warnings", warnings: ["Partial server warning"] }))))
-    .mockResolvedValueOnce(new Response(JSON.stringify(response({ items: [] }))))
-    .mockResolvedValueOnce(new Response(JSON.stringify(response({ status: "unavailable", items: [], warnings: ["PubMed unavailable"] }))))
-    .mockRejectedValueOnce(new Error("Network request failed"));
-  vi.stubGlobal("fetch", fetchMock);
-  const wrapper = mount(RecommendationsView);
-  await wrapper.get("textarea").setValue("topic");
-
-  for (const expected of ["Partial server warning", "没有找到可核验文献", "PubMed unavailable", "Network request failed"]) {
-    await wrapper.get("form").trigger("submit");
-    await flushPromises();
-    expect(wrapper.text()).toContain(expected);
-  }
-});
+test("does not submit a stale route Intent for an unbound result",async()=>{const {wrapper,fetchMock}=await render(undefined,false);expect(wrapper.text()).toContain("已忽略旧链接中的研究意图");const generate=wrapper.findAll("button").find(button=>button.text().includes("生成推荐"));await generate?.trigger("click");await flushPromises();const request=fetchMock.mock.calls.find(([url,init])=>String(url).endsWith("/recommendations/runs")&&String((init as RequestInit|undefined)?.method)==="POST");expect(request).toBeTruthy();expect(JSON.parse(String((request?.[1] as RequestInit).body)).intent_snapshot_id).toBeNull();});
+test("edits an exploratory query in place and submits it with the new run",async()=>{const {wrapper,fetchMock}=await render("?result_id=42",false);await wrapper.get(".edit-research").trigger("click");const input=wrapper.get("#exploration-query");await input.setValue("interstitial lung disease AND nintedanib");await wrapper.get(".save-query").trigger("click");expect(wrapper.text()).toContain("interstitial lung disease AND nintedanib");const generate=wrapper.findAll("button").find(button=>button.text().includes("生成推荐"));await generate?.trigger("click");await flushPromises();const request=fetchMock.mock.calls.find(([url,init])=>String(url).endsWith("/recommendations/runs")&&String((init as RequestInit|undefined)?.method)==="POST");expect(JSON.parse(String((request?.[1] as RequestInit).body)).exploration_query).toBe("interstitial lung disease AND nintedanib");});
+test("removes a mismatched Intent and retries the recommendation against the current result",async()=>{const {wrapper,fetchMock}=await render(undefined,false,2,true);const generate=wrapper.findAll("button").find(button=>button.text().includes("生成推荐"));await generate?.trigger("click");await flushPromises();const requests=fetchMock.mock.calls.filter(([url,init])=>String(url).endsWith("/recommendations/runs")&&String((init as RequestInit|undefined)?.method)==="POST");expect(requests).toHaveLength(2);expect(JSON.parse(String((requests[0][1] as RequestInit).body)).intent_snapshot_id).toBe(7);expect(JSON.parse(String((requests[1][1] as RequestInit).body)).intent_snapshot_id).toBeNull();expect(wrapper.text()).toContain("已改为基于当前检索快照生成探索推荐");expect(wrapper.text()).not.toContain("intent snapshot does not belong");});
+test("loads active V5 data in the preview's six-four paper and reason columns",async()=>{const {wrapper}=await render();expect(wrapper.text()).toContain("真实研究");expect(wrapper.text()).toContain("补充长期结局");expect(wrapper.text()).toContain("当前结果未覆盖");expect(wrapper.find(".paper > .paper-main").exists()).toBe(true);expect(wrapper.find(".paper > .reason").exists()).toBe(true);expect(wrapper.find(".paper-main .reason").exists()).toBe(false);expect(wrapper.text()).not.toContain("已记录匹配依据");expect(wrapper.text()).not.toContain("JCR");});
+test("creates a fresh run when the user regenerates an active recommendation",async()=>{const {wrapper,fetchMock}=await render();const generate=wrapper.findAll("button").find(button=>button.text().includes("生成推荐"));await generate?.trigger("click");await flushPromises();const request=fetchMock.mock.calls.find(([url,init])=>String(url).endsWith("/recommendations/runs")&&String((init as RequestInit|undefined)?.method)==="POST");expect(request).toBeTruthy();expect(JSON.parse(String((request?.[1] as RequestInit).body)).force_refresh).toBe(true);});
+test("uses server decisions and exposes covered items as a working control",async()=>{const {wrapper,fetchMock}=await render();await wrapper.get(".accept").trigger("click");await flushPromises();expect(wrapper.text()).toContain("已加入候选");expect(fetchMock.mock.calls.some(call=>String(call[0]).endsWith("/runs/9/items/12345678/accept"))).toBe(true);const covered=wrapper.findAll(".summary button").find(button=>button.text().includes("已在当前结果中"));await covered?.trigger("click");await flushPromises();expect(fetchMock.mock.calls.some(call=>String(call[0]).includes("overlap=covered"))).toBe(true);});
+test("automatically shows covered recommendations when the generated novel group is empty",async()=>{const {wrapper,fetchMock}=await render(undefined,true,null,false,1,true);expect(fetchMock.mock.calls.some(call=>String(call[0]).includes("overlap=covered"))).toBe(true);expect(wrapper.find(".item").exists()).toBe(true);expect(wrapper.text()).toContain("已在当前结果中");expect(wrapper.text()).not.toContain("暂无通过匹配核验的新增文献");});
+test("shows ten documents per page and loads the requested covered page",async()=>{const {wrapper,fetchMock}=await render(undefined,true,null,false,50);expect(fetchMock.mock.calls.some(call=>String(call[0]).includes("page=1&page_size=10"))).toBe(true);const pageTwo=wrapper.findAll(".page-actions button").find(button=>button.text()==="2");await pageTwo?.trigger("click");await flushPromises();expect(fetchMock.mock.calls.some(call=>String(call[0]).includes("page=2&page_size=10"))).toBe(true);expect(wrapper.text()).toContain("共 50 篇，第 2 / 5 页");});
+test("opens history and explanation lazily and restores accessible dialog semantics",async()=>{const {wrapper,fetchMock}=await render();await wrapper.find(".header button").trigger("click");await flushPromises();expect(wrapper.find('[aria-labelledby="history-title"]').exists()).toBe(true);await wrapper.find('[aria-label="关闭推荐历史"]').trigger("click");await wrapper.find(".reason button").trigger("click");await flushPromises();expect(wrapper.find('[aria-labelledby="explanation-title"]').exists()).toBe(true);expect(fetchMock.mock.calls.some(call=>String(call[0]).includes("/explanation"))).toBe(true);});
+test("does not use localStorage as recommendation state",async()=>{const spy=vi.spyOn(Storage.prototype,"setItem");await render();expect(spy).not.toHaveBeenCalled();spy.mockRestore();});
+test("keeps the active list interactive while narration is pending",async()=>{(run as {narration_status?:string}).narration_status="pending";const {wrapper}=await render();expect(wrapper.text()).toContain("推荐已生成，正在优化表述");await wrapper.get(".accept").trigger("click");await flushPromises();expect(wrapper.text()).toContain("已加入候选");delete (run as {narration_status?:string}).narration_status;});
+test("discloses a mixed narration fallback while retaining the active list",async()=>{(run as {narration_status?:string}).narration_status="completed_with_fallback";const {wrapper}=await render();expect(wrapper.text()).toContain("部分表述优化未采用");expect(wrapper.find(".item").exists()).toBe(true);delete (run as {narration_status?:string}).narration_status;});

@@ -3,10 +3,14 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
+    String,
     Text,
     UniqueConstraint,
     text,
@@ -65,7 +69,7 @@ class LiteratureSearchTask(Base):
     # 结果总数（最近一次成功执行后的 ESearch 命中数）。
     result_count: Mapped[int] = mapped_column(nullable=False, default=0)
     # 单次执行拉取的条目上限（ESearch retmax），重跑时复用保证结果可复现。
-    retmax: Mapped[int] = mapped_column(nullable=False, default=20)
+    retmax: Mapped[int] = mapped_column(nullable=False, default=500)
     # 筛选条件（检索式之外的结构化筛选，如语言/年份/研究类型）。
     filters: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # 模型版本：候选解析/词项扩展所用模型标识；来源为真实配置，不为空。
@@ -74,9 +78,7 @@ class LiteratureSearchTask(Base):
     user_edits: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # 精确任务身份用于创建复用与去重边界，保留解析快照/模型版本/retmax。
     # 历史页的用户可见归并身份单独存入 history_fingerprint，不能混用。
-    strategy_fingerprint: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
+    strategy_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 主历史只按实际 PubMed 条件（数据库、布尔检索式、筛选）归并；它不会删除
     # 或改写这些 audit task，也不会影响跨任务的去重流程。
     history_fingerprint: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -125,6 +127,116 @@ class LiteratureSearchResult(Base):
     # 结果级去重扫描时间戳：PUT 扫描时写入，GET 摘要据此区分"已扫描（可能无重复）"
     # 与"从未扫描"（has_scan=false 的空摘要），避免用组数量误判扫描状态。
     dedup_scanned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+
+
+class JournalMetricImportBatch(Base):
+    """用户授权 CSV 的可审计导入批次。"""
+
+    __tablename__ = "journal_metric_import_batches"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider",
+            "edition_year",
+            "provider_version",
+            name="uq_journal_metric_import_provider_year_version",
+        ),
+        CheckConstraint(
+            "record_count >= 0", name="ck_journal_metric_batch_record_count"
+        ),
+        CheckConstraint(
+            "edition_year BETWEEN 1900 AND 2200", name="ck_journal_metric_batch_year"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    edition_year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_file_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, index=True
+    )
+    license_provenance: Mapped[str] = mapped_column(Text, nullable=False)
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="ready")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class LiteratureCommercialJournalMetric(Base):
+    """Licensed journal/database metric; never an article score or quality judgment."""
+
+    __tablename__ = "literature_commercial_journal_metrics"
+    __table_args__ = (
+        UniqueConstraint(
+            "journal_key",
+            "provider",
+            "metric_year",
+            "provider_version",
+            name="uq_literature_commercial_journal_metric_snapshot",
+        ),
+        UniqueConstraint(
+            "import_batch_id", "journal_key", name="uq_journal_metric_batch_key"
+        ),
+        Index(
+            "ix_literature_commercial_journal_metric_lookup",
+            "journal_key",
+            "metric_year",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    import_batch_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("journal_metric_import_batches.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    journal_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    journal_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    normalized_journal_name: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, index=True
+    )
+    issn: Mapped[str | None] = mapped_column(String(9), nullable=True, index=True)
+    eissn: Mapped[str | None] = mapped_column(String(9), nullable=True, index=True)
+    issn_l: Mapped[str | None] = mapped_column(String(9), nullable=True, index=True)
+    provider: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    provider_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    license_provenance: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metric_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    impact_factor: Mapped[float | None] = mapped_column(Float, nullable=True)
+    impact_factor_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    jcr_best_quartile: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    jcr_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wos_indexes_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wos_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cas_quartile: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    cas_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cas_category: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    is_cas_top: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    warning_status: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    indexing_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    quartile: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="not_configured"
+    )
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    observed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -184,6 +296,10 @@ class LiteratureSearchItemState(Base):
     # 用户自定义排序序号（custom 排序使用）：由用户拖拽顺序写入，同一结果内
     # 每条记录保存自己的序号，避免在每个条目上冗余存全量 PMID 顺序列表。
     custom_order_index: Mapped[int | None] = mapped_column(nullable=True)
+    # 阅读计划和重点标记同样属于用户工作流状态，不修改不可变检索快照。
+    in_reading_plan: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_key: Mapped[bool] = mapped_column(nullable=False, default=False)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class LiteratureDuplicateGroup(Base):

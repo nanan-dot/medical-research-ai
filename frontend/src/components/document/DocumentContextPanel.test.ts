@@ -20,7 +20,7 @@ describe("DocumentContextPanel", () => {
   it("defaults to the information tab with accessible tab semantics and state actions", async () => {
     const wrapper = mountPanel();
     const tabs = wrapper.findAll('[role="tab"]');
-    expect(tabs).toHaveLength(2);
+    expect(tabs).toHaveLength(3);
     expect(tabs[0].attributes("aria-selected")).toBe("true");
     expect(wrapper.get('[role="tabpanel"]').attributes("id")).toBe("document-information-panel");
     await wrapper.get(".actions button").trigger("click");
@@ -34,5 +34,14 @@ describe("DocumentContextPanel", () => {
     expect(tabs[1].attributes("aria-selected")).toBe("true");
     expect(wrapper.get('[role="tabpanel"]').attributes("id")).toBe("document-annotations-panel");
     expect(wrapper.text()).toContain("请先在 PDF 文本层选中一段文字。");
+  });
+
+  it("opens the medical translation tab with the same captured selection", async () => {
+    const wrapper = mountPanel();
+    const tabs = wrapper.findAll('[role="tab"]');
+    await tabs[2].trigger("click");
+    expect(tabs[2].attributes("aria-selected")).toBe("true");
+    expect(wrapper.get('[role="tabpanel"]').attributes("id")).toBe("document-translation-panel");
+    expect(wrapper.text()).toContain("先在 PDF 中选中文字");
   });
 });

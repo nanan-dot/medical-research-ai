@@ -4,9 +4,12 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { literatureSearchApi } from "../../api/literatureSearch";
 import Breadcrumbs from "./Breadcrumbs.vue";
+import { useRoute } from "vue-router";
 
 // 任务铃铛数字：真实进行中（pending/running/failed）任务数。
 const activeTaskCount = ref(0);
+const route = useRoute();
+const isLiteratureResult = () => route.path.startsWith("/literature-search/results/");
 onMounted(async () => {
   try {
     const page = await literatureSearchApi.listTasks(0, 50);
@@ -31,6 +34,11 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   <header class="topbar">
     <button class="mobile-menu" aria-label="打开导航" @click="emit('openMenu')">☰</button>
     <div class="project"><Breadcrumbs /></div>
+    <div v-if="isLiteratureResult()" class="result-tools" aria-label="检索操作">
+      <RouterLink to="/literature-search" class="result-tool">查看检索策略</RouterLink>
+      <RouterLink to="/literature-search/history" class="result-tool">重新检索</RouterLink>
+      <button class="result-tool" type="button" @click="emit('openSearch')">保存检索式⌄</button>
+    </div>
     <div class="tools">
       <button class="search" aria-label="搜索与跳转" @click="emit('openSearch')">
         <span class="search-icon" aria-hidden="true">⌕</span>
@@ -67,6 +75,9 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
   gap: 0.3rem;
   min-width: 0;
 }
+.result-tools { display:flex; gap:8px; margin-left:auto; }
+.result-tool { min-height:34px; box-sizing:border-box; padding:0 12px; border:1px solid var(--border-subtle); border-radius:7px; background:#fff; color:var(--text-primary); font-size:12px; font-weight:650; line-height:32px; text-decoration:none; cursor:pointer; }
+.result-tool:hover,.result-tool:focus-visible { border-color:var(--color-primary); color:var(--color-primary); outline:none; }
 .switch-project {
   border: 0;
   background: transparent;

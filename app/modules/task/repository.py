@@ -5,8 +5,11 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.knowledge_source.sync_progress import SyncProgress, completed_progress
 from app.modules.task.model import TaskRecord
 from app.modules.task.schema import TaskStatus
+
+MIN_PROGRESS_PERSIST_DELTA = 1
 
 
 class TaskRepository:
@@ -62,13 +65,18 @@ class TaskRepository:
         )
         return result.scalar_one_or_none()
 
-    async def claim_next(self, worker_id: str, lease_seconds: int) -> TaskRecord | None:
+    async def claim_next(
+        self,
+        worker_id: str,
+        lease_seconds: int,
+        task_type: str = "knowledge_source_sync",
+    ) -> TaskRecord | None:
         """Atomically claim queued or abandoned work using a database lease."""
         now = datetime.now(UTC)
         candidate = await self._session.scalar(
             select(TaskRecord.id)
             .where(
-                TaskRecord.task_type == "knowledge_source_sync",
+                TaskRecord.task_type == task_type,
                 or_(
                     TaskRecord.status == TaskStatus.QUEUED.value,
                     and_(
@@ -118,16 +126,50 @@ class TaskRepository:
     ) -> TaskRecord:
         """Persist the terminal task state and release its lease."""
         task.status = status.value
-        task.progress = 100
+        if status == TaskStatus.SUCCEEDED:
+            completion = completed_progress()
+            task.progress = completion.progress_percent or 0
+            task.phase = completion.phase.value
+            task.completed_units = completion.completed_units
+            task.total_units = completion.total_units
+            task.current_item = None
+            task.progress_updated_at = datetime.now(UTC)
         task.detail_json = detail_json
         task.error_code = error_code
         task.error_message = error_message
         task.lease_owner = None
+        task.active_idempotency_key = None
         task.lease_expires_at = None
         task.heartbeat_at = datetime.now(UTC)
         task.finished_at = datetime.now(UTC)
         await self._session.flush()
         return task
+
+    async def update_sync_progress(
+        self, task: TaskRecord, progress: SyncProgress
+    ) -> None:
+        """写入真实进度；拒绝倒退以抵御乱序 Worker 心跳。"""
+        has_new_phase = progress.phase.value != task.phase
+        has_indeterminate_progress = (
+            progress.progress_percent is None and task.total_units is not None
+        )
+        has_meaningful_progress = (
+            progress.progress_percent is not None
+            and progress.progress_percent - task.progress >= MIN_PROGRESS_PERSIST_DELTA
+        )
+        if (
+            progress.completed_units < task.completed_units
+            or not (has_new_phase or has_indeterminate_progress or has_meaningful_progress)
+        ):
+            return
+        task.phase = progress.phase.value
+        task.completed_units = progress.completed_units
+        task.total_units = progress.total_units
+        task.current_item = progress.current_item
+        if progress.progress_percent is not None:
+            task.progress = max(task.progress, progress.progress_percent)
+        task.progress_updated_at = datetime.now(UTC)
+        await self._session.flush()
 
     async def renew_lease(
         self, task_id: int, worker_id: str, lease_seconds: int
@@ -140,6 +182,7 @@ class TaskRepository:
                 TaskRecord.id == task_id,
                 TaskRecord.status == TaskStatus.RUNNING.value,
                 TaskRecord.lease_owner == worker_id,
+                TaskRecord.lease_expires_at > now,
             )
             .values(
                 heartbeat_at=now,

@@ -6,37 +6,55 @@ import {
   type DocumentAnnotation,
   type UpdateDocumentAnnotation,
 } from "../api/documentAnnotations";
+import type { SourceAnchorDescriptor } from "../types/sourceAnchors";
+import { ApiError } from "../api/client";
 
-export function useDocumentAnnotations(documentId: number, fileHash: () => string) {
+export function useDocumentAnnotations(documentId: number | (() => number), fileHash: () => string) {
+  const currentId = () => typeof documentId === "number" ? documentId : documentId();
   const annotations = shallowRef<DocumentAnnotation[]>([]);
   const loading = shallowRef(false);
   const saving = shallowRef(false);
   const error = shallowRef<string | null>(null);
+  const conflictEpoch = shallowRef(0);
+  let generation = 0;
+  let pendingKey = "";
+  let pendingBody = "";
 
   async function load(): Promise<void> {
+    const current = ++generation;
     loading.value = true;
     error.value = null;
     try {
-      annotations.value = await documentAnnotationsApi.list(documentId);
+      const result = await documentAnnotationsApi.list(currentId());
+      if (current === generation) annotations.value = result;
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : "无法加载批注";
+      if (current === generation) error.value = cause instanceof Error ? cause.message : "无法加载批注";
     } finally {
-      loading.value = false;
+      if (current === generation) loading.value = false;
     }
   }
 
-  async function create(payload: Omit<CreateDocumentAnnotation, "expected_file_hash">): Promise<boolean> {
+  async function create(payload: Omit<CreateDocumentAnnotation, "expected_file_hash"> & { anchor_descriptor?: SourceAnchorDescriptor }): Promise<boolean> {
     if (saving.value) return false;
     saving.value = true;
     error.value = null;
+    const capturedId = currentId(), capturedHash = fileHash();
     try {
-      await documentAnnotationsApi.create(documentId, {
+      if (payload.anchor_descriptor) {
+        const body = JSON.stringify([capturedId, payload]);
+        if (pendingBody !== body) { pendingBody = body; pendingKey = crypto.randomUUID(); }
+        await documentAnnotationsApi.createAnchored(capturedId, payload.anchor_descriptor, payload.color, payload.note, pendingKey);
+        pendingBody = ""; pendingKey = "";
+      } else await documentAnnotationsApi.create(capturedId, {
         ...payload,
-        expected_file_hash: fileHash(),
+        expected_file_hash: capturedHash,
       });
+      if (capturedId !== currentId() || capturedHash !== fileHash()) return false;
       await load();
       return true;
     } catch (cause) {
+      if (capturedId !== currentId() || capturedHash !== fileHash()) return false;
+      if (cause instanceof ApiError && cause.code?.includes("REVISION_CONFLICT")) conflictEpoch.value++;
       error.value = cause instanceof Error ? cause.message : "保存批注失败";
       return false;
     } finally {
@@ -52,7 +70,7 @@ export function useDocumentAnnotations(documentId: number, fileHash: () => strin
     saving.value = true;
     error.value = null;
     try {
-      await documentAnnotationsApi.update(documentId, annotationId, {
+      await documentAnnotationsApi.update(currentId(), annotationId, {
         ...payload,
         expected_file_hash: fileHash(),
       });
@@ -71,7 +89,7 @@ export function useDocumentAnnotations(documentId: number, fileHash: () => strin
     saving.value = true;
     error.value = null;
     try {
-      await documentAnnotationsApi.remove(documentId, annotationId, fileHash());
+      await documentAnnotationsApi.remove(currentId(), annotationId, fileHash());
       await load();
       return true;
     } catch (cause) {
@@ -82,13 +100,14 @@ export function useDocumentAnnotations(documentId: number, fileHash: () => strin
     }
   }
 
-  watch(fileHash, load, { immediate: true });
+  watch(() => [currentId(), fileHash()], () => { annotations.value = []; void load(); }, { immediate: true });
 
   return {
     annotations: readonly(annotations),
     loading: readonly(loading),
     saving: readonly(saving),
     error: readonly(error),
+    conflictEpoch: readonly(conflictEpoch),
     load,
     create,
     update,

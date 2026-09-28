@@ -25,14 +25,14 @@ class LibraryItemRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    pmid: str
+    pmid: str | None
     pmcid: str | None
     doi: str | None
     title: str | None
     journal: str | None
     year: int | None
     document_id: int | None
-    source_search_id: int
+    source_search_id: int | None
     fulltext_status: FulltextStatus
     fulltext_status_reason: str
     created_at: datetime

@@ -6,6 +6,7 @@ withDefaults(defineProps<{ size?: number }>(), { size: 28 });
 </script>
 
 <template>
+  <!-- eslint-disable vue/max-attributes-per-line -->
   <svg
     class="brand-logo"
     :width="size"
@@ -16,6 +17,15 @@ withDefaults(defineProps<{ size?: number }>(), { size: 28 });
     role="img"
     aria-label="素问品牌标识"
   >
+    <rect
+      x="2.5"
+      y="2.5"
+      width="27"
+      height="27"
+      rx="6"
+      stroke="currentColor"
+      stroke-width="1.8"
+    />
     <!-- 打开的文献页（左右两页对称轮廓） -->
     <path
       d="M16 7 C 12.5 4.6, 7.5 4.8, 5 6 V 25 C 7.5 23.8, 12.5 23.6, 16 26 C 19.5 23.6, 24.5 23.8, 27 25 V 6 C 24.5 4.8, 19.5 4.6, 16 7 Z"
@@ -34,4 +44,5 @@ withDefaults(defineProps<{ size?: number }>(), { size: 28 });
     <circle cx="16" cy="16" r="2.6" fill="#2563EB" />
     <path d="M16 18.6 V 23" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round" />
   </svg>
+  <!-- eslint-enable vue/max-attributes-per-line -->
 </template>

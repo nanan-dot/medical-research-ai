@@ -5,13 +5,13 @@ import { routeMeta } from "../../router/route-meta";
 import Breadcrumbs from "./Breadcrumbs.vue";
 
 describe("Breadcrumbs", () => {
-  it("links only the confirmed document-library ancestors", async () => {
+  it("links only the confirmed resource-library ancestors", async () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [{ path: "/documents", component: { template: "<div />" } }, {
         path: "/documents/:id",
         component: { template: "<div />" },
-        meta: { breadcrumb: ["\u6587\u6863\u4e0e\u77e5\u8bc6", "\u6587\u6863\u5e93", "\u6587\u6863\u8be6\u60c5"] } as never,
+        meta: { breadcrumb: ["\u7814\u7a76\u8d44\u6e90", "\u8d44\u6599\u5e93", "\u8d44\u6599\u8be6\u60c5"] } as never,
       }],
     });
     await router.push("/documents/42");
@@ -20,12 +20,13 @@ describe("Breadcrumbs", () => {
     const wrapper = mount(Breadcrumbs, { global: { plugins: [router] } });
 
     expect(wrapper.findAll("a").map((link) => link.attributes("href"))).toEqual(["/documents", "/documents"]);
-    expect(wrapper.get("strong").text()).toBe("\u6587\u6863\u8be6\u60c5");
+    expect(wrapper.get("strong").text()).toBe("\u8d44\u6599\u8be6\u60c5");
   });
 
   it("renders history-origin results with accessible workspace and history links", async () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [
       { path: "/literature-search", component: { template: "<div />" } },
+      { path: "/literature-search/history", component: { template: "<div />" } },
       { path: "/literature-search/results/:id", component: { template: "<div />" }, meta: routeMeta("/literature-search/results") },
     ] });
     await router.push("/literature-search/results/101?task=7&from=history");
@@ -33,7 +34,7 @@ describe("Breadcrumbs", () => {
 
     const wrapper = mount(Breadcrumbs, { global: { plugins: [router] } });
 
-    expect(wrapper.findAll("a").map((link) => link.attributes("href"))).toEqual(["/literature-search", "/literature-search?tab=history"]);
+    expect(wrapper.findAll("a").map((link) => link.attributes("href"))).toEqual(["/literature-search", "/literature-search/history"]);
     expect(wrapper.get("strong").text()).toBe("搜索结果");
     expect(wrapper.get("strong").attributes("aria-current")).toBe("page");
     expect(wrapper.findAll("a").every((link) => link.element.tabIndex >= 0)).toBe(true);

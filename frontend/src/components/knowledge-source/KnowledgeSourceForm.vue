@@ -52,8 +52,14 @@ async function browseDirectory(): Promise<void> {
 </script>
 
 <template>
-  <form class="source-form" @submit.prevent="submit">
-    <section class="form-intro" aria-labelledby="directory-title">
+  <form
+    class="source-form"
+    @submit.prevent="submit"
+  >
+    <section
+      class="form-intro"
+      aria-labelledby="directory-title"
+    >
       <p class="form-kicker">资料来源</p>
       <h4 id="directory-title">选择要长期同步的资料文件夹</h4>
       <p>系统只会扫描你确认的目录。后续将文件放入该目录后，可在知识库中手动同步。</p>
@@ -62,35 +68,74 @@ async function browseDirectory(): Promise<void> {
     <div class="field-grid">
       <label class="field">
         <span class="field-label">知识库名称</span>
-        <input v-model.trim="form.name" required maxlength="200" placeholder="选择文件夹后自动填入">
+        <input
+          v-model.trim="form.name"
+          required
+          maxlength="200"
+          placeholder="选择文件夹后自动填入"
+        >
       </label>
       <label class="field">
         <span class="field-label">资料类型</span>
         <select v-model="form.source_type">
-          <option v-for="type in sourceTypes" :key="type.value" :value="type.value">
+          <option
+            v-for="type in sourceTypes"
+            :key="type.value"
+            :value="type.value"
+          >
             {{ type.label }}
           </option>
         </select>
       </label>
     </div>
 
-    <section class="directory-card" :class="{ selected: Boolean(form.root_path) }" aria-labelledby="directory-label">
+    <section
+      class="directory-card"
+      :class="{ selected: Boolean(form.root_path) }"
+      aria-labelledby="directory-label"
+    >
       <div class="directory-copy">
-        <span id="directory-label" class="field-label">授权目录</span>
+        <span
+          id="directory-label"
+          class="field-label"
+        >授权目录</span>
         <strong>{{ form.root_path ? "已选择资料文件夹" : "尚未选择文件夹" }}</strong>
         <p>{{ form.root_path || "点击右侧“选择文件夹”打开 Windows 文件夹选择器" }}</p>
       </div>
-      <button class="browse-action" type="button" :disabled="disabled || isBrowsing" @click="browseDirectory">
+      <button
+        class="browse-action"
+        type="button"
+        :disabled="disabled || isBrowsing"
+        @click="browseDirectory"
+      >
         {{ isBrowsing ? "正在打开…" : form.root_path ? "重新选择" : "选择文件夹" }}
       </button>
     </section>
 
-    <p v-if="isBrowsing" class="picker-state" role="status">系统文件夹选择器已打开，请在窗口中选中目标目录后点击“选择文件夹”。</p>
-    <p v-if="browseError" class="browse-error" role="alert">{{ browseError }}</p>
+    <p
+      v-if="isBrowsing"
+      class="picker-state"
+      role="status"
+    >
+      系统文件夹选择器已打开，请在窗口中选中目标目录后点击“选择文件夹”。
+    </p>
+    <p
+      v-if="browseError"
+      class="browse-error"
+      role="alert"
+    >
+      {{ browseError }}
+    </p>
 
     <footer class="form-footer">
       <span>目录确认后才会保存为知识库来源。</span>
-      <button class="primary-action" type="submit" :disabled="disabled || !form.root_path">添加知识源</button>
+      <button
+        class="primary-action"
+        type="submit"
+        :disabled="disabled || !form.root_path"
+      >
+        添加知识源
+      </button>
     </footer>
   </form>
 </template>

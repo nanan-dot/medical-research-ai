@@ -9,7 +9,7 @@
 
 ## 关键环境约束（Windows）
 
-- 工作目录：`H:\AI_project\rag_medicine`，所有操作在此目录下。
+- 工作目录：`D:\AI_project\rag_medicine`，所有操作在此目录下。
 - **PYTHONPATH 被全局设为 Hermes venv**，所有 python 命令前必须加 `env PYTHONPATH=""`。
 - 后端 Python：`/f/software/programme/Anaconda/envs/med-research-ai/python.exe`（Python 3.12）。
 - 前端：`frontend/`，包管理器 npm。

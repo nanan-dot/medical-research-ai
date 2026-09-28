@@ -271,6 +271,9 @@ class LiteratureSearchRepository:
             existing.read_status = entity.read_status
             existing.tags_json = entity.tags_json
             existing.custom_order_index = entity.custom_order_index
+            existing.in_reading_plan = entity.in_reading_plan
+            existing.is_key = entity.is_key
+            existing.read_at = entity.read_at
             entity = existing
         else:
             self.session.add(entity)
@@ -333,7 +336,9 @@ class LiteratureSearchRepository:
         status 为 None 或 "all" 时不按状态过滤，并按"待人工确认优先"排序，
         保证默认列表先展示需要用户处理的模糊组。
         """
-        query = select(LiteratureDuplicateGroup).where(LiteratureDuplicateGroup.result_id == result_id)
+        query = select(LiteratureDuplicateGroup).where(
+            LiteratureDuplicateGroup.result_id == result_id
+        )
         if status is not None and status != "all":
             query = query.where(LiteratureDuplicateGroup.status == status)
         count_result = await self.session.execute(
@@ -433,7 +438,9 @@ class LiteratureSearchRepository:
     # 阅读顺序人工顺序持久化（R2-WP08，manage-refs 融合）
     # ------------------------------------------------------------------
 
-    async def get_reading_order(self, result_id: int, duplicate_mode: str = "all") -> LiteratureReadingOrder | None:
+    async def get_reading_order(
+        self, result_id: int, duplicate_mode: str = "all"
+    ) -> LiteratureReadingOrder | None:
         """读取某结果快照下的人工顺序记录（无则返回 None）。"""
         result = await self.session.execute(
             select(LiteratureReadingOrder).where(

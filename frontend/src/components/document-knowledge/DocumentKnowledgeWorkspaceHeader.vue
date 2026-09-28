@@ -4,11 +4,11 @@ defineProps<{ active: "sources" | "documents"; description: string }>();
 
 <template>
   <header class="workspace-header">
-    <h1 class="workspace-title">文档与知识</h1>
+    <h1 class="workspace-title">研究资源</h1>
     <p class="workspace-description">{{ description }}</p>
-    <nav aria-label="文档与知识二级导航" class="workspace-tabs">
+    <nav aria-label="研究资源二级导航" class="workspace-tabs">
       <RouterLink to="/sources" :class="{ active: active === 'sources' }">知识库</RouterLink>
-      <RouterLink to="/documents" :class="{ active: active === 'documents' }">文档库</RouterLink>
+      <RouterLink to="/documents" :class="{ active: active === 'documents' }">资料库</RouterLink>
     </nav>
   </header>
 </template>

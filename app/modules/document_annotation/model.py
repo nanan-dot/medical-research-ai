@@ -16,6 +16,9 @@ class DocumentAnnotation(Base):
     __tablename__ = "document_annotations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    source_anchor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("document_source_anchors.id"), nullable=True, index=True
+    )
     document_id: Mapped[int] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,

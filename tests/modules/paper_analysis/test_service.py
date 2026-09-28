@@ -15,6 +15,7 @@ from app.modules.paper_analysis.schema import (
     PaperAnalysisCorrection,
 )
 from app.modules.paper_analysis.service import PaperAnalysisService
+from app.modules.paper_library.analysis_progress import encode_task_names
 from tests.modules.document.conftest import create_document
 
 
@@ -168,3 +169,34 @@ async def test_latest_analysis_is_scoped_to_document(session, tmp_path: Path):
     assert first.id != latest.id
     with pytest.raises(NotFoundError):
         await service.latest_for_document(99999)
+
+
+@pytest.mark.asyncio
+async def test_active_analysis_task_progress_is_persisted_and_idempotent(
+    session, tmp_path: Path
+):
+    document = await indexed_document(session, tmp_path)
+    now = datetime.now(UTC)
+    entity = await PaperAnalysisService(session).repo.create(
+        PaperAnalysis(
+            document_id=document.id,
+            analysis_status="analyzing",
+            template_version="custom-v2",
+            model_version="test",
+            generation=1,
+            task_set_version="custom-v2",
+            task_names_json=encode_task_names(("screening", "extraction", "review")),
+            completed_task_names_json=encode_task_names(()),
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    service = PaperAnalysisService(session)
+
+    first = await service.mark_task_completed(entity.id, "screening")
+    duplicate = await service.mark_task_completed(entity.id, "screening")
+
+    assert first.completed_task_names == ["screening"]
+    assert duplicate.completed_task_names == ["screening"]
+    with pytest.raises(ConflictError, match="Unknown"):
+        await service.mark_task_completed(entity.id, "not-in-snapshot")

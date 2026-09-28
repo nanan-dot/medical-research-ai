@@ -1,9 +1,13 @@
 <script setup lang="ts">
-defineProps<{ pmid: string }>();
+import { computed } from "vue";
+
+const props = defineProps<{ pmid: string }>();
+const pubmedUrl = computed(() => /^\d+$/.test(props.pmid) ? `https://pubmed.ncbi.nlm.nih.gov/${props.pmid}/` : null);
 </script>
 
 <template>
-  <a :href="`https://pubmed.ncbi.nlm.nih.gov/${pmid}/`" target="_blank" rel="noopener noreferrer">查看 PubMed ↗</a>
+  <a v-if="pubmedUrl" :href="pubmedUrl" target="_blank" rel="noopener noreferrer">查看 PubMed ↗</a>
+  <span v-else>PubMed 标识无效</span>
 </template>
 
 <style scoped>

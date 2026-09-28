@@ -7,6 +7,7 @@ import json
 from datetime import UTC, datetime
 from typing import cast
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
@@ -23,6 +24,7 @@ from app.modules.document_annotation.schema import (
     AnnotationVersionStatus,
 )
 from app.modules.document_preview.service import DocumentPreviewService
+from app.modules.document_relocation.model import AssetAnchorLink
 
 
 class AnnotationVersionConflictError(ConflictError):
@@ -37,6 +39,7 @@ class DocumentAnnotationService:
     """批注写入以当前文件哈希为前置条件，避免旧页坐标映射到新版本。"""
 
     def __init__(self, session: AsyncSession):
+        self._session = session
         self._documents = DocumentRepository(session)
         self._annotations = DocumentAnnotationRepository(session)
         self._previews = DocumentPreviewService(session)
@@ -44,7 +47,27 @@ class DocumentAnnotationService:
     async def list(self, document_id: int) -> list[AnnotationRead]:
         document = await self._get_document(document_id)
         annotations = await self._annotations.list_active(document_id)
-        return [self._to_read(annotation, document.file_hash) for annotation in annotations]
+        links = (
+            list(
+                (
+                    await self._session.scalars(
+                        select(AssetAnchorLink).where(
+                            AssetAnchorLink.asset_type == "document_annotation",
+                            AssetAnchorLink.asset_id.in_(
+                                [row.id for row in annotations]
+                            ),
+                        )
+                    )
+                ).all()
+            )
+            if annotations
+            else []
+        )
+        resolved = {link.asset_id: link.resolved_anchor_id for link in links}
+        return [
+            self._to_read(annotation, document.file_hash, resolved.get(annotation.id))
+            for annotation in annotations
+        ]
 
     async def create(
         self,
@@ -136,9 +159,15 @@ class DocumentAnnotationService:
             raise AnnotationVersionConflictError("批注属于旧文档版本，请重新定位")
 
     @staticmethod
-    def _to_read(annotation: DocumentAnnotation, current_file_hash: str) -> AnnotationRead:
+    def _to_read(
+        annotation: DocumentAnnotation,
+        current_file_hash: str,
+        resolved_source_anchor_id: int | None = None,
+    ) -> AnnotationRead:
         return AnnotationRead(
             id=annotation.id,
+            source_anchor_id=annotation.source_anchor_id,
+            resolved_source_anchor_id=resolved_source_anchor_id,
             document_id=annotation.document_id,
             file_hash=annotation.file_hash,
             page_number=annotation.page_number,
@@ -149,7 +178,8 @@ class DocumentAnnotationService:
             note=annotation.note,
             version_status=(
                 AnnotationVersionStatus.CURRENT
-                if annotation.file_hash == current_file_hash
+                if resolved_source_anchor_id is not None
+                or annotation.file_hash == current_file_hash
                 else AnnotationVersionStatus.RELOCATION_REQUIRED
             ),
             created_at=annotation.created_at,

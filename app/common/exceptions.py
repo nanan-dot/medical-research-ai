@@ -25,6 +25,11 @@ class ConflictError(AppError):
     code = "conflict"
 
 
+class UnprocessableEntityError(AppError):
+    status_code = 422
+    code = "unprocessable_entity"
+
+
 class InvalidPathError(AppError):
     status_code = 400
     code = "invalid_path"
@@ -38,6 +43,13 @@ class PermissionDeniedError(AppError):
 class TemporarilyUnavailableError(AppError):
     status_code = 503
     code = "temporarily_unavailable"
+
+
+class FeatureUnavailableError(AppError):
+    """当前部署形态不允许执行的本机能力。"""
+
+    status_code = 409
+    code = "feature_unavailable"
 
 
 class AIModelError(AppError):

@@ -3,7 +3,15 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,6 +32,12 @@ class Document(Base):
             "normalized_file_path",
             name="uq_documents_source_path",
         ),
+        UniqueConstraint(
+            "knowledge_source_id",
+            "zotero_item_key",
+            name="uq_documents_source_zotero_item",
+        ),
+        Index("ix_documents_source_modified_time", "knowledge_source_id", "modified_time"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -62,6 +76,10 @@ class Document(Base):
     paperqa_version: Mapped[str | None] = mapped_column(String(64))
     indexed_hash: Mapped[str | None] = mapped_column(String(64))
     index_error: Mapped[str | None] = mapped_column(Text)
+    zotero_item_key: Mapped[str | None] = mapped_column(String(32))
+    zotero_parent_item_key: Mapped[str | None] = mapped_column(String(32))
+    zotero_version: Mapped[str | None] = mapped_column(String(64))
+    metadata_only: Mapped[bool] = mapped_column(default=False, nullable=False)
     asset: Mapped["DocumentAsset | None"] = relationship(
         "DocumentAsset",
         back_populates="document",

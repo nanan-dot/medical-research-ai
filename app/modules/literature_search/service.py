@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
-from collections.abc import Awaitable, Callable
+from collections import Counter
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from typing import Literal, cast
 
@@ -13,7 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.exceptions import NotFoundError
+from app.common.exceptions import ConflictError, NotFoundError, UnprocessableEntityError
 from app.integrations.llm.client import LLMClient
 from app.integrations.llm.schemas import ChatMessage
 from app.integrations.ollama.client import OllamaClient
@@ -21,6 +23,11 @@ from app.integrations.pubmed.client import PubMedClient
 from app.integrations.pubmed.exceptions import PubMedError
 from app.modules.library_item.repository import LibraryItemRepository
 from app.modules.library_item.schema import LibraryItemRead
+from app.modules.literature_scoring.model import (
+    LiteratureArticleScore,
+    LiteratureScoreGeneration,
+)
+from app.modules.literature_scoring.repository import LiteratureScoringRepository
 from app.modules.literature_search import filtering, ranking
 from app.modules.literature_search.bibtex import to_bibtex
 from app.modules.literature_search.dedup import (
@@ -28,6 +35,21 @@ from app.modules.literature_search.dedup import (
     DuplicateCandidate,
     find_duplicate_candidates,
     select_canonical_record,
+)
+from app.modules.literature_search.journal_metric_matching import match_journal_metric
+from app.modules.literature_search.journal_metric_normalization import (
+    normalize_journal_name,
+)
+from app.modules.literature_search.journal_metric_query import (
+    history_item,
+    summarize_metrics,
+)
+from app.modules.literature_search.journal_metric_repository import (
+    JournalMetricRepository,
+)
+from app.modules.literature_search.journal_metric_schema import (
+    JournalMetricDetail,
+    JournalMetricSummary,
 )
 from app.modules.literature_search.mesh_client import MeshClient
 from app.modules.literature_search.model import (
@@ -45,7 +67,10 @@ from app.modules.literature_search.prompts import PROMPT_VERSION, build_candidat
 from app.modules.literature_search.pubmed_executor import PubMedExecutor
 from app.modules.literature_search.query_builder import build_boolean_query
 from app.modules.literature_search.query_model import (
+    LiteratureSearchRangeOutsidePolicyError,
     SearchIntentCandidate,
+    append_publication_filter,
+    constrain_date_range,
     relative_year_range,
 )
 from app.modules.literature_search.reading_order import (
@@ -57,6 +82,8 @@ from app.modules.literature_search.reading_order import (
 from app.modules.literature_search.repository import LiteratureSearchRepository
 from app.modules.literature_search.schema import (
     BooleanQueryResult,
+    BulkItemStateFailure,
+    BulkItemStateResult,
     CitationItem,
     DeduplicationSummary,
     DuplicateGroupList,
@@ -87,11 +114,14 @@ from app.modules.literature_search.schema import (
     ResultDuplicateResolutionRead,
     ResultDuplicateResolutionRequest,
     ResultQueryParams,
+    ScoreMetric,
+    ScoreSummary,
     SearchExecuteRequest,
     SearchResultChange,
     SearchStrategyExport,
     SearchTaskStatus,
     SearchTermGroup,
+    SortCapability,
 )
 from app.modules.literature_search.term_expansion import (
     expand_term,
@@ -102,8 +132,16 @@ from app.modules.literature_search.user_state import (
     deserialize_tags,
     serialize_tags,
 )
+from app.modules.research_context.model import ResearchContext
 
 CandidateExtractor = Callable[[str], Awaitable[str]]
+
+
+class SortSignalUnavailableError(ConflictError):
+    """Requested ordering has no complete active signal and must not silently fall back."""
+
+    code = "SORT_SIGNAL_UNAVAILABLE"
+
 
 # 任务状态机取值：pending → running → succeeded / failed。
 STATUS_PENDING = "pending"
@@ -145,12 +183,13 @@ def _normalize_user_edit_value(value: object) -> object:
         non_empty_items = [item for item in normalized_items if item != ""]
         return sorted(
             non_empty_items,
-            key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            key=lambda item: json.dumps(
+                item, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ),
         )
     if isinstance(value, dict):
         return {
-            key: _normalize_user_edit_value(item)
-            for key, item in sorted(value.items())
+            key: _normalize_user_edit_value(item) for key, item in sorted(value.items())
         }
     return value
 
@@ -162,13 +201,22 @@ def normalize_user_edits(raw: str) -> str:
     except json.JSONDecodeError:
         return raw
     normalized = _normalize_user_edit_value(parsed)
-    return json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
 
 
 def strategy_fingerprint_from_snapshot(
-    *, database: str, search_string: str, filters: str, retmax: int,
-    user_edits: str, model_version: str, structured_query: str,
+    *,
+    database: str,
+    search_string: str,
+    filters: str,
+    retmax: int,
+    user_edits: str,
+    model_version: str,
+    structured_query: str,
     original_query: str,
+    research_context_id: int | None = None,
 ) -> str:
     """返回精确任务身份，供复用与跨任务去重边界使用。"""
     snapshot = {
@@ -180,8 +228,11 @@ def strategy_fingerprint_from_snapshot(
         "model_version": model_version,
         "structured_query": _canonical_json(structured_query),
         "original_query": original_query,
+        "research_context_id": research_context_id,
     }
-    canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(
+        snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
@@ -205,10 +256,15 @@ def history_fingerprint_from_snapshot(
 def strategy_fingerprint(request: LiteratureSearchTaskCreate) -> str:
     """Build an exact strategy fingerprint from a validated create request."""
     return strategy_fingerprint_from_snapshot(
-        database=request.database, search_string=request.search_string,
-        filters=request.filters, retmax=request.retmax, user_edits=request.user_edits,
-        model_version=request.model_version, structured_query=request.structured_query,
+        database=request.database,
+        search_string=request.search_string,
+        filters=request.filters,
+        retmax=request.retmax,
+        user_edits=request.user_edits,
+        model_version=request.model_version,
+        structured_query=request.structured_query,
         original_query=request.original_query,
+        research_context_id=request.research_context_id,
     )
 
 
@@ -278,6 +334,8 @@ class LiteratureSearchService:
         values = {
             "disease": candidate.disease,
             "intervention": candidate.intervention,
+            "comparison": candidate.comparison,
+            "outcome": candidate.outcome,
             "target": candidate.target,
             "mechanism": candidate.mechanism,
         }
@@ -286,6 +344,9 @@ class LiteratureSearchService:
 
         groups: list[SearchTermGroup] = []
         mesh_candidates: list[MeshCandidate] = []
+        mesh_status_by_group: dict[
+            str, Literal["verified", "not_found", "unavailable"]
+        ] = {}
         warnings: list[str] = []
         for name, value in values.items():
             if not value:
@@ -309,19 +370,38 @@ class LiteratureSearchService:
                     source=expansion.source,
                 )
             )
+
+        async def lookup_mesh(
+            group: SearchTermGroup,
+        ) -> tuple[str, list[dict[str, str]] | Exception]:
             try:
-                rows = await self.mesh_client.lookup(expansion.core_term)
-            except Exception:  # noqa: BLE001 — MeSH 查找失败降级：追加警告继续，不中断扩展流程。
+                return group.name, await self.mesh_client.lookup(group.core_term)
+            except Exception as error:  # noqa: BLE001 — external NLM failure is an isolated partial result.
+                return group.name, error
+
+        # NLM is independent of query construction. Concurrent, bounded client
+        # calls prevent two slow descriptors from making the entry flow appear
+        # stuck while preserving every successfully expanded ordinary term.
+        for name, rows_or_error in await asyncio.gather(
+            *(lookup_mesh(group) for group in groups)
+        ):
+            if isinstance(rows_or_error, Exception):
+                mesh_status_by_group[name] = "unavailable"
                 warnings.append(
                     f"{name}: official MeSH lookup was unavailable; no MeSH candidate was assumed."
                 )
                 continue
-            mesh_candidates.extend(
-                MeshCandidate(group_name=name, **row) for row in rows
-            )
+            if rows_or_error:
+                mesh_status_by_group[name] = "verified"
+                mesh_candidates.extend(
+                    MeshCandidate(group_name=name, **row) for row in rows_or_error
+                )
+            else:
+                mesh_status_by_group[name] = "not_found"
         return ExpandTermsResponse(
             term_groups=groups,
             mesh_candidates=mesh_candidates,
+            mesh_status_by_group=mesh_status_by_group,
             warnings=warnings,
             user_edits=user_edits,
         )
@@ -344,6 +424,7 @@ class LiteratureSearchService:
         结果引用落到 LiteratureSearchResult，任务只保存结果 id，避免复制
         items_json 造成历史膨胀。
         """
+        request = self._constrain_task_request(request)
         fingerprint = strategy_fingerprint(request)
         existing = await self.repo.get_task_by_fingerprint(fingerprint)
         if existing is None:
@@ -359,6 +440,7 @@ class LiteratureSearchService:
 
         now = datetime.now(UTC)
         entity = LiteratureSearchTask(
+            research_context_id=request.research_context_id,
             original_query=request.original_query,
             structured_query=request.structured_query,
             search_string=request.search_string,
@@ -405,16 +487,19 @@ class LiteratureSearchService:
     ) -> LiteratureSearchTask | None:
         """以纯函数比对旧快照；只给首个匹配任务加指纹，不处理其他审计行。"""
         for task in await self.repo.list_tasks_for_fingerprint_matching():
-            if strategy_fingerprint_from_snapshot(
-                database=task.database,
-                search_string=task.search_string,
-                filters=task.filters,
-                retmax=task.retmax,
-                user_edits=task.user_edits,
-                model_version=task.model_version,
-                structured_query=task.structured_query,
-                original_query=task.original_query,
-            ) == fingerprint:
+            if (
+                strategy_fingerprint_from_snapshot(
+                    database=task.database,
+                    search_string=task.search_string,
+                    filters=task.filters,
+                    retmax=task.retmax,
+                    user_edits=task.user_edits,
+                    model_version=task.model_version,
+                    structured_query=task.structured_query,
+                    original_query=task.original_query,
+                )
+                == fingerprint
+            ):
                 task.strategy_fingerprint = fingerprint
                 try:
                     return await self.repo.save_task(task)
@@ -429,6 +514,32 @@ class LiteratureSearchService:
         if entity is None:
             raise NotFoundError(f"LiteratureSearchTask not found: {id}")
         return await self._to_task_read(entity)
+
+    async def bind_task_research_context(
+        self, task_id: int, research_context_id: int
+    ) -> LiteratureSearchTaskRead:
+        """Persist the context selected while scoring before creating a formal Intent.
+
+        A completed search is immutable as a result snapshot, but its optional
+        research-context association is workflow metadata.  It may be filled once
+        for legacy/unbound tasks; changing an existing association would make a
+        confirmed Intent appear to belong to a different research work.
+        """
+        task = await self.repo.get_task(task_id)
+        if task is None:
+            raise NotFoundError(f"LiteratureSearchTask not found: {task_id}")
+        context = await self.repo.session.get(ResearchContext, research_context_id)
+        if context is None:
+            raise NotFoundError(f"ResearchContext not found: {research_context_id}")
+        if (
+            task.research_context_id is not None
+            and task.research_context_id != research_context_id
+        ):
+            raise ConflictError("检索任务已绑定到其他研究，不能替换研究上下文。")
+        if task.research_context_id is None:
+            task.research_context_id = research_context_id
+            await self.repo.save_task(task)
+        return await self._to_task_read(task)
 
     async def list_tasks(
         self, offset: int = 0, limit: int = 20
@@ -461,7 +572,9 @@ class LiteratureSearchService:
                     error_message=task_read.error_message,
                     searched_at=task_read.searched_at,
                     latest_result_id=task_read.latest_result_id,
-                    latest_change=(task_read.versions[-1].change if task_read.versions else None),
+                    latest_change=(
+                        task_read.versions[-1].change if task_read.versions else None
+                    ),
                 )
             )
         return LiteratureSearchHistoryList(
@@ -629,6 +742,7 @@ class LiteratureSearchService:
             prev_ref = ref
         return LiteratureSearchTaskRead(
             id=entity.id,
+            research_context_id=entity.research_context_id,
             original_query=entity.original_query,
             structured_query=entity.structured_query,
             search_string=entity.search_string,
@@ -655,11 +769,22 @@ class LiteratureSearchService:
         反幻觉边界：条目 verified 标记由 pubmed_executor 依据真实 EFetch 响应
         打标，这里只做持久化与读取，不修改任何验证状态。
         """
+        try:
+            constrained = constrain_date_range(
+                request.date_range, datetime.now(UTC).year
+            )
+        except LiteratureSearchRangeOutsidePolicyError as error:
+            exception = UnprocessableEntityError(str(error))
+            exception.code = "literature_search_range_outside_policy"
+            raise exception from error
+        final_query = append_publication_filter(
+            request.boolean_query, constrained.effective_range
+        )
         items, total_count = await self.pubmed_executor.execute(
-            request.boolean_query, retmax=request.retmax
+            final_query, retmax=request.retmax
         )
         entity = LiteratureSearchResult(
-            query=request.boolean_query,
+            query=final_query,
             total_count=total_count,
             items_json=json.dumps(
                 [item.model_dump() for item in items], ensure_ascii=False
@@ -667,6 +792,27 @@ class LiteratureSearchService:
         )
         saved = await self.repo.create_result(entity)
         return self._to_result_read(saved, items)
+
+    @staticmethod
+    def _constrain_task_request(
+        request: LiteratureSearchTaskCreate,
+    ) -> LiteratureSearchTaskCreate:
+        try:
+            constrained = constrain_date_range(
+                request.date_range, datetime.now(UTC).year
+            )
+        except LiteratureSearchRangeOutsidePolicyError as error:
+            exception = UnprocessableEntityError(str(error))
+            exception.code = "literature_search_range_outside_policy"
+            raise exception from error
+        return request.model_copy(
+            update={
+                "search_string": append_publication_filter(
+                    request.search_string, constrained.effective_range
+                ),
+                "date_range": constrained.effective_range,
+            }
+        )
 
     async def get_result(self, id: int) -> LiteratureSearchResultRead:
         entity = await self.repo.get_result(id)
@@ -697,11 +843,96 @@ class LiteratureSearchService:
             params,
             state_by_pmid=lambda pmid: self._state_tuple(state_map.get(pmid)),
         )
+        scoring_repository = LiteratureScoringRepository(self.session)
+        active_generation = await scoring_repository.get_active_generation(id)
+        active_scores = await scoring_repository.get_active_scores(id)
+        metric_summaries_all = await self._journal_metric_summaries(filtered)
+
+        def metric_matches(item: CitationItem) -> bool:
+            summary = metric_summaries_all.get(item.pmid)
+            latest = summary.latest if summary and summary.status == "matched" else None
+            if params.jcr_quartile and (
+                latest is None
+                or latest.jcr is None
+                or latest.jcr.best_quartile != params.jcr_quartile
+            ):
+                return False
+            if params.wos_index and (
+                latest is None
+                or latest.wos is None
+                or params.wos_index not in (latest.wos.indexes or [])
+            ):
+                return False
+            if params.cas_quartile and (
+                latest is None
+                or latest.cas is None
+                or latest.cas.quartile != params.cas_quartile
+            ):
+                return False
+            if params.impact_factor_min is not None and (
+                latest is None
+                or latest.impact_factor is None
+                or latest.impact_factor.value is None
+                or latest.impact_factor.value < params.impact_factor_min
+            ):
+                return False
+            score = active_scores.get(item.pmid)
+            return not (
+                params.cited_by_min is not None
+                and (
+                    score is None
+                    or score.cited_by_count is None
+                    or score.cited_by_count < params.cited_by_min
+                )
+            )
+
+        filtered = [item for item in filtered if metric_matches(item)]
+        if params.sort == "evidence_fit":
+            raise SortSignalUnavailableError(
+                "所选排序信号尚未就绪，请等待开放数据评分完成"
+            )
+        if (
+            params.sort in {"popular", "article_impact", "classic"}
+            and active_generation is None
+        ):
+            raise SortSignalUnavailableError("所选排序信号尚未就绪，请先生成评分")
+        ranking_params = params.model_copy(
+            update={
+                "sort": (
+                    "relevance"
+                    if params.sort
+                    in {"recommended", "popular", "article_impact", "classic"}
+                    else params.sort
+                )
+            }
+        )
         ranked = ranking.sort_items(
             filtered,
-            params,
+            ranking_params,
             current_year=datetime.now(UTC).year,
             custom_order=self._custom_order_map(state_map),
+        )
+        score_sort_metrics = {
+            "recommended": "priority_score",
+            "relevance": "relevance_score",
+            "popular": "popularity_score",
+            "article_impact": "article_impact_score",
+            "classic": "classic_score",
+        }
+        if params.sort in score_sort_metrics and active_generation:
+            metric_name = score_sort_metrics[params.sort]
+            ranked.sort(
+                key=lambda entry: (
+                    -self._score_sort_value(
+                        active_scores.get(entry.item.pmid), metric_name
+                    ),
+                    entry.item.pmid,
+                )
+            )
+        effective_sort = (
+            "relevance"
+            if params.sort == "recommended" and active_generation is None
+            else params.sort
         )
         start = (params.page - 1) * params.page_size
         page_items = ranked[start : start + params.page_size]
@@ -711,29 +942,265 @@ class LiteratureSearchService:
                 [entry.item.pmid for entry in page_items]
             )
         }
+        metric_summaries = {
+            entry.item.pmid: metric_summaries_all.get(entry.item.pmid)
+            for entry in page_items
+        }
+        facets = self._result_facets(filtered, state_map)
+        jcr: Counter[str] = Counter()
+        wos: Counter[str] = Counter()
+        cas: Counter[str] = Counter()
+        impact: Counter[str] = Counter()
+        cited: Counter[str] = Counter()
+        for item in filtered:
+            summary = metric_summaries_all.get(item.pmid)
+            latest = summary.latest if summary and summary.status == "matched" else None
+            if latest and latest.jcr and latest.jcr.best_quartile:
+                jcr[latest.jcr.best_quartile] += 1
+            if latest and latest.wos:
+                wos.update(latest.wos.indexes or [])
+            if latest and latest.cas and latest.cas.quartile:
+                cas[latest.cas.quartile] += 1
+            if latest and latest.impact_factor and latest.impact_factor.value is not None:
+                value = latest.impact_factor.value
+                impact[">=10" if value >= 10 else ">=5" if value >= 5 else ">=3" if value >= 3 else ">=0"] += 1
+            score = active_scores.get(item.pmid)
+            if score and score.cited_by_count is not None:
+                value = score.cited_by_count
+                cited[">=100" if value >= 100 else ">=50" if value >= 50 else ">=10" if value >= 10 else ">=0"] += 1
+        facets.update({"jcr": dict(jcr), "wos": dict(wos), "cas": dict(cas), "impact_factor": dict(impact), "cited_by": dict(cited)})
         return LiteratureSearchResultPage(
             result_id=entity.id,
             query=entity.query,
             total_count=entity.total_count,
             filtered_total=len(filtered),
+            reading_plan_total=sum(
+                1
+                for state in state_map.values()
+                if state.in_reading_plan or state.saved
+            ),
             page=params.page,
             page_size=params.page_size,
             sort=params.sort,
+            requested_sort=params.sort,
+            effective_sort=effective_sort,
+            active_generation_id=active_generation.id if active_generation else None,
+            scoring_status="active" if active_generation else "not_started",
             duplicate_mode=params.duplicate_mode,
             hidden_duplicate_count=len(self._result_items(entity)) - len(items),
+            facets=facets,
+            sort_capabilities=self._sort_capabilities(active_generation, active_scores),
             items=[
                 self._ranked_with_state(entry, state_map).model_copy(
                     update={
                         "library_item": (
-                            LibraryItemRead.model_validate(library_items[entry.item.pmid])
+                            LibraryItemRead.model_validate(
+                                library_items[entry.item.pmid]
+                            )
                             if entry.item.pmid in library_items
                             else None
-                        )
+                        ),
+                        "score_summary": self._score_summary(
+                            active_scores.get(entry.item.pmid), active_generation
+                        ),
+                        "limitations": self._score_limitations(
+                            active_scores.get(entry.item.pmid)
+                        ),
+                        "journal_metric": metric_summaries.get(entry.item.pmid),
                     }
                 )
                 for entry in page_items
             ],
         )
+
+    async def _journal_metric_summaries(
+        self, items: list[CitationItem]
+    ) -> dict[str, JournalMetricSummary]:
+        repository = JournalMetricRepository(self.session)
+        if not await repository.has_active_batches():
+            return {
+                item.pmid: JournalMetricSummary(
+                    status="not_configured", reason="no_active_journal_metric_import"
+                )
+                for item in items
+            }
+        issns = {
+            value
+            for item in items
+            for value in (item.issn_l, item.issn, item.eissn)
+            if value
+        }
+        names = {
+            name for item in items if (name := normalize_journal_name(item.journal))
+        }
+        candidates = await repository.candidates(issns, names)
+        output: dict[str, JournalMetricSummary] = {}
+        for item in items:
+            match = match_journal_metric(item, candidates)
+            if (
+                match.status != "matched"
+                or match.journal_key is None
+                or match.method is None
+            ):
+                output[item.pmid] = JournalMetricSummary(
+                    status=match.status, match_method=match.method
+                )
+                continue
+            metrics = [
+                candidate
+                for candidate in candidates
+                if candidate.journal_key == match.journal_key
+            ]
+            output[item.pmid] = summarize_metrics(metrics, match.method)
+        return output
+
+    async def get_journal_metric_detail(
+        self, result_id: int, pmid: str
+    ) -> JournalMetricDetail:
+        entity = await self.repo.get_result(result_id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        item = next(
+            (
+                candidate
+                for candidate in self._result_items(entity)
+                if candidate.pmid == pmid
+            ),
+            None,
+        )
+        if item is None:
+            raise NotFoundError(f"PMID {pmid} does not belong to result {result_id}")
+        repository = JournalMetricRepository(self.session)
+        summary = (await self._journal_metric_summaries([item]))[pmid]
+        if summary.status != "matched":
+            return JournalMetricDetail(
+                summary=summary,
+                publication_year_reason="publication_year_metric_not_available",
+            )
+        candidates = await repository.candidates(
+            {value for value in (item.issn_l, item.issn, item.eissn) if value},
+            {name for name in [normalize_journal_name(item.journal)] if name},
+        )
+        match = match_journal_metric(item, candidates)
+        metrics = await repository.active_metrics_for_key(match.journal_key or "")
+        history = [history_item(metric) for metric in metrics]
+        publication = next(
+            (entry for entry in history if entry.metric_year == item.year), None
+        )
+        return JournalMetricDetail(
+            summary=summary,
+            publication_year_metric=publication,
+            publication_year_reason=None
+            if publication
+            else "publication_year_metric_not_available",
+            history=history,
+        )
+
+    @staticmethod
+    def _sort_capabilities(
+        active_generation: LiteratureScoreGeneration | None,
+        active_scores: Mapping[str, LiteratureArticleScore],
+    ) -> dict[str, SortCapability]:
+        """Make unavailable score sorts explicit before a user can select them."""
+        capabilities: dict[str, SortCapability] = {
+            "relevance": SortCapability(available=True),
+            "newest": SortCapability(available=True),
+            "custom": SortCapability(available=True),
+            "recommended": SortCapability(
+                available=True,
+                reason=None
+                if active_generation
+                else "未生成评分时按 PubMed 检索顺序展示",
+            ),
+            "evidence_fit": SortCapability(
+                available=False, reason="完整 Evidence Fit 信号尚未就绪"
+            ),
+        }
+        for sort_name, score_field in {
+            "popular": "popularity_score",
+            "article_impact": "article_impact_score",
+            "classic": "classic_score",
+        }.items():
+            available = active_generation is not None and any(
+                getattr(score, score_field, None) is not None
+                for score in active_scores.values()
+            )
+            capabilities[sort_name] = SortCapability(
+                available=available,
+                reason=(
+                    None
+                    if available
+                    else "尚无可用的 OpenAlex 开放文章级数据，请先生成或刷新评分"
+                ),
+            )
+        return capabilities
+
+    async def export_filtered_results(
+        self, result_id: int, params: ResultQueryParams, export_format: str
+    ) -> tuple[str, str, str]:
+        """Export the same filtered immutable snapshot used by the results endpoint."""
+        entity = await self.repo.get_result(result_id)
+        if entity is None:
+            raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
+        items = await self._project_result_items(entity, params.duplicate_mode)
+        states = await self.repo.get_item_states(result_id)
+        filtered = filtering.apply_filters(
+            items,
+            params,
+            state_by_pmid=lambda pmid: self._state_tuple(states.get(pmid)),
+        )[:500]
+        if export_format == "bibtex":
+            return to_bibtex(filtered), "application/x-bibtex; charset=utf-8", "bib"
+        if export_format == "ris":
+            lines = []
+            for item in filtered:
+                lines.extend(
+                    [
+                        "TY  - JOUR",
+                        f"TI  - {item.title or ''}",
+                        *[f"AU  - {author}" for author in item.authors],
+                        f"PY  - {item.year or ''}",
+                        f"JO  - {item.journal or ''}",
+                        f"DO  - {item.doi or ''}",
+                        f"ID  - {item.pmid}",
+                        "ER  - ",
+                        "",
+                    ]
+                )
+            return (
+                "\n".join(lines),
+                "application/x-research-info-systems; charset=utf-8",
+                "ris",
+            )
+
+        def csv_value(value: object | None) -> str:
+            text_value = str(value or "")
+            return (
+                f"'{text_value}"
+                if text_value.startswith(("=", "+", "-", "@"))
+                else text_value
+            )
+
+        rows = [["PMID", "Title", "Authors", "Journal", "Year", "DOI"]]
+        rows.extend(
+            [
+                [
+                    csv_value(item.pmid),
+                    csv_value(item.title),
+                    csv_value("; ".join(item.authors)),
+                    csv_value(item.journal),
+                    csv_value(item.year),
+                    csv_value(item.doi),
+                ]
+                for item in filtered
+            ]
+        )
+        import csv
+        from io import StringIO
+
+        buffer = StringIO(newline="")
+        csv.writer(buffer).writerows(rows)
+        return "\ufeff" + buffer.getvalue(), "text/csv; charset=utf-8", "csv"
 
     async def update_item_state(
         self, result_id: int, pmid: str, request: ItemStateUpdate
@@ -777,9 +1244,41 @@ class LiteratureSearchService:
                     if existing is not None
                     else None
                 ),
+                in_reading_plan=(
+                    request.in_reading_plan
+                    if request.in_reading_plan is not None
+                    else (existing.in_reading_plan if existing is not None else False)
+                ),
+                is_key=(
+                    request.is_key
+                    if request.is_key is not None
+                    else (existing.is_key if existing is not None else False)
+                ),
+                read_at=(
+                    datetime.now(UTC)
+                    if request.read_status == "read"
+                    else None
+                    if request.read_status == "unread"
+                    else (existing.read_at if existing is not None else None)
+                ),
             )
         )
         return self._to_state_read(entity)
+
+    async def update_item_states_bulk(
+        self, result_id: int, pmids: list[str], request: ItemStateUpdate
+    ) -> BulkItemStateResult:
+        """批量更新同一结果中的用户态，单条无效不会回滚其它有效更新。"""
+        updated: list[str] = []
+        failed: list[BulkItemStateFailure] = []
+        for pmid in dict.fromkeys(pmids):
+            try:
+                await self.update_item_state(result_id, pmid, request)
+            except NotFoundError as exc:
+                failed.append(BulkItemStateFailure(pmid=pmid, reason=str(exc)))
+            else:
+                updated.append(pmid)
+        return BulkItemStateResult(updated=updated, failed=failed)
 
     async def get_item_state(self, result_id: int, pmid: str) -> ItemStateRead:
         """读取单条结果的用户态；从未写入过时返回默认值（不报错）。"""
@@ -850,7 +1349,9 @@ class LiteratureSearchService:
 
         # 人工顺序优先：POST 请求携带的 manual_order 覆盖算法顺序；
         # 未携带（空列表）时读库中已保存的人工顺序（重新生成不覆盖）。
-        effective_manual = manual_order or await self._saved_manual_order(result_id, duplicate_mode)
+        effective_manual = manual_order or await self._saved_manual_order(
+            result_id, duplicate_mode
+        )
         algorithm_ranked = rank_reading_order(classified)
         ordered = apply_manual_order(algorithm_ranked, effective_manual)
         # order_source 收敛为 Literal["rule", "manual"]：有人工顺序则 manual 优先。
@@ -880,7 +1381,10 @@ class LiteratureSearchService:
         )
 
     async def save_reading_order(
-        self, result_id: int, manual_order: list[str], duplicate_mode: Literal["all", "consolidated"] = "all"
+        self,
+        result_id: int,
+        manual_order: list[str],
+        duplicate_mode: Literal["all", "consolidated"] = "all",
     ) -> ReadingOrderRead:
         """保存用户拖拽后的人工顺序并返回应用该顺序的阅读顺序。
 
@@ -903,9 +1407,13 @@ class LiteratureSearchService:
                 updated_at=now,
             )
         )
-        return await self.generate_reading_order(result_id, manual_order, duplicate_mode)
+        return await self.generate_reading_order(
+            result_id, manual_order, duplicate_mode
+        )
 
-    async def _saved_manual_order(self, result_id: int, duplicate_mode: str = "all") -> list[str]:
+    async def _saved_manual_order(
+        self, result_id: int, duplicate_mode: str = "all"
+    ) -> list[str]:
         """读取库中已保存的人工顺序；不存在时返回空列表。
 
         manual_order_json 是 JSON 数组字符串，解析失败（旧数据/手工编辑）
@@ -966,7 +1474,9 @@ class LiteratureSearchService:
             raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
         task = await self.repo.get_task_for_result(result_id)
         if task is None:
-            raise NotFoundError(f"LiteratureSearchTask not found for result: {result_id}")
+            raise NotFoundError(
+                f"LiteratureSearchTask not found for result: {result_id}"
+            )
         records = self._result_dedup_records(result)
         for candidate in find_duplicate_candidates(records):
             fingerprint = self._candidate_fingerprint(candidate)
@@ -1007,7 +1517,9 @@ class LiteratureSearchService:
                             else None
                         ),
                         canonical_record_key=(
-                            canonical.record_id if candidate.confidence == "clear" else None
+                            canonical.record_id
+                            if candidate.confidence == "clear"
+                            else None
                         ),
                     )
                 )
@@ -1026,6 +1538,7 @@ class LiteratureSearchService:
         groups, _total = await self.repo.list_result_duplicate_groups(
             result_id, 0, 10000, "all"
         )
+
         scanned_count = len(self._result_items(result))
         hidden = sum(
             len(group.members) - 1
@@ -1051,6 +1564,49 @@ class LiteratureSearchService:
             has_scan=result.dedup_scanned_at is not None,
             generated_at=result.dedup_scanned_at,
         )
+
+    @staticmethod
+    def _score_summary(
+        score: LiteratureArticleScore | None,
+        generation: LiteratureScoreGeneration | None,
+    ) -> ScoreSummary | None:
+        """Convert persisted score rows to explicit metric statuses without GET calculation."""
+        if score is None or generation is None:
+            return None
+        unavailable = ScoreMetric(
+            score=None, status="missing_input", reason="not_collected"
+        )
+        relevance = ScoreMetric(
+            score=score.relevance_score,
+            status="available"
+            if score.relevance_score is not None
+            else "missing_input",
+            reason=None if score.relevance_score is not None else "no_local_evidence",
+        )
+        return ScoreSummary(
+            generation_id=generation.id,
+            algorithm_version=generation.algorithm_version,
+            score_status=score.score_status,
+            relevance=relevance,
+            evidence_fit=unavailable,
+            article_impact=unavailable,
+            popularity=unavailable,
+            classic=unavailable,
+            recency=unavailable,
+            priority=ScoreMetric(
+                score=score.priority_score,
+                status=relevance.status,
+                reason=relevance.reason,
+            ),
+            cited_by_count=score.cited_by_count,
+            citation_observed_at=score.citation_observed_at,
+        )
+
+    @staticmethod
+    def _score_limitations(score: LiteratureArticleScore | None) -> list[str]:
+        if score is None:
+            return ["scoring_not_generated"]
+        return cast(list[str], json.loads(score.limitations_json))
 
     async def list_result_duplicate_groups(
         self, result_id: int, offset: int, limit: int, status: str | None = "all"
@@ -1125,24 +1681,52 @@ class LiteratureSearchService:
         if result is None:
             raise NotFoundError(f"LiteratureSearchResult not found: {result_id}")
         return ResultDuplicateResolutionRead(
-            group=self._enrich_duplicate_group_read(resolved, self._result_items(result)),
+            group=self._enrich_duplicate_group_read(
+                resolved, self._result_items(result)
+            ),
             summary=await self.get_deduplication_summary(result_id),
         )
 
-    async def _project_result_items(self, result: LiteratureSearchResult, duplicate_mode: str) -> list[CitationItem]:
+    async def _project_result_items(
+        self, result: LiteratureSearchResult, duplicate_mode: str
+    ) -> list[CitationItem]:
         items = self._result_items(result)
         if duplicate_mode == "all":
             return items
-        groups, _ = await self.repo.list_result_duplicate_groups(result.id, 0, 10000, "all")
+        groups, _ = await self.repo.list_result_duplicate_groups(
+            result.id, 0, 10000, "all"
+        )
         hidden_positions: set[int] = set()
         for group in groups:
             if group.status not in {"auto_merged", "resolved_merged"}:
                 continue
-            canonical_key = next((member.canonical_record_key for member in group.members if member.canonical_record_key), None)
+            canonical_key = next(
+                (
+                    member.canonical_record_key
+                    for member in group.members
+                    if member.canonical_record_key
+                ),
+                None,
+            )
             if canonical_key is None:
-                canonical_key = next((member.record_key for member in group.members if member.canonical_record_pmid == member.record_pmid), None)
-            hidden_positions.update(member.position - 1 for member in group.members if member.position is not None and member.record_key != canonical_key)
-        return [item for position, item in enumerate(items) if position not in hidden_positions]
+                canonical_key = next(
+                    (
+                        member.record_key
+                        for member in group.members
+                        if member.canonical_record_pmid == member.record_pmid
+                    ),
+                    None,
+                )
+            hidden_positions.update(
+                member.position - 1
+                for member in group.members
+                if member.position is not None and member.record_key != canonical_key
+            )
+        return [
+            item
+            for position, item in enumerate(items)
+            if position not in hidden_positions
+        ]
 
     async def list_duplicate_groups(self) -> DuplicateGroupList:
         return DuplicateGroupList(
@@ -1252,7 +1836,9 @@ class LiteratureSearchService:
                 item=item,
                 source_search_ids=(),
             )
-            for position, item in enumerate(LiteratureSearchService._result_items(result))
+            for position, item in enumerate(
+                LiteratureSearchService._result_items(result)
+            )
         ]
 
     @staticmethod
@@ -1314,7 +1900,9 @@ class LiteratureSearchService:
                 group.status,
             ),
             created_at=group.created_at,
-            match_explanation=LiteratureSearchService._match_explanation(group.match_method),
+            match_explanation=LiteratureSearchService._match_explanation(
+                group.match_method
+            ),
             canonical_record_key=canonical_key,
             members=[
                 DuplicateGroupMemberRead(
@@ -1360,19 +1948,50 @@ class LiteratureSearchService:
         }.get(match_method, "Manual duplicate decision")
 
     @staticmethod
-    def _enrich_duplicate_group_read(group: DuplicateGroupRead, items: list[CitationItem]) -> DuplicateGroupRead:
+    def _enrich_duplicate_group_read(
+        group: DuplicateGroupRead, items: list[CitationItem]
+    ) -> DuplicateGroupRead:
         by_position = {index + 1: item for index, item in enumerate(items)}
-        return group.model_copy(update={"members": [member.model_copy(update={
-            "doi": by_position[member.position].doi if member.position in by_position else None,
-            "title": by_position[member.position].title if member.position in by_position else None,
-            "authors": list(by_position[member.position].authors) if member.position in by_position else [],
-            "journal": by_position[member.position].journal if member.position in by_position else None,
-            "year": by_position[member.position].year if member.position in by_position else None,
-            "publication_types": list(by_position[member.position].publication_types) if member.position in by_position else [],
-            "verified": by_position[member.position].verified if member.position in by_position else False,
-            "has_abstract": by_position[member.position].has_abstract if member.position in by_position else False,
-            "withdrawn": by_position[member.position].withdrawn if member.position in by_position else False,
-        }) for member in group.members]})
+        return group.model_copy(
+            update={
+                "members": [
+                    member.model_copy(
+                        update={
+                            "doi": by_position[member.position].doi
+                            if member.position in by_position
+                            else None,
+                            "title": by_position[member.position].title
+                            if member.position in by_position
+                            else None,
+                            "authors": list(by_position[member.position].authors)
+                            if member.position in by_position
+                            else [],
+                            "journal": by_position[member.position].journal
+                            if member.position in by_position
+                            else None,
+                            "year": by_position[member.position].year
+                            if member.position in by_position
+                            else None,
+                            "publication_types": list(
+                                by_position[member.position].publication_types
+                            )
+                            if member.position in by_position
+                            else [],
+                            "verified": by_position[member.position].verified
+                            if member.position in by_position
+                            else False,
+                            "has_abstract": by_position[member.position].has_abstract
+                            if member.position in by_position
+                            else False,
+                            "withdrawn": by_position[member.position].withdrawn
+                            if member.position in by_position
+                            else False,
+                        }
+                    )
+                    for member in group.members
+                ]
+            }
+        )
 
     @staticmethod
     def _result_items(entity: LiteratureSearchResult) -> list[CitationItem]:
@@ -1399,6 +2018,41 @@ class LiteratureSearchService:
             pmid: state.custom_order_index
             for pmid, state in state_map.items()
             if state.custom_order_index is not None
+        }
+
+    @staticmethod
+    def _score_sort_value(
+        score: LiteratureArticleScore | None, metric_name: str
+    ) -> float:
+        """保留有效的 0 分；仅 None 表示该评分信号缺失。"""
+        value = getattr(score, metric_name) if score is not None else None
+        return float(value) if value is not None else -1.0
+
+    @staticmethod
+    def _result_facets(
+        items: list[CitationItem], state_map: dict[str, LiteratureSearchItemState]
+    ) -> dict[str, dict[str, int]]:
+        """Facets are computed from the same filtered snapshot used for pagination."""
+        years = Counter(str(item.year) for item in items if item.year is not None)
+        journals = Counter(item.journal for item in items if item.journal)
+        publication_types = Counter(
+            publication_type
+            for item in items
+            for publication_type in item.publication_types
+        )
+        read_status = Counter(
+            (
+                state_map[item.pmid].read_status
+                if item.pmid in state_map
+                else DEFAULT_READ_STATUS
+            )
+            for item in items
+        )
+        return {
+            "year": dict(years),
+            "journal": dict(journals),
+            "publication_type": dict(publication_types),
+            "read_status": dict(read_status),
         }
 
     @staticmethod
@@ -1430,6 +2084,9 @@ class LiteratureSearchService:
             read_status=read_status,
             tags=deserialize_tags(state.tags_json),
             custom_order_index=state.custom_order_index,
+            in_reading_plan=state.in_reading_plan,
+            is_key=state.is_key,
+            read_at=state.read_at if read_status == "read" else None,
         )
 
     async def bibtex(self, id: int) -> str:

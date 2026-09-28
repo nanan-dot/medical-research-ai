@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import (
     DateTime,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
@@ -41,4 +42,32 @@ class ResearchContextDocument(Base):
     )
     document_id: Mapped[int] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+
+class KnowledgeSourceResearchContext(Base):
+    """知识来源与既有研究项目的显式多对多关联。"""
+
+    __tablename__ = "knowledge_source_research_contexts"
+    __table_args__ = (
+        UniqueConstraint(
+            "knowledge_source_id",
+            "research_context_id",
+            name="uq_knowledge_source_research_context",
+        ),
+        Index("ix_ksrc_knowledge_source_id", "knowledge_source_id"),
+        Index("ix_ksrc_research_context_id", "research_context_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    knowledge_source_id: Mapped[int] = mapped_column(
+        ForeignKey("knowledge_sources.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    research_context_id: Mapped[int] = mapped_column(
+        ForeignKey("research_contexts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
     )

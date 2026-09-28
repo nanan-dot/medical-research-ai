@@ -42,14 +42,18 @@ class DocumentIndexService:
         self.index_root = (index_root or settings.PAPERQA_INDEX_DIR).resolve()
         self.paperqa_version = paperqa_version or settings.PAPERQA_VERSION
 
-    async def index(self, document_id: int) -> DocumentIndexResult:
+    async def index(
+        self, document_id: int, *, force_rebuild: bool = False
+    ) -> DocumentIndexResult:
         lock = _DOCUMENT_LOCKS.setdefault(document_id, asyncio.Lock())
         if lock.locked():
             raise ConflictError("Document indexing is already running")
         async with lock:
-            return await self._index_locked(document_id)
+            return await self._index_locked(document_id, force_rebuild=force_rebuild)
 
-    async def _index_locked(self, document_id: int) -> DocumentIndexResult:
+    async def _index_locked(
+        self, document_id: int, *, force_rebuild: bool = False
+    ) -> DocumentIndexResult:
         document = await self.documents.get(document_id)
         if document.parse_status != ParseStatus.SUCCEEDED.value:
             raise ConflictError("Document must be parsed successfully before indexing")
@@ -63,7 +67,7 @@ class DocumentIndexService:
                 "Document changed and must be synchronized before indexing"
             )
 
-        if (
+        if not force_rebuild and (
             document.index_status == IndexStatus.SUCCEEDED.value
             and document.indexed_hash == document.file_hash
             and document.paperqa_version == self.paperqa_version

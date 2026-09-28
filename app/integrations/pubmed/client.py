@@ -41,6 +41,7 @@ from app.integrations.pubmed.schemas import (
     PubMedRecord,
     PubMedSearchResult,
 )
+from app.modules.literature_search.journal_metric_normalization import normalize_issn
 
 logger = logging.getLogger(__name__)
 
@@ -494,36 +495,60 @@ class PubMedClient:
         abstract = None
         journal = None
         year: int | None = None
+        volume = None
+        issue = None
+        pages = None
         pubtypes: list[str] = []
+        issn = None
+        eissn = None
         if article_el is not None:
             title_el = _child(article_el, "ArticleTitle")
             title = _text_or_none(title_el)
             abstract = _extract_abstract(article_el)
             journal = _extract_journal(citation)
             year = _extract_year(article_el)
+            volume, issue, pages = _extract_volume_issue_pages(article_el)
             pubtypes = _extract_publication_types(article_el)
+            issn, eissn = _extract_journal_issns(article_el)
         authors = _extract_author_list(article_el)
 
         doi = None
-        article_id_el = _child(citation, "ArticleIdList")
-        if article_id_el is not None:
+        pmcid = None
+        article_id_lists = []
+        if (citation_ids := _child(citation, "ArticleIdList")) is not None:
+            article_id_lists.append(citation_ids)
+        if (pubmed_data := _child(article, "PubmedData")) is not None and (
+            pubmed_ids := _child(pubmed_data, "ArticleIdList")
+        ) is not None:
+            article_id_lists.append(pubmed_ids)
+        for article_id_el in article_id_lists:
             for id_el in _iter_local(article_id_el, "ArticleId"):
-                if (id_el.get("IdType") or "").lower() == "doi":
+                id_type = (id_el.get("IdType") or "").lower()
+                if id_type == "doi":
                     doi = _text_or_none(id_el)
-                    break
+                elif id_type == "pmc":
+                    pmcid = _normalize_pmcid(_text_or_none(id_el))
 
         withdrawn = _is_withdrawn(citation)
-        is_open_access = _is_open_access(citation)
         return PubMedRecord(
             pmid=pmid,
+            pmcid=pmcid,
             doi=doi,
             title=title,
             authors=authors,
             journal=journal,
+            issn=issn,
+            eissn=eissn,
+            issn_l=_extract_medline_value(citation, "ISSNLinking", normalize=True),
+            journal_abbreviation=_extract_medline_value(citation, "MedlineTA"),
             year=year,
+            volume=volume,
+            issue=issue,
+            pages=pages,
             abstract=abstract,
             publication_types=pubtypes,
-            is_open_access=is_open_access,
+            mesh_terms=_extract_mesh_terms(citation),
+            is_open_access=pmcid is not None,
             withdrawn=withdrawn,
         )
 
@@ -623,6 +648,32 @@ def _extract_journal(citation: ElementTree.Element) -> str | None:
     return _text_or_none(title_el)
 
 
+def _extract_journal_issns(
+    article_el: ElementTree.Element,
+) -> tuple[str | None, str | None]:
+    journal_el = _child(article_el, "Journal")
+    if journal_el is None:
+        return None, None
+    print_issn: str | None = None
+    electronic_issn: str | None = None
+    for issn_el in _iter_local(journal_el, "ISSN"):
+        value = normalize_issn(_text_or_none(issn_el))
+        issn_type = (issn_el.get("IssnType") or "").casefold()
+        if issn_type == "print":
+            print_issn = value
+        elif issn_type == "electronic":
+            electronic_issn = value
+    return print_issn, electronic_issn
+
+
+def _extract_medline_value(
+    citation: ElementTree.Element, tag: str, *, normalize: bool = False
+) -> str | None:
+    info = _child(citation, "MedlineJournalInfo")
+    value = _text_or_none(_child(info, tag)) if info is not None else None
+    return normalize_issn(value) if normalize else value
+
+
 def _extract_year(article_el: ElementTree.Element) -> int | None:
     """从 ArticleDate 或 JournalIssue 中提取年份，缺失返回 None。"""
     for date_el in _iter_local(article_el, "ArticleDate"):
@@ -640,6 +691,16 @@ def _extract_year(article_el: ElementTree.Element) -> int | None:
     return None
 
 
+def _extract_volume_issue_pages(article_el: ElementTree.Element) -> tuple[str | None, str | None, str | None]:
+    journal = _child(article_el, "Journal")
+    issue = _child(journal, "JournalIssue") if journal is not None else None
+    return (
+        _text_or_none(_child(issue, "Volume")) if issue is not None else None,
+        _text_or_none(_child(issue, "Issue")) if issue is not None else None,
+        _text_or_none(_child(article_el, "Pagination")),
+    )
+
+
 def _extract_publication_types(article_el: ElementTree.Element) -> list[str]:
     types: list[str] = []
     pub_type_list = _child(article_el, "PublicationTypeList")
@@ -649,6 +710,19 @@ def _extract_publication_types(article_el: ElementTree.Element) -> list[str]:
             if text:
                 types.append(text)
     return types
+
+
+def _extract_mesh_terms(citation: ElementTree.Element) -> list[str]:
+    """Return only NLM-assigned DescriptorName values present in EFetch XML."""
+    mesh_list = _child(citation, "MeshHeadingList")
+    if mesh_list is None:
+        return []
+    return [
+        value
+        for heading in _iter_local(mesh_list, "MeshHeading")
+        if (descriptor := _child(heading, "DescriptorName")) is not None
+        if (value := _text_or_none(descriptor)) is not None
+    ]
 
 
 def _extract_author_list(article_el: ElementTree.Element | None) -> list[str]:
@@ -695,12 +769,9 @@ def _is_withdrawn(citation: ElementTree.Element) -> bool:
     return False
 
 
-def _is_open_access(citation: ElementTree.Element) -> bool:
-    """通过 ArticleIdList 中存在 PMC id 判断是否为 PMC 收录的开放全文。"""
-    article_id_list = _child(citation, "ArticleIdList")
-    if article_id_list is None:
-        return False
-    for id_el in _iter_local(article_id_list, "ArticleId"):
-        if (id_el.get("IdType") or "").upper() == "PMC":
-            return True
-    return False
+def _normalize_pmcid(value: str | None) -> str | None:
+    """只接受 NCBI 返回的 PMC+数字标识，避免把存在性误当成有效身份。"""
+    if value is None:
+        return None
+    normalized = value.strip().upper()
+    return normalized if re.fullmatch(r"PMC\d+", normalized) else None

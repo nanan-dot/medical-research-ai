@@ -54,9 +54,9 @@ function formatTime(value: string): string {
 </script>
 
 <template>
-  <section class="inspector" aria-label="文档详情">
+  <section class="inspector" aria-label="资料详情">
     <template v-if="props.document">
-      <p class="eyebrow">文档详情</p>
+      <p class="eyebrow">资料详情</p>
       <div class="document-heading">
         <span class="file-icon">{{ fileType(props.document) }}</span>
         <h2>{{ documentName(props.document) }}</h2>
@@ -94,16 +94,16 @@ function formatTime(value: string): string {
         >
           重试索引
         </button>
-        <RouterLink class="detail-link" :to="`/documents/${props.document.id}`">打开文档详情</RouterLink>
+        <RouterLink class="detail-link" :to="`/documents/${props.document.id}`">打开资料详情</RouterLink>
       </div>
     </template>
 
     <template v-else>
-      <p class="eyebrow">文档详情</p>
+      <p class="eyebrow">资料详情</p>
       <h2>{{ props.scopeName }}</h2>
-      <p class="empty-copy">选择一篇文档，查看其真实来源、处理状态和错误原因。</p>
+      <p class="empty-copy">选择一份资料，查看其真实来源、处理状态和错误原因。</p>
       <dl>
-        <div><dt>当前范围文件</dt><dd>{{ props.total }} 篇</dd></div>
+        <div><dt>当前范围资料</dt><dd>{{ props.total }} 份</dd></div>
       </dl>
     </template>
   </section>

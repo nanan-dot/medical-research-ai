@@ -3,11 +3,6 @@ import type { DocumentRecord } from "../../api/documents";
 
 const props = defineProps<{
   document: DocumentRecord;
-  showResearchReturn: boolean;
-}>();
-
-const emit = defineEmits<{
-  returnToResearch: [];
 }>();
 
 function parseStatusLabel(status: DocumentRecord["parse_status"]): string {
@@ -21,18 +16,13 @@ function indexStatusLabel(status: DocumentRecord["index_status"]): string {
 
 <template>
   <header class="detail-header">
-    <nav class="breadcrumb" aria-label="文档导航">
-      <RouterLink to="/documents">返回文档库</RouterLink>
+    <nav class="breadcrumb" aria-label="资料导航">
+      <RouterLink to="/documents">返回资料库</RouterLink>
       <span aria-hidden="true">/</span>
-      <span aria-current="page">文档详情</span>
+      <span aria-current="page">资料详情</span>
     </nav>
     <div class="header-main">
-      <div class="title-group">
-        <h1 class="document-title">{{ props.document.original_filename ?? props.document.file_path }}</h1>
-        <button v-if="props.showResearchReturn" class="research-return" type="button" @click="emit('returnToResearch')">
-          返回论文研究
-        </button>
-      </div>
+      <div class="title-group"><h1 class="document-title">{{ props.document.original_filename ?? props.document.file_path }}</h1></div>
       <p class="status-summary" role="status">
         <span>{{ parseStatusLabel(props.document.parse_status) }}</span>
         <span>{{ indexStatusLabel(props.document.index_status) }}</span>
@@ -49,7 +39,6 @@ function indexStatusLabel(status: DocumentRecord["index_status"]): string {
 .header-main { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
 .title-group { min-width: 0; }
 .document-title { margin: 0; color: var(--text-primary); font-size: clamp(1.35rem, 2vw, 1.8rem); line-height: 1.3; overflow-wrap: anywhere; }
-.research-return { margin-top: .45rem; border: 0; padding: 0; background: transparent; color: var(--color-primary); font: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; }
 .status-summary { display: flex; flex-wrap: wrap; justify-content: end; gap: .45rem; min-width: 220px; margin: .25rem 0 0; color: var(--text-muted); font-size: .78rem; }
 .status-summary span { padding: .28rem .5rem; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--surface-muted); white-space: nowrap; }
 @media (max-width: 720px) { .header-main { display: grid; }.status-summary { justify-content: start; min-width: 0; } }

@@ -24,6 +24,7 @@ class _FakeExecutor:
 
         item = CitationItem(
             pmid="39000401",
+            pmcid="PMC1234567",
             doi="10.1016/j.example.2024.01.001",
             title="Validation of neural networks in mammography",
             authors=["Kim J"],
@@ -110,6 +111,38 @@ def test_execute_and_bibtex_flow(client):
     assert "verified_by = {pubmed}," in bibtex.text
 
 
+def test_unbound_task_can_be_bound_once_to_its_scoring_context(client):
+    created = client.post(
+        "/api/v1/literature-search",
+        json={
+            "original_query": "interstitial lung disease",
+            "structured_query": "{}",
+            "search_string": "interstitial lung disease[Title/Abstract]",
+            "database": "pubmed",
+            "filters": "{}",
+            "model_version": "test",
+            "user_edits": "{}",
+            "retmax": 20,
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["research_context_id"] is None
+
+    context = client.post(
+        "/api/v1/research-contexts",
+        json={"name": "ILD 研究", "description": "评分上下文"},
+    )
+    assert context.status_code == 201
+    task_id = created.json()["id"]
+    bound = client.patch(
+        f"/api/v1/literature-search/{task_id}/research-context",
+        json={"research_context_id": context.json()["id"]},
+    )
+
+    assert bound.status_code == 200
+    assert bound.json()["research_context_id"] == context.json()["id"]
+
+
 def test_results_endpoint_returns_persisted_items(client):
     created = client.post(
         "/api/v1/literature-search/execute",
@@ -122,9 +155,27 @@ def test_results_endpoint_returns_persisted_items(client):
     assert loaded.status_code == 200
     payload = loaded.json()
     assert payload["items"][0]["item"]["pmid"] == "39000401"
+    assert payload["items"][0]["item"]["pmcid"] == "PMC1234567"
     assert payload["sort"] == "relevance"
     assert payload["page"] == 1
     assert payload["filtered_total"] == 1
+
+
+def test_results_get_never_calls_pmc_or_external_fulltext(client, monkeypatch):
+    from app.modules.library_item.official_pmc_client import OfficialPmcClient
+
+    async def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("GET results must not perform external fulltext retrieval")
+
+    monkeypatch.setattr(OfficialPmcClient, "fetch_verified_fulltext", fail_if_called)
+    created = client.post(
+        "/api/v1/literature-search/execute",
+        json={"boolean_query": "cancer immunotherapy", "retmax": 3},
+    )
+
+    loaded = client.get(f"/api/v1/literature-search/{created.json()['id']}/results")
+
+    assert loaded.status_code == 200
 
 
 def test_bibtex_for_missing_result_returns_404(client):
@@ -142,9 +193,7 @@ def test_execute_returns_service_unavailable_when_pubmed_cannot_be_reached(
     )
 
     assert response.status_code == 503
-    assert response.json() == {
-        "error": {
-            "code": "pubmed_connection_error",
-            "message": "Could not reach NCBI after 3 attempts",
-        }
-    }
+    error = response.json()["error"]
+    assert error["code"] == "pubmed_connection_error"
+    assert error["message"] == "Could not reach NCBI after 3 attempts"
+    assert isinstance(error["request_id"], str)

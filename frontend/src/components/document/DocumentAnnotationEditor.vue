@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, useTemplateRef, watch } from "vue";
+import { computed, shallowRef, useTemplateRef, watch } from "vue";
 
 import type { AnnotationColor } from "../../api/documentAnnotations";
 import type { PdfTextSelection } from "../../types/documentAnnotations";
@@ -16,23 +16,26 @@ const emit = defineEmits<{
 const noteInput = useTemplateRef<HTMLTextAreaElement>("noteInput");
 const color = shallowRef<AnnotationColor>("yellow");
 const note = shallowRef("");
+const frozenSelection = shallowRef<PdfTextSelection | null>(null);
+const activeSelection = computed(() => frozenSelection.value ?? props.selection);
 
 function submit(): void {
-  if (!props.selection || props.saving) return;
+  if (!activeSelection.value || props.saving) return;
   emit("submit", {
-    selection: props.selection,
+    selection: activeSelection.value,
     color: color.value,
     note: note.value.trim() || null,
   });
 }
 
 function focusNote(): void {
+  if (props.selection) frozenSelection.value = props.selection;
   noteInput.value?.focus();
 }
 
 watch(() => props.selection, (selection) => {
-  if (!selection) return;
-  note.value = "";
+  if (!selection) frozenSelection.value = null;
+  else if (!note.value) frozenSelection.value = selection;
 });
 
 defineExpose({ focusNote });
@@ -41,8 +44,8 @@ defineExpose({ focusNote });
 <template>
   <section class="annotation-editor" aria-labelledby="annotation-editor-title">
     <h3 id="annotation-editor-title" class="editor-title">添加批注</h3>
-    <p v-if="props.selection" class="selection-summary">
-      第 {{ props.selection.pageNumber }} 页：{{ props.selection.selectedText }}
+    <p v-if="activeSelection" class="selection-summary">
+      第 {{ activeSelection.pageNumber }} 页：{{ activeSelection.selectedText }}
     </p>
     <p v-else class="selection-summary">请先在 PDF 文本层选中一段文字。</p>
     <label class="field-label">
@@ -56,7 +59,7 @@ defineExpose({ focusNote });
     </label>
     <label class="field-label">
       <span>备注（可选）</span>
-      <textarea ref="noteInput" v-model="note" :disabled="props.saving || !props.selection" maxlength="2000" rows="4" />
+      <textarea ref="noteInput" v-model="note" :disabled="props.saving || !props.selection" maxlength="2000" rows="4" @focus="frozenSelection = activeSelection" />
     </label>
     <button class="save-button" :disabled="props.saving || !props.selection" @click="submit">
       {{ props.saving ? "正在保存…" : "保存批注" }}

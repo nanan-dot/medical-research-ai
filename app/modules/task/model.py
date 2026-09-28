@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, text
+from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -12,12 +12,23 @@ class TaskRecord(Base):
     """记录可在任务中心展示的异步或长耗时业务任务。"""
 
     __tablename__ = "task_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "active_idempotency_key",
+            name="uq_task_records_active_idempotency_key",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     task_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    phase: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    completed_units: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_units: Mapped[int | None] = mapped_column(Integer)
+    current_item: Mapped[str | None] = mapped_column(String(255))
+    progress_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source_type: Mapped[str | None] = mapped_column(String(64))
     source_id: Mapped[int | None] = mapped_column(Integer)
     detail_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
@@ -25,6 +36,7 @@ class TaskRecord(Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), index=True)
+    active_idempotency_key: Mapped[str | None] = mapped_column(String(128))
     lease_owner: Mapped[str | None] = mapped_column(String(128))
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

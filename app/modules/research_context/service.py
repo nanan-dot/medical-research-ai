@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import ConflictError, NotFoundError
+from app.agents.confirmation_model import ResearchContextMembershipRecord
+from app.agents.permission_service import LOCAL_OWNER
 from app.modules.conversation.model import Conversation
 from app.modules.document.repository import DocumentRepository
 from app.modules.evidence_matrix.model import EvidenceMatrix
@@ -29,10 +31,24 @@ class ResearchContextService:
 
     async def create(self, payload: ResearchContextCreate) -> ResearchContextRead:
         entity = await self.repository.create(ResearchContext(**payload.model_dump()))
+        self.session.add(
+            ResearchContextMembershipRecord(
+                membership_id=f"local-owner-{entity.id}",
+                research_context_id=str(entity.id),
+                actor_scope=LOCAL_OWNER,
+                membership_role="owner",
+                status="active",
+                created_at=datetime.now(UTC),
+                revoked_at=None,
+            )
+        )
+        await self.session.flush()
         return await self._read(entity)
 
     async def list_contexts(self) -> list[ResearchContextRead]:
-        return [await self._read(item) for item in await self.repository.list_contexts()]
+        return [
+            await self._read(item) for item in await self.repository.list_contexts()
+        ]
 
     async def get(self, context_id: int) -> ResearchContextRead:
         return await self._read(await self.require(context_id))
@@ -85,7 +101,9 @@ class ResearchContextService:
             id=entity.id,
             name=entity.name,
             description=entity.description,
-            document_ids=[item.document_id for item in await self.repository.documents(entity.id)],
+            document_ids=[
+                item.document_id for item in await self.repository.documents(entity.id)
+            ],
             conversation_ids=await self._resource_ids(Conversation, entity.id),
             evidence_matrix_ids=await self._resource_ids(EvidenceMatrix, entity.id),
             writing_project_ids=await self._resource_ids(WritingProject, entity.id),

@@ -1,0 +1,52 @@
+{
+  "visualTestOnly": false,
+  "question": "间质性肺疾病（ILD）患者中，抗纤维化药物的疗效与安全性如何？",
+  "workspaceStrategyId": "22",
+  "first": {
+    "url": "http://127.0.0.1:5173/literature-search/workspace?strategy_id=22&raw_topic=%E9%97%B4%E8%B4%A8%E6%80%A7%E8%82%BA%E7%96%BE%E7%97%85%EF%BC%88ILD%EF%BC%89%E6%82%A3%E8%80%85%E4%B8%AD%EF%BC%8C%E6%8A%97%E7%BA%A4%E7%BB%B4%E5%8C%96%E8%8D%AF%E7%89%A9%E7%9A%84%E7%96%97%E6%95%88%E4%B8%8E%E5%AE%89%E5%85%A8%E6%80%A7%E5%A6%82%E4%BD%95%EF%BC%9F&entry_mode=auto&boolean_query=(%22interstitial+lung+disease%22[Title/Abstract]+OR+%22interstitial+lung+diseases%22[Title/Abstract]+OR+%22ILD%22[Title/Abstract])+AND+(%22antifibrotic+agents%22[Title/Abstract]+OR+%22nintedanib%22[Title/Abstract]+OR+%22pirfenidone%22[Title/Abstract])+AND+(%22treatment+outcome%22[Title/Abstract]+OR+%22safety%22[Title/Abstract]+OR+%22survival%22[Title/Abstract])",
+    "journey": "3\n构建检索策略",
+    "terms": 3,
+    "mesh": 3,
+    "query": "(\"interstitial lung disease\"[Title/Abstract] OR \"interstitial lung diseases\"[Title/Abstract] OR \"ILD\"[Title/Abstract]) AND (\"antifibrotic agents\"[Title/Abstract] OR \"nintedanib\"[Title/Abstract] OR \"pirfenidone\"[Title/Abstract]) AND (\"treatment outcome\"[Title/Abstract] OR \"safety\"[Title/Abstract] OR \"survival\"[Title/Abstract])",
+    "researchQuestion": "间质性肺疾病（ILD）患者中，抗纤维化药物的疗效与安全性如何？",
+    "pico": [
+      "间质性肺疾病患者",
+      "抗纤维化药物",
+      "尚未明确",
+      "疗效与安全性"
+    ],
+    "sidebar": {
+      "present": true,
+      "width": 232.15625,
+      "visible": true
+    },
+    "executeButtons": [
+      {
+        "className": "execute",
+        "disabled": false
+      }
+    ],
+    "headerHasExecute": false,
+    "scrollWidth": 1536,
+    "clientWidth": 1536
+  },
+  "refreshed": {
+    "url": "http://127.0.0.1:5173/literature-search/workspace?strategy_id=22&raw_topic=%E9%97%B4%E8%B4%A8%E6%80%A7%E8%82%BA%E7%96%BE%E7%97%85%EF%BC%88ILD%EF%BC%89%E6%82%A3%E8%80%85%E4%B8%AD%EF%BC%8C%E6%8A%97%E7%BA%A4%E7%BB%B4%E5%8C%96%E8%8D%AF%E7%89%A9%E7%9A%84%E7%96%97%E6%95%88%E4%B8%8E%E5%AE%89%E5%85%A8%E6%80%A7%E5%A6%82%E4%BD%95%EF%BC%9F&entry_mode=auto&boolean_query=(%22interstitial+lung+disease%22[Title/Abstract]+OR+%22interstitial+lung+diseases%22[Title/Abstract]+OR+%22ILD%22[Title/Abstract])+AND+(%22antifibrotic+agents%22[Title/Abstract]+OR+%22nintedanib%22[Title/Abstract]+OR+%22pirfenidone%22[Title/Abstract])+AND+(%22treatment+outcome%22[Title/Abstract]+OR+%22safety%22[Title/Abstract]+OR+%22survival%22[Title/Abstract])",
+    "terms": 3,
+    "mesh": 3,
+    "query": "(\"interstitial lung disease\"[Title/Abstract] OR \"interstitial lung diseases\"[Title/Abstract] OR \"ILD\"[Title/Abstract]) AND (\"antifibrotic agents\"[Title/Abstract] OR \"nintedanib\"[Title/Abstract] OR \"pirfenidone\"[Title/Abstract]) AND (\"treatment outcome\"[Title/Abstract] OR \"safety\"[Title/Abstract] OR \"survival\"[Title/Abstract])",
+    "researchQuestion": "间质性肺疾病（ILD）患者中，抗纤维化药物的疗效与安全性如何？",
+    "sidebar": {
+      "present": true,
+      "width": 229,
+      "visible": true
+    },
+    "executeButtons": 1,
+    "scrollWidth": 1536,
+    "clientWidth": 1536
+  },
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

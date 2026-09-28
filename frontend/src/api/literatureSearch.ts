@@ -7,10 +7,40 @@ export interface SearchIntentCandidate { topic: string; disease: string | null; 
 export interface ParsedQuery { raw_topic: string; candidate: SearchIntentCandidate; clarification_questions: string[]; candidate_source: "model_candidate" | "rule_fallback"; prompt_version: string; }
 export interface SearchTermGroup { name: string; core_term: string; terms: string[]; field_tag: string | null; source: string; }
 export interface MeshCandidate { descriptor: string; mesh_id: string; source: string; group_name: string; }
-export interface ExpandedTerms { term_groups: SearchTermGroup[]; mesh_candidates: MeshCandidate[]; warnings: string[]; user_edits: Record<string, string[]>; }
+export interface ExpandedTerms { term_groups: SearchTermGroup[]; mesh_candidates: MeshCandidate[]; mesh_status_by_group?: Record<string, "verified" | "not_found" | "unavailable">; warnings: string[]; user_edits: Record<string, string[]>; }
 export interface BuiltQuery { boolean_query: string; field_tags: Record<string, string>; explanations: string[]; user_edits: Record<string, string[]>; }
 // 任务状态机：pending → running → succeeded / failed（R2-WP04）。
 export type SearchTaskStatus = "pending" | "running" | "succeeded" | "failed";
+export type ScoringRunStatus = "not_started" | "queued" | "collecting_inputs" | "scoring" | "validating" | "active" | "failed";
+export interface ScoringStatus {
+  active_generation_id: number | null;
+  building_generation_id: number | null;
+  status: ScoringRunStatus;
+  completed: number;
+  total: number;
+  started_at: string | null;
+  updated_at: string | null;
+  algorithm_version: string | null;
+  signals: Record<string, string>;
+  last_error: string | null;
+  can_retry: boolean;
+}
+export interface ScoringRun {
+  generation_id: number;
+  status: ScoringRunStatus;
+  algorithm_version: string;
+  operation: "created" | "reused";
+}
+export interface ScoreExplanation {
+  result_id: number;
+  pmid: string;
+  generation_id: number;
+  algorithm_version: string;
+  eligibility: { status: string; reasons: string[] };
+  components: Record<string, unknown>;
+  evidence: Array<{ dimension?: string; matched_terms?: string[]; status?: string; source?: string; reason?: string | null; terms?: string[]; version?: string }>;
+  limitations: string[];
+}
 export interface SearchResultChange {
   previous_count: number;
   current_count: number;
@@ -29,6 +59,7 @@ export interface LiteratureSearchTaskVersion {
 }
 export interface LiteratureSearchTask {
   id: number;
+  research_context_id?: number | null;
   original_query: string;
   structured_query: string;
   search_string: string;
@@ -74,13 +105,14 @@ export interface LiteratureSearchHistoryPage {
 
 // 排序枚举：relevance（PubMed 返回顺序=天然相关性）/ newest（年份降序）/
 // classic（期刊权威性+verified）/ custom（用户自定义序号）。与后端 Literal 对齐。
-export type SearchSort = "relevance" | "newest" | "classic" | "custom";
-// 已读状态：unread（未读）/ read（已读）。
-export type ReadStatus = "unread" | "read";
+export type SearchSort = "recommended" | "relevance" | "popular" | "newest" | "article_impact" | "classic" | "evidence_fit" | "custom";
+// 阅读状态：unread（未读）/ reading（在读）/ read（已读）。
+export type ReadStatus = "unread" | "reading" | "read";
 
 // 单条结果（CitationItem 的前端镜像，字段名与后端一致）。
 export interface CitationItem {
   pmid: string;
+  pmcid?: string | null;
   doi: string | null;
   title: string | null;
   authors: string[];
@@ -93,6 +125,7 @@ export interface CitationItem {
   has_abstract: boolean;
   abstract: string | null;
   publication_types: string[];
+  mesh_terms?: string[];
 }
 
 // 单条结果的用户态（saved / read_status / tags / 自定义排序序号）。
@@ -101,6 +134,35 @@ export interface ItemStateRead {
   read_status: ReadStatus;
   tags: string[];
   custom_order_index: number | null;
+  in_reading_plan: boolean;
+  is_key: boolean;
+}
+export interface ScoreMetric { score: number | null; status: string; reason: string | null; }
+export interface ScoreSummary {
+  generation_id: number;
+  algorithm_version: string;
+  score_status: string;
+  relevance: ScoreMetric;
+  evidence_fit: ScoreMetric;
+  article_impact: ScoreMetric;
+  popularity: ScoreMetric;
+  classic: ScoreMetric;
+  recency: ScoreMetric;
+  priority: ScoreMetric;
+  cited_by_count: number | null;
+  citation_source: "openalex" | null;
+  citation_observed_at: string | null;
+}
+export interface JournalMetricSummary {
+  status: string;
+  match_method: string | null;
+  latest: {
+    impact_factor?: { value: number | null; year: number | null } | null;
+    jcr?: { best_quartile: string | null; year: number | null } | null;
+    wos?: { indexes: string[]; year: number | null } | null;
+    cas?: { quartile: string | null; year: number | null; category?: string | null; is_top?: boolean | null } | null;
+  } | null;
+  reason: string | null;
 }
 
 // 单条结果 + 排序理由 + 用户态：排序理由由后端 ranking 生成，只描述真实信号。
@@ -109,6 +171,9 @@ export interface RankedCitationItem {
   sort_reason: string;
   state: ItemStateRead | null;
   library_item: LibraryItem | null;
+  score_summary?: ScoreSummary | null;
+  journal_metric?: JournalMetricSummary | null;
+  limitations?: string[];
 }
 
 // 结果分页响应：total 为应用筛选后的总条数，items 为当前页带排序理由的条目。
@@ -117,9 +182,16 @@ export interface LiteratureSearchResultPage {
   query: string;
   total_count: number;
   filtered_total: number;
+  reading_plan_total?: number;
+  facets?: Record<string, Record<string, number>>;
+  sort_capabilities?: Record<string, { available: boolean; reason: string | null }>;
   page: number;
   page_size: number;
   sort: SearchSort;
+  requested_sort?: SearchSort;
+  effective_sort?: SearchSort;
+  active_generation_id?: number | null;
+  scoring_status?: "not_started" | "building" | "active" | "failed";
   duplicate_mode?: "all" | "consolidated";
   hidden_duplicate_count?: number;
   items: RankedCitationItem[];
@@ -128,6 +200,8 @@ export interface LiteratureSearchResultPage {
 // 白名单筛选/排序/分页参数，与后端 ResultQueryParams 对齐；空值表示不筛选。
 export interface ResultQueryParams {
   year: number | null;
+  year_from?: number | null;
+  year_to?: number | null;
   publication_type: string;
   journal: string;
   author: string;
@@ -135,10 +209,35 @@ export interface ResultQueryParams {
   saved: boolean | null;
   read_status: ReadStatus | "";
   tags: string;
+  jcr_quartile?: string;
+  wos_index?: string;
+  cas_quartile?: string;
+  impact_factor_min?: number | null;
+  cited_by_min?: number | null;
   sort: SearchSort;
   page: number;
   page_size: number;
   duplicate_mode: "all" | "consolidated";
+}
+function buildResultQuery(params: ResultQueryParams): URLSearchParams {
+  const query = new URLSearchParams();
+  if (params.year !== null) query.set("year", String(params.year));
+  if (params.year_from != null) query.set("year_from", String(params.year_from));
+  if (params.year_to != null) query.set("year_to", String(params.year_to));
+  if (params.publication_type) query.set("publication_type", params.publication_type);
+  if (params.journal) query.set("journal", params.journal);
+  if (params.author) query.set("author", params.author);
+  if (params.has_abstract !== null) query.set("has_abstract", String(params.has_abstract));
+  if (params.saved !== null) query.set("saved", String(params.saved));
+  if (params.read_status) query.set("read_status", params.read_status);
+  if (params.tags) query.set("tags", params.tags);
+  if (params.jcr_quartile) query.set("jcr_quartile", params.jcr_quartile);
+  if (params.wos_index) query.set("wos_index", params.wos_index);
+  if (params.cas_quartile) query.set("cas_quartile", params.cas_quartile);
+  if (params.impact_factor_min != null) query.set("impact_factor_min", String(params.impact_factor_min));
+  if (params.cited_by_min != null) query.set("cited_by_min", String(params.cited_by_min));
+  query.set("sort", params.sort); query.set("page", String(params.page)); query.set("page_size", String(params.page_size)); query.set("duplicate_mode", params.duplicate_mode);
+  return query;
 }
 
 // 筛选表单只关心筛选字段（不含分页）；分页由 composable 单独管理。
@@ -150,6 +249,13 @@ export interface ItemStateUpdate {
   read_status?: ReadStatus;
   tags?: string[];
   custom_order_index?: number;
+  in_reading_plan?: boolean;
+  is_key?: boolean;
+}
+
+export interface BulkItemStateResult {
+  updated: string[];
+  failed: Array<{ pmid: string; reason: string }>;
 }
 export interface LiteratureSearchTaskRerun {
   task: LiteratureSearchTask;
@@ -218,6 +324,7 @@ export const literatureSearchApi = {
   //（用户可编辑），其余字段为输入快照，供重跑复现完整检索过程。
   createTask: (request: {
     original_query: string;
+    research_context_id?: number;
     structured_query: string;
     search_string: string;
     database: string;
@@ -228,6 +335,21 @@ export const literatureSearchApi = {
   }) => apiRequest<LiteratureSearchTaskCreateResult>("/literature-search", { method: "POST", ...json, body: JSON.stringify(request) }),
   listTasks: (offset: number, limit: number) => apiRequest<LiteratureSearchTaskPage>(`/literature-search?offset=${offset}&limit=${limit}`),
   getTask: (id: number) => apiRequest<LiteratureSearchTask>(`/literature-search/${id}`),
+  bindTaskResearchContext: (id: number, researchContextId: number) =>
+    apiRequest<LiteratureSearchTask>(`/literature-search/${id}/research-context`, {
+      method: "PATCH",
+      ...json,
+      body: JSON.stringify({ research_context_id: researchContextId }),
+    }),
+  // 评分状态只读本地 generation；页面加载不会触发 PubMed 或开放数据请求。
+  getScoringStatus: (id: number, signal?: AbortSignal) => apiRequest<ScoringStatus>(`/literature-search/${id}/scoring/status`, { signal }),
+  createResearchIntent: (research_context_id: number, dimensions: Record<string, string>) =>
+    apiRequest<{ id: number }>("/literature-search/research-intents", { method: "POST", ...json, body: JSON.stringify({ research_context_id, dimensions, confirmation_status: "user_confirmed" }) }),
+  createScoringRun: (resultId: number, intent_snapshot_id: number, force_refresh = false) =>
+    apiRequest<ScoringRun>(`/literature-search/${resultId}/scoring/runs`, { method: "POST", ...json, body: JSON.stringify({ intent_snapshot_id, include_external_metrics: true, include_pico: true, force_refresh }) }),
+  cancelScoringRun: (resultId: number) =>
+    apiRequest<ScoringRun>(`/literature-search/${resultId}/scoring/cancel`, { method: "POST" }),
+  getScoreExplanation: (id: number, pmid: string, signal?: AbortSignal) => apiRequest<ScoreExplanation>(`/literature-search/${id}/items/${encodeURIComponent(pmid)}/score-explanation`, { signal }),
   listHistory: (offset: number, limit: number) => apiRequest<LiteratureSearchHistoryPage>(`/literature-search/history?offset=${offset}&limit=${limit}`),
   rerunTask: (id: number, retmax?: number) => apiRequest<LiteratureSearchTaskRerun>(
     `/literature-search/${id}/rerun`,
@@ -236,25 +358,22 @@ export const literatureSearchApi = {
       : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ retmax }) },
   ),
   // 检索结果分页（R2-WP05）：白名单参数拼入 query，page_size 恒 ≤100。
-  getResults: (id: number, params: ResultQueryParams) => {
-    const query = new URLSearchParams();
-    if (params.year !== null) query.set("year", String(params.year));
-    if (params.publication_type) query.set("publication_type", params.publication_type);
-    if (params.journal) query.set("journal", params.journal);
-    if (params.author) query.set("author", params.author);
-    if (params.has_abstract !== null) query.set("has_abstract", String(params.has_abstract));
-    if (params.saved !== null) query.set("saved", String(params.saved));
-    if (params.read_status) query.set("read_status", params.read_status);
-    if (params.tags) query.set("tags", params.tags);
-    query.set("sort", params.sort);
-    query.set("page", String(params.page));
-    query.set("page_size", String(params.page_size));
-    query.set("duplicate_mode", params.duplicate_mode);
-    return apiRequest<LiteratureSearchResultPage>(`/literature-search/${id}/results?${query.toString()}`);
+  getResults: (id: number, params: ResultQueryParams, signal?: AbortSignal) => {
+    const query = buildResultQuery(params);
+    return apiRequest<LiteratureSearchResultPage>(`/literature-search/${id}/results?${query.toString()}`, { signal });
+  },
+  exportResults: async (id: number, params: ResultQueryParams, format: "csv" | "ris" | "bibtex"): Promise<Blob> => {
+    const query = buildResultQuery(params);
+    query.set("format", format);
+    const response = await fetch(`/api/v1/literature-search/${id}/results/export?${query.toString()}`);
+    if (!response.ok) throw new Error("导出失败，请稍后重试");
+    return response.blob();
   },
   // 单条结果用户态读写（R2-WP05）：saved / read_status / tags / 自定义排序序号。
   updateItemState: (id: number, pmid: string, request: ItemStateUpdate) =>
     apiRequest<ItemStateRead>(`/literature-search/${id}/items/${pmid}/state`, { method: "PATCH", ...json, body: JSON.stringify(request) }),
+  updateItemStatesBulk: (id: number, pmids: string[], state: ItemStateUpdate) =>
+    apiRequest<BulkItemStateResult>(`/literature-search/${id}/items/state/bulk`, { method: "PATCH", ...json, body: JSON.stringify({ pmids, state }) }),
   getDeduplicationSummary: (id: number) => apiRequest<DeduplicationSummary>(`/literature-search/results/${id}/deduplication`),
   runResultDeduplication: (id: number) => apiRequest<DeduplicationSummary>(`/literature-search/results/${id}/deduplication`, { method: "PUT" }),
   listResultDuplicateGroups: (id: number, status = "pending_resolution", offset = 0, limit = 20) => apiRequest<DuplicateGroupPage>(`/literature-search/results/${id}/duplicate-groups?status=${status}&offset=${offset}&limit=${limit}`),

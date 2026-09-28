@@ -1,4 +1,4 @@
-from app.rag.reranker import RerankCandidate, RerankerService
+from app.rag.reranker import RerankCandidate, RerankerService, ScorerBusyError
 
 
 class Scorer:
@@ -16,3 +16,22 @@ def test_invalid_scorer_degrades_to_original_order() -> None:
     class Bad(Scorer):
         def score(self, query: str, texts: list[str]) -> list[float]: return []
     assert RerankerService(Bad()).rerank("q", candidates())[0].candidate.document_id == "a"
+
+
+def test_non_finite_scorer_result_degrades_to_original_order() -> None:
+    class Bad(Scorer):
+        def score(self, query: str, texts: list[str]) -> list[float]:
+            return [float("nan")] * len(texts)
+
+    assert RerankerService(Bad()).rerank("q", candidates())[0].candidate.document_id == "a"
+
+
+def test_busy_scorer_reports_structured_fallback() -> None:
+    class Busy(Scorer):
+        def score(self, query: str, texts: list[str]) -> list[float]:
+            raise ScorerBusyError("busy")
+
+    result = RerankerService(Busy()).rerank("q", candidates())[0]
+
+    assert result.fallback is True
+    assert result.failure_reason == "model_busy"

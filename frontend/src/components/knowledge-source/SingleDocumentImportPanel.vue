@@ -31,21 +31,72 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="import-form" @submit.prevent="submit">
-    <label>选择 PDF 文件<input type="file" accept="application/pdf,.pdf" :disabled="submitting" @change="selectFile" /></label>
-    <p v-if="file" class="file-summary">{{ file.name }} · {{ Math.ceil(file.size / 1024) }} KB · PDF</p>
+  <form
+    class="import-form"
+    @submit.prevent="submit"
+  >
+    <label>选择 PDF 文件<input
+      type="file"
+      accept="application/pdf,.pdf"
+      :disabled="submitting"
+      @change="selectFile"
+    ></label>
+    <p
+      v-if="file"
+      class="file-summary"
+    >
+      {{ file.name }} · {{ Math.ceil(file.size / 1024) }} KB · PDF
+    </p>
     <fieldset :disabled="submitting">
       <legend>归属知识库</legend>
-      <label><input v-model="assignment" type="radio" value="existing" /> 选择已有知识库</label>
-      <label><input v-model="assignment" type="radio" value="new" /> 新建知识库</label>
+      <label><input
+        v-model="assignment"
+        type="radio"
+        value="existing"
+      > 选择已有知识库</label>
+      <label><input
+        v-model="assignment"
+        type="radio"
+        value="new"
+      > 新建知识库</label>
     </fieldset>
     <label v-if="assignment === 'existing'">知识库
-      <select v-model="knowledgeSourceId"><option :value="null">请选择知识库</option><option v-for="source in selectableSources" :key="source.id" :value="source.id">{{ source.name }} · {{ source.root_path }} · {{ source.stats.total_files }} 个文件</option></select>
+      <select v-model="knowledgeSourceId"><option :value="null">请选择知识库</option><option
+        v-for="source in selectableSources"
+        :key="source.id"
+        :value="source.id"
+      >{{ source.name }} · {{ source.root_path }} · {{ source.stats.total_files }} 个文件</option></select>
     </label>
-    <label v-else>新知识库名称<input v-model.trim="newSourceName" maxlength="200" required /></label>
-    <label>逻辑子目录（可选）<input v-model.trim="relativeDirectory" placeholder="例如：2026/临床研究" /></label>
-    <p v-if="error" class="request-error" role="alert">{{ error }}</p>
-    <footer><button type="button" :disabled="submitting" @click="emit('close')">取消</button><button type="submit" :disabled="!canSubmit || submitting">{{ submitting ? "正在导入…" : "确认导入" }}</button></footer>
+    <label v-else>新知识库名称<input
+      v-model.trim="newSourceName"
+      maxlength="200"
+      required
+    ></label>
+    <label>逻辑子目录（可选）<input
+      v-model.trim="relativeDirectory"
+      placeholder="例如：2026/临床研究"
+    ></label>
+    <p
+      v-if="error"
+      class="request-error"
+      role="alert"
+    >
+      {{ error }}
+    </p>
+    <footer>
+      <button
+        type="button"
+        :disabled="submitting"
+        @click="emit('close')"
+      >
+        取消
+      </button><button
+        type="submit"
+        :disabled="!canSubmit || submitting"
+      >
+        {{ submitting ? "正在导入…" : "确认导入" }}
+      </button>
+    </footer>
   </form>
 </template>
 

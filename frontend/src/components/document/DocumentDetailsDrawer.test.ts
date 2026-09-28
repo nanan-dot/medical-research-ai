@@ -1,8 +1,15 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { nextTick } from "vue";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DocumentRecord } from "../../api/documents";
 import DocumentDetailsDrawer from "./DocumentDetailsDrawer.vue";
+
+const { getPreview } = vi.hoisted(() => ({ getPreview: vi.fn() }));
+
+vi.mock("../../api/documentPreviews", () => ({
+  documentPreviewsApi: { get: getPreview },
+}));
 
 const documentRecord: DocumentRecord = {
   id: 9,
@@ -45,10 +52,19 @@ function mountDrawer() {
 }
 
 describe("DocumentDetailsDrawer", () => {
+  beforeEach(() => {
+    getPreview.mockResolvedValue({ document_id: 9, kind: "unavailable", content_url: null, blocks: [], tables: [], message: "该文件暂不支持在线预览。" });
+  });
+
   it("exposes a modal dialog and closes through the backdrop", async () => {
     const wrapper = mountDrawer();
+    await nextTick();
 
     expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-modal")).toBe("true");
+    expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-labelledby")).toBe("resource-details-title");
+    expect(document.activeElement?.id).toBe("resource-details-title");
+    await Promise.resolve();
+    expect(document.body.textContent).toContain("暂不支持预览");
     await document.querySelector<HTMLButtonElement>(".backdrop")!.click();
 
     expect(wrapper.emitted("close")).toHaveLength(1);
@@ -57,6 +73,7 @@ describe("DocumentDetailsDrawer", () => {
 
   it("closes with Escape without invoking document actions", async () => {
     const wrapper = mountDrawer();
+    await nextTick();
     const drawer = document.querySelector<HTMLElement>(".drawer")!;
 
     await drawer.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.exceptions import ConflictError
 from app.core.database import get_session
 from app.modules.paper_analysis.schema import (
     PaperAnalysisCorrection,
@@ -18,7 +19,12 @@ router = APIRouter(prefix="/paper-analysis", tags=["论文分析"])
 async def create_analysis(
     request: PaperAnalysisCreate, session: AsyncSession = Depends(get_session)
 ):
-    return await PaperAnalysisService(session).create(request.document_id)
+    try:
+        return await PaperAnalysisService(session).create(request.document_id)
+    except ConflictError:
+        # 生成失败本身是需要保留的业务状态；先提交失败记录与论文库活动，再维持 409 契约。
+        await session.commit()
+        raise
 
 
 @router.get("/latest", response_model=PaperAnalysisRead)
@@ -36,7 +42,11 @@ async def get_analysis(id: int, session: AsyncSession = Depends(get_session)):
 
 @router.post("/{id}/regenerate", response_model=PaperAnalysisRead)
 async def regenerate_analysis(id: int, session: AsyncSession = Depends(get_session)):
-    return await PaperAnalysisService(session).regenerate(id)
+    try:
+        return await PaperAnalysisService(session).regenerate(id)
+    except ConflictError:
+        await session.commit()
+        raise
 
 
 @router.patch("/{id}", response_model=PaperAnalysisRead)

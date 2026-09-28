@@ -3,16 +3,22 @@
 from fastapi import APIRouter
 
 from app.agents.router import router as agent_router
+from app.agents.m0_router import router as agent_runtime_router
 from app.modules.advisor_workflow.router import router as advisor_workflow_router
 from app.modules.ai_disclosure.router import router as ai_disclosure_router
 from app.modules.citation_check.router import router as citation_check_router
 from app.modules.comparison.router import router as comparison_router
 from app.modules.conversation.router import router as conversation_router
 from app.modules.document.router import router as document_router
+from app.modules.document_anchor.router import router as document_anchor_router
 from app.modules.document_annotation.router import router as document_annotation_router
+from app.modules.document_layout.router import router as document_layout_router
 from app.modules.document_navigation.router import router as document_navigation_router
 from app.modules.document_ocr.router import router as document_ocr_router
 from app.modules.document_preview.router import router as document_preview_router
+from app.modules.document_reader.router import router as document_reader_router
+from app.modules.document_relocation.router import router as document_relocation_router
+from app.modules.document_selection.router import router as document_selection_router
 from app.modules.document_upload.router import router as document_upload_router
 from app.modules.evaluation.router import router as evaluation_router
 from app.modules.evidence_analysis.router import router as evidence_analysis_router
@@ -23,11 +29,19 @@ from app.modules.feasibility.router import router as feasibility_router
 from app.modules.feedback.router import router as feedback_router
 from app.modules.health.router import router as health_router
 from app.modules.knowledge_source.router import router as knowledge_source_router
+from app.modules.library.router import router as library_router
 from app.modules.library_item.router import (
     router as library_item_router,
 )
 from app.modules.library_item.router import (
     save_router as library_save_router,
+)
+from app.modules.literature_scoring.router import router as literature_scoring_router
+from app.modules.literature_search.history_strategy_router import (
+    router as history_strategy_router,
+)
+from app.modules.literature_search.journal_metric_router import (
+    router as journal_metric_router,
 )
 from app.modules.literature_search.router import (
     duplicate_group_router,
@@ -38,17 +52,26 @@ from app.modules.literature_search.router import (
 from app.modules.literature_search.status_router import (
     router as literature_status_router,
 )
+from app.modules.literature_search.strategy_router import router as strategy_router
+from app.modules.medical_translation.router import router as medical_translation_router
 from app.modules.model_config.router import router as model_config_router
+from app.modules.note_library.router import router as note_library_router
 from app.modules.outline.router import router as outline_router
 from app.modules.paper_analysis.router import router as paper_analysis_router
+from app.modules.paper_library.router import router as paper_library_router
 from app.modules.paper_research.router import router as paper_research_router
 from app.modules.presentation.router import router as presentation_router
+from app.modules.reading_plan.router import router as reading_plan_router
 from app.modules.recommendation.router import router as recommendation_router
+from app.modules.recommendation.v5_router import router as recommendation_v5_router
 from app.modules.research_conditions.router import router as research_conditions_router
 from app.modules.research_context.router import router as research_context_router
 from app.modules.research_direction.router import router as research_direction_router
 from app.modules.task.router import router as task_router
 from app.modules.topic_structuring.router import router as topic_structuring_router
+from app.modules.unified_conversation.router import (
+    router as unified_conversation_router,
+)
 from app.modules.writing.router import router as writing_router
 from app.modules.writing_ai.router import router as writing_ai_router
 from app.modules.writing_coverage.router import router as writing_coverage_router
@@ -58,6 +81,7 @@ from app.modules.writing_review.router import router as writing_review_router
 api_router = APIRouter()
 api_router.include_router(library_save_router)
 api_router.include_router(library_item_router)
+api_router.include_router(library_router)
 api_router.include_router(comparison_router, tags=["comparison"])
 api_router.include_router(evidence_matrix_router, tags=["证据矩阵"])
 api_router.include_router(research_conditions_router)
@@ -67,17 +91,31 @@ api_router.include_router(export_router, tags=["导出"])
 
 api_router.include_router(health_router, tags=["健康检查"])
 api_router.include_router(model_config_router, tags=["模型配置"])
+api_router.include_router(medical_translation_router)
+api_router.include_router(note_library_router)
 api_router.include_router(knowledge_source_router, tags=["知识源"])
 api_router.include_router(document_router, tags=["文档"])
+api_router.include_router(document_anchor_router)
+api_router.include_router(document_layout_router)
 api_router.include_router(document_navigation_router)
 api_router.include_router(document_annotation_router)
+api_router.include_router(document_selection_router)
+api_router.include_router(document_relocation_router)
+api_router.include_router(document_reader_router)
 api_router.include_router(document_ocr_router)
 api_router.include_router(document_preview_router)
 api_router.include_router(document_upload_router)
 api_router.include_router(conversation_router, tags=["会话"])
+api_router.include_router(unified_conversation_router)
 api_router.include_router(paper_analysis_router, tags=["论文分析"])
+api_router.include_router(paper_library_router)
 api_router.include_router(paper_research_router)
+api_router.include_router(strategy_router)
+api_router.include_router(history_strategy_router)
 api_router.include_router(literature_search_router, tags=["文献检索"])
+api_router.include_router(reading_plan_router)
+api_router.include_router(journal_metric_router)
+api_router.include_router(literature_scoring_router)
 api_router.include_router(literature_status_router)
 api_router.include_router(duplicate_group_router, tags=["文献去重"])
 api_router.include_router(research_direction_router, tags=["研究方向"])
@@ -93,9 +131,11 @@ api_router.include_router(writing_review_router)
 api_router.include_router(evidence_writing_router)
 api_router.include_router(ai_disclosure_router)
 api_router.include_router(recommendation_router)
+api_router.include_router(recommendation_v5_router)
 api_router.include_router(writing_router, tags=["写作"])
 api_router.include_router(feedback_router, tags=["反馈"])
 api_router.include_router(evaluation_router, tags=["评测"])
 api_router.include_router(citation_check_router, tags=["引用核验"])
 api_router.include_router(task_router)
 api_router.include_router(agent_router)
+api_router.include_router(agent_runtime_router)

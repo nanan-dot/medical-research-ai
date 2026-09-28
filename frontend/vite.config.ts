@@ -16,5 +16,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     css: true,
+    // Browser acceptance tests are run by Playwright, not imported by Vitest.
+    exclude: ["e2e/**", "dist/**", "node_modules/**"],
   },
 });

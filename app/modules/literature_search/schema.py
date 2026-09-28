@@ -6,7 +6,12 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.library_item.schema import LibraryItemRead
-from app.modules.literature_search.query_model import MAX_RETMX, SearchIntentCandidate
+from app.modules.literature_search.journal_metric_schema import JournalMetricSummary
+from app.modules.literature_search.query_model import (
+    MAX_RETMX,
+    DateRange,
+    SearchIntentCandidate,
+)
 
 
 class LiteratureSearchCreate(BaseModel):
@@ -37,13 +42,23 @@ class LiteratureSearchTaskCreate(BaseModel):
     """
 
     original_query: str = Field(min_length=1, max_length=1000)
+    # 可选关联既有研究上下文，使后续评分意图具备明确归属。
+    research_context_id: int | None = Field(default=None, gt=0)
     structured_query: str = Field(default="", max_length=20000)
     search_string: str = Field(min_length=1, max_length=2000)
     database: SearchDatabase = "pubmed"
     filters: str = Field(default="", max_length=5000)
     model_version: str = Field(min_length=1, max_length=200)
     user_edits: str = Field(default="", max_length=20000)
-    retmax: int = Field(default=20, ge=1, le=MAX_RETMX)
+    # 默认持久化首批 500 篇真实 PubMed 记录，供结果页按 10 篇分页浏览。
+    retmax: int = Field(default=MAX_RETMX, ge=1, le=MAX_RETMX)
+    date_range: DateRange | None = None
+
+
+class LiteratureSearchTaskResearchContextBind(BaseModel):
+    """Attach an unbound search task to the research context created for it."""
+
+    research_context_id: int = Field(gt=0)
 
 
 class LiteratureSearchTaskVersion(BaseModel):
@@ -77,6 +92,7 @@ class LiteratureSearchTaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    research_context_id: int | None = None
     original_query: str
     structured_query: str
     search_string: str
@@ -204,6 +220,12 @@ class ExpandTermsRequest(BaseModel):
 class ExpandTermsResponse(BaseModel):
     term_groups: list[SearchTermGroup]
     mesh_candidates: list[MeshCandidate]
+    # MeSH is an external enrichment step. The status is explicit so callers can
+    # distinguish a true miss from an unavailable NLM service without discarding
+    # the independently generated query terms.
+    mesh_status_by_group: dict[str, Literal["verified", "not_found", "unavailable"]] = (
+        Field(default_factory=dict)
+    )
     warnings: list[str] = Field(default_factory=list)
     user_edits: dict[str, list[str]] = Field(default_factory=dict)
 
@@ -231,7 +253,8 @@ class SearchExecuteRequest(BaseModel):
     """
 
     boolean_query: str = Field(min_length=1, max_length=2000)
-    retmax: int = Field(default=20, ge=1, le=MAX_RETMX)
+    retmax: int = Field(default=MAX_RETMX, ge=1, le=MAX_RETMX)
+    date_range: DateRange | None = None
 
 
 class CitationItem(BaseModel):
@@ -248,17 +271,26 @@ class CitationItem(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     pmid: str = Field(min_length=1, max_length=20)
+    pmcid: str | None = Field(default=None, max_length=32)
     doi: str | None = Field(default=None, max_length=200)
     title: str | None = Field(default=None, max_length=1000)
     authors: list[str] = Field(default_factory=list)
     journal: str | None = Field(default=None, max_length=500)
+    issn: str | None = Field(default=None, max_length=9)
+    eissn: str | None = Field(default=None, max_length=9)
+    issn_l: str | None = Field(default=None, max_length=9)
+    journal_abbreviation: str | None = Field(default=None, max_length=200)
     year: int | None = Field(default=None)
+    volume: str | None = Field(default=None, max_length=100)
+    issue: str | None = Field(default=None, max_length=100)
+    pages: str | None = Field(default=None, max_length=200)
     entry_type: str = Field(default="article", max_length=32)
     verified: bool = False
     verified_by: str | None = Field(default=None, max_length=40)
     verified_on: str | None = Field(default=None, max_length=40)
     has_abstract: bool = False
     publication_types: list[str] = Field(default_factory=list)
+    mesh_terms: list[str] = Field(default_factory=list)
     abstract: str | None = None
     withdrawn: bool = False
 
@@ -281,9 +313,18 @@ class LiteratureSearchResultRead(BaseModel):
 
 # 排序枚举：relevance（PubMed 返回顺序=天然相关性）/ newest（年份降序）/
 # classic（期刊权威性+verified）/ custom（用户自定义序号升序）。
-SearchSort = Literal["relevance", "newest", "classic", "custom"]
+SearchSort = Literal[
+    "recommended",
+    "relevance",
+    "popular",
+    "newest",
+    "article_impact",
+    "classic",
+    "evidence_fit",
+    "custom",
+]
 
-# 已读状态枚举：unread（未读）/ read（已读）。
+# 阅读状态枚举：unread（未读）/ reading（在读）/ read（已读）。
 ReadStatus = Literal["unread", "read"]
 
 
@@ -297,6 +338,8 @@ class ResultQueryParams(BaseModel):
     """
 
     year: int | None = Field(default=None, ge=1900, le=2100)
+    year_from: int | None = Field(default=None, ge=1900, le=2100)
+    year_to: int | None = Field(default=None, ge=1900, le=2100)
     publication_type: str | None = Field(default=None, max_length=100)
     journal: str | None = Field(default=None, max_length=500)
     author: str | None = Field(default=None, max_length=500)
@@ -304,6 +347,11 @@ class ResultQueryParams(BaseModel):
     saved: bool | None = None
     read_status: ReadStatus | None = None
     tags: str | None = Field(default=None, max_length=500)
+    jcr_quartile: str | None = Field(default=None, max_length=10)
+    wos_index: str | None = Field(default=None, max_length=20)
+    cas_quartile: str | None = Field(default=None, max_length=20)
+    impact_factor_min: float | None = Field(default=None, ge=0, le=1000)
+    cited_by_min: int | None = Field(default=None, ge=0)
     sort: SearchSort = "relevance"
     duplicate_mode: Literal["all", "consolidated"] = "all"
     page: int = Field(default=1, ge=1)
@@ -323,6 +371,38 @@ class RankedCitationItem(BaseModel):
     sort_reason: str
     state: "ItemStateRead | None" = None
     library_item: LibraryItemRead | None = None
+    score_summary: "ScoreSummary | None" = None
+    limitations: list[str] = Field(default_factory=list)
+    journal_metric: JournalMetricSummary | None = None
+
+
+class ScoreMetric(BaseModel):
+    score: float | None = None
+    status: str
+    reason: str | None = None
+
+
+class ScoreSummary(BaseModel):
+    generation_id: int
+    algorithm_version: str
+    score_status: str
+    relevance: ScoreMetric
+    evidence_fit: ScoreMetric
+    article_impact: ScoreMetric
+    popularity: ScoreMetric
+    classic: ScoreMetric
+    recency: ScoreMetric
+    priority: ScoreMetric
+    cited_by_count: int | None = None
+    citation_source: Literal["openalex"] | None = None
+    citation_observed_at: datetime | None = None
+
+
+class SortCapability(BaseModel):
+    """Truthful availability of one ordering signal for this result snapshot."""
+
+    available: bool
+    reason: str | None = None
 
 
 class LiteratureSearchResultPage(BaseModel):
@@ -336,16 +416,28 @@ class LiteratureSearchResultPage(BaseModel):
     query: str
     total_count: int
     filtered_total: int
+    # Legacy saved records are treated as reading-plan members on read so an
+    # existing user's collection remains visible while the UI moves to the
+    # unambiguous reading-plan vocabulary.
+    reading_plan_total: int = 0
     page: int
     page_size: int
     sort: SearchSort
+    requested_sort: SearchSort | None = None
+    effective_sort: SearchSort | None = None
+    active_generation_id: int | None = None
+    scoring_status: Literal["not_started", "building", "active", "failed"] = (
+        "not_started"
+    )
     duplicate_mode: Literal["all", "consolidated"] = "all"
     hidden_duplicate_count: int = 0
+    facets: dict[str, dict[str, int]] = Field(default_factory=dict)
+    sort_capabilities: dict[str, SortCapability] = Field(default_factory=dict)
     items: list[RankedCitationItem]
 
 
 class ItemStateUpdate(BaseModel):
-    """单条结果用户态写入（saved / read_status / tags / 自定义排序序号）。
+    """单条结果用户态写入（收藏、阅读、计划、重点、标签和自定义排序）。
 
     四个字段全部可选：调用方只传想更新的字段。saved 为整体布尔标记；
     read_status 只能是 unread/read；tags 整体替换（去重、去空、限长）。
@@ -357,6 +449,8 @@ class ItemStateUpdate(BaseModel):
     read_status: ReadStatus | None = None
     tags: list[str] | None = Field(default=None, max_length=20)
     custom_order_index: int | None = Field(default=None, ge=0, le=100000)
+    in_reading_plan: bool | None = None
+    is_key: bool | None = None
 
 
 class ItemStateRead(BaseModel):
@@ -370,6 +464,26 @@ class ItemStateRead(BaseModel):
     read_status: ReadStatus
     tags: list[str]
     custom_order_index: int | None = None
+    in_reading_plan: bool = False
+    is_key: bool = False
+    read_at: datetime | None = None
+
+
+class BulkItemStateUpdate(BaseModel):
+    """批量更新结果工作流状态；逐条返回成功与失败，便于前端保留可恢复反馈。"""
+
+    pmids: list[str] = Field(min_length=1, max_length=100)
+    state: ItemStateUpdate
+
+
+class BulkItemStateFailure(BaseModel):
+    pmid: str
+    reason: str
+
+
+class BulkItemStateResult(BaseModel):
+    updated: list[str]
+    failed: list[BulkItemStateFailure]
 
 
 # ----------------------------------------------------------------------
@@ -455,6 +569,7 @@ class DuplicateGroupPage(BaseModel):
     offset: int
     limit: int
     items: list[DuplicateGroupRead]
+
 
 class DuplicateResolveRequest(BaseModel):
     """人工决策；keep_record 需要明确选择保留的 result_id 与 PMID。"""

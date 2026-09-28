@@ -46,14 +46,28 @@ function getErrorSummary(source: KnowledgeSource): string {
 </script>
 
 <template>
-  <section v-if="hasNoSources" class="empty-state" aria-labelledby="empty-sources-title">
+  <section
+    v-if="hasNoSources"
+    class="empty-state"
+    aria-labelledby="empty-sources-title"
+  >
     <h3 id="empty-sources-title">当前没有知识来源</h3>
     <p>添加第一个资料文件夹开始管理文档和索引状态。</p>
   </section>
-  <ul v-else class="source-list">
-    <li v-for="source in sources" :key="source.id" class="source-row">
+  <ul
+    v-else
+    class="source-list"
+  >
+    <li
+      v-for="source in sources"
+      :key="source.id"
+      class="source-row"
+    >
       <div class="source-main">
-        <span class="source-icon" aria-hidden="true">▣</span>
+        <span
+          class="source-icon"
+          aria-hidden="true"
+        >▣</span>
         <div>
           <h3>{{ source.name }}</h3>
           <p class="source-path">{{ source.root_path }}</p>
@@ -69,7 +83,10 @@ function getErrorSummary(source: KnowledgeSource): string {
       <div class="source-status">
         <span>上次同步：{{ formatTime(source.last_sync_time) }}</span>
         <strong :class="`status-${source.sync_status}`">● {{ statusLabels[source.sync_status] }}</strong>
-        <em v-if="isProblemSource(source)" role="alert">{{ getErrorSummary(source) }}</em>
+        <em
+          v-if="isProblemSource(source)"
+          role="alert"
+        >{{ getErrorSummary(source) }}</em>
       </div>
       <div class="source-actions">
         <button
@@ -89,7 +106,11 @@ function getErrorSummary(source: KnowledgeSource): string {
           >
           <span aria-hidden="true" />
         </label>
-        <button class="document-link" type="button" @click="emit('viewDocuments', source)">
+        <button
+          class="document-link"
+          type="button"
+          @click="emit('viewDocuments', source)"
+        >
           查看文档 →
         </button>
         <button

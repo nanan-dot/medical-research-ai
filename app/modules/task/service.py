@@ -51,17 +51,47 @@ class TaskService:
 
     async def cancel(self, task_id: int) -> TaskRead:
         task = await self._required(task_id)
-        if task.status not in {TaskStatus.PENDING.value, TaskStatus.QUEUED.value, TaskStatus.RUNNING.value}:
+        if task.task_type == "document_anchor_extraction":
+            from app.modules.document_anchor.task_lifecycle import cancel_anchor_task
+
+            return self._to_read(
+                await cancel_anchor_task(self._repository.session, task)
+            )
+        if task.task_type == "document_layout_segmentation":
+            from app.modules.document_layout.task_lifecycle import cancel_layout_task
+
+            return self._to_read(
+                await cancel_layout_task(self._repository.session, task)
+            )
+        if task.status not in {
+            TaskStatus.PENDING.value,
+            TaskStatus.QUEUED.value,
+            TaskStatus.RUNNING.value,
+        }:
             raise ValueError("Only pending, queued, or running tasks can be cancelled")
         task.status = TaskStatus.CANCELLED.value
+        task.active_idempotency_key = None
         await self._repository.session.flush()
         return self._to_read(task)
 
     async def retry(self, task_id: int) -> TaskRead:
         task = await self._required(task_id)
+        if task.task_type == "document_anchor_extraction":
+            from app.modules.document_anchor.task_lifecycle import retry_anchor_task
+
+            return self._to_read(
+                await retry_anchor_task(self._repository.session, task)
+            )
+        if task.task_type == "document_layout_segmentation":
+            from app.modules.document_layout.task_lifecycle import retry_layout_task
+
+            return self._to_read(
+                await retry_layout_task(self._repository.session, task)
+            )
         if task.status != TaskStatus.FAILED.value:
             raise ValueError("Only failed tasks can be retried")
         task.status = TaskStatus.QUEUED.value
+        task.active_idempotency_key = task.idempotency_key
         task.progress = 0
         task.error_code = None
         task.error_message = None
@@ -87,6 +117,11 @@ class TaskService:
             title=task.title,
             status=TaskStatus(task.status),
             progress=task.progress,
+            phase=task.phase,
+            completed_units=task.completed_units,
+            total_units=task.total_units,
+            current_item=task.current_item,
+            progress_updated_at=task.progress_updated_at,
             source_type=task.source_type,
             source_id=task.source_id,
             detail=detail,
@@ -98,6 +133,8 @@ class TaskService:
             finished_at=task.finished_at,
             resource_type=task.source_type,
             resource_id=task.source_id,
-            operation=detail.get("operation") if isinstance(detail.get("operation"), str) else None,
-            stage=detail.get("stage") if isinstance(detail.get("stage"), str) else None,
+            operation=detail.get("operation")
+            if isinstance(detail.get("operation"), str)
+            else None,
+            stage=task.phase,
         )

@@ -28,8 +28,8 @@ describe("DocumentInspector", () => {
       global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
     });
 
-    expect(wrapper.text()).toContain("文档详情");
+    expect(wrapper.text()).toContain("资料详情");
     expect(wrapper.text()).toContain("临床试验");
-    expect(wrapper.text()).toContain("3 篇");
+    expect(wrapper.text()).toContain("3 份");
   });
 });
